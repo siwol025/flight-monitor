@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -24,4 +25,10 @@ public class Airport {
 
     @Column(nullable = false)
     private String airportName;
+
+    @Builder
+    public Airport(String airportCode, String airportName) {
+        this.airportCode = airportCode;
+        this.airportName = airportName;
+    }
 }
