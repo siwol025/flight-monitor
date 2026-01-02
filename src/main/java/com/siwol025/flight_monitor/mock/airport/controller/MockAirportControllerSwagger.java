@@ -48,7 +48,7 @@ public interface MockAirportControllerSwagger {
             summary = "공항 데이터 삭제",
             responses = {
                     @ApiResponse(
-                            responseCode = "200",
+                            responseCode = "204",
                             description = "삭제 성공"
                     )
             }
