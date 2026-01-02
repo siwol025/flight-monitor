@@ -5,7 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 
 @Builder
-@Schema(description = "가상의 외부 공항 API 응답 DTO")
+@Schema(description = "가상의 외부 항공편시스템의 공항 데이터 API 응답 DTO")
 public record MockAirportResponse (
         @Schema(description = "공항 코드", example = "ICN")
         String code,
