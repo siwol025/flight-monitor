@@ -12,18 +12,28 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class MockAirportService {
     private final MockAirportRepository mockAirportRepository;
 
-    @Transactional(readOnly = true)
     public List<MockAirportResponse> getAirports() {
         return mockAirportRepository.findAll().stream()
                 .map(MockAirportResponse::of)
                 .collect(Collectors.toList());
     }
 
+    @Transactional
     public Long createAirport(MockAirportRequest request) {
         Airport savedAirport = mockAirportRepository.save(request.toAirport());
         return savedAirport.getId();
+    }
+
+    @Transactional
+    public MockAirportResponse updateAirport(MockAirportRequest request) {
+        Airport airport = mockAirportRepository.findByAirportCode(request.code())
+                .orElseThrow(() -> new IllegalArgumentException("해당 공항데이터를 찾을 수 없습니다."));
+
+        airport.updateName(request.name());
+        return MockAirportResponse.of(airport);
     }
 }

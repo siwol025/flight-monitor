@@ -11,14 +11,16 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/external/airports")
+@RequestMapping("/external/api/airports")
 public class MockAirportController implements MockAirportControllerSwagger{
     private final MockAirportService mockAirportService;
 
@@ -31,5 +33,10 @@ public class MockAirportController implements MockAirportControllerSwagger{
     public ResponseEntity<Long> addAirport(@Valid @RequestBody MockAirportRequest request) {
         Long airportId = mockAirportService.createAirport(request);
         return ResponseEntity.ok(airportId);
+    }
+
+    @PutMapping
+    public ResponseEntity<MockAirportResponse> editAirport(@Valid @RequestBody MockAirportRequest request) {
+        return ResponseEntity.ok(mockAirportService.updateAirport(request));
     }
 }

@@ -31,4 +31,8 @@ public class Airport {
         this.airportCode = airportCode;
         this.airportName = airportName;
     }
+
+    public void updateName(String name) {
+        this.airportName = name;
+    }
 }
