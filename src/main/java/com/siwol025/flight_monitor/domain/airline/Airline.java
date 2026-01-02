@@ -20,11 +20,15 @@ public class Airline {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false, unique = true, length = 10)
+    private String airlineCode;
+
     @Column(nullable = false)
     private String airlineName;
 
     @Builder
-    public Airline(String airlineName) {
+    public Airline(String airlineCode, String airlineName) {
+        this.airlineCode = airlineCode;
         this.airlineName = airlineName;
     }
 }

@@ -22,5 +22,14 @@ public interface MockAirlineControllerSwagger {
     )
     ResponseEntity<List<MockAirlineResponse>> getAirlines();
 
+    @Operation(
+            summary = "신규 항공사 등록",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "등록 성공"
+                    )
+            }
+    )
     ResponseEntity<Long> addAirline(MockAirlineRequest mockAirlineRequest);
 }
