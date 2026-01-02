@@ -45,4 +45,15 @@ public interface MockAirportControllerSwagger {
             }
     )
     ResponseEntity<MockAirportResponse> editAirport(MockAirportRequest request);
+
+    @Operation(
+            summary = "공항 데이터 삭제",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "삭제 성공"
+                    )
+            }
+    )
+    ResponseEntity<Void> deleteAirport(String airportCode);
 }
