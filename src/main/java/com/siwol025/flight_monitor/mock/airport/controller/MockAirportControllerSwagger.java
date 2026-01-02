@@ -3,8 +3,6 @@ package com.siwol025.flight_monitor.mock.airport.controller;
 import com.siwol025.flight_monitor.mock.airport.dto.request.MockAirportRequest;
 import com.siwol025.flight_monitor.mock.airport.dto.response.MockAirportResponse;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
