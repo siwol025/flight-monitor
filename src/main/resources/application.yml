@@ -1,3 +1,6 @@
 spring:
   application:
     name: flight-monitor
+
+  profiles:
+    active: dev
