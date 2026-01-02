@@ -4,7 +4,7 @@ import com.siwol025.flight_monitor.domain.airport.Airport;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotEmpty;
 
-@Schema(description = "외부 공항 등록 요청 DTO", name = "MockAirportRequest")
+@Schema(description = "가상의 외부 공항 API 요청 DTO", name = "MockAirportRequest")
 public record MockAirportRequest(
         @NotEmpty(message = "공항 코드는 빈 값일 수 없습니다.")
         @Schema(description = "공항 코드", example = "ICN")

@@ -34,4 +34,15 @@ public interface MockAirportControllerSwagger {
             }
     )
     ResponseEntity<Long> addAirport(MockAirportRequest request);
+
+    @Operation(
+            summary = "공항 이름 변경",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "변경 성공"
+                    )
+            }
+    )
+    ResponseEntity<MockAirportResponse> editAirport(MockAirportRequest request);
 }
