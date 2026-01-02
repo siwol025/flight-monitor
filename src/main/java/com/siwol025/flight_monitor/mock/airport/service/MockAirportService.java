@@ -1,6 +1,7 @@
 package com.siwol025.flight_monitor.mock.airport.service;
 
 import com.siwol025.flight_monitor.domain.airport.Airport;
+import com.siwol025.flight_monitor.mock.airport.dto.request.MockAirportRequest;
 import com.siwol025.flight_monitor.mock.airport.dto.response.MockAirportResponse;
 import com.siwol025.flight_monitor.mock.airport.repository.MockAirportRepository;
 import java.util.List;
@@ -19,5 +20,10 @@ public class MockAirportService {
         return mockAirportRepository.findAll().stream()
                 .map(MockAirportResponse::of)
                 .collect(Collectors.toList());
+    }
+
+    public Long createAirport(MockAirportRequest request) {
+        Airport savedAirport = mockAirportRepository.save(request.toAirport());
+        return savedAirport.getId();
     }
 }
