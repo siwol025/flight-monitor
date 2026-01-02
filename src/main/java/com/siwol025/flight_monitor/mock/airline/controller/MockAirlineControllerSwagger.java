@@ -31,5 +31,16 @@ public interface MockAirlineControllerSwagger {
                     )
             }
     )
-    ResponseEntity<Long> addAirline(MockAirlineRequest mockAirlineRequest);
+    ResponseEntity<Long> addAirline(MockAirlineRequest request);
+
+    @Operation(
+            summary = "항공사 정보 삭제",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "204",
+                            description = "삭제 성공"
+                    )
+            }
+    )
+    ResponseEntity<Void> deleteAirline(String airlineCode);
 }

@@ -15,6 +15,7 @@ public record MockAirlineResponse(
 ) {
     public static MockAirlineResponse of(Airline airline) {
         return MockAirlineResponse.builder()
+                .code(airline.getAirlineCode())
                 .name(airline.getAirlineName())
                 .build();
     }

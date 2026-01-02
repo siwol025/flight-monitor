@@ -26,4 +26,12 @@ public class MockAirlineService {
         Airline savedAirline = mockAirlineRepository.save(request.toAirline());
         return savedAirline.getId();
     }
+
+    @Transactional
+    public void deleteAirline(String code) {
+        Airline airline = mockAirlineRepository.findByAirlineCode(code)
+                .orElseThrow(() -> new IllegalArgumentException("해당 항공사 데이터를 찾을 수 없습니다."));
+
+        mockAirlineRepository.delete(airline);
+    }
 }
