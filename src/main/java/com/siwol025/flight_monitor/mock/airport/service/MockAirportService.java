@@ -19,7 +19,7 @@ public class MockAirportService {
     public List<MockAirportResponse> getAirports() {
         return mockAirportRepository.findAll().stream()
                 .map(MockAirportResponse::of)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Transactional
