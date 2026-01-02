@@ -14,6 +14,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -34,13 +35,24 @@ public class Flight {
     private Airline airline;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "origin_airport_id")
-    private Airport originAirport;
+    @JoinColumn(name = "departure_airport_id")
+    private Airport departureAirport;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "dest_airport_id")
-    private Airport destAirport;
+    @JoinColumn(name = "arrival_airport_id")
+    private Airport arrivalAirport;
 
     private LocalDateTime departureTime;
     private LocalDateTime arrivalTime;
+
+    @Builder
+    public Flight(String flightNumber, Airline airline, Airport departureAirport, Airport arrivalAirport,
+                  LocalDateTime departureTime, LocalDateTime arrivalTime) {
+        this.flightNumber = flightNumber;
+        this.airline = airline;
+        this.departureAirport = departureAirport;
+        this.arrivalAirport = arrivalAirport;
+        this.departureTime = departureTime;
+        this.arrivalTime = arrivalTime;
+    }
 }
