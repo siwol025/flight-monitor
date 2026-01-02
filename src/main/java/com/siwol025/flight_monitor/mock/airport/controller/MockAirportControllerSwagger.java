@@ -10,7 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
 
-@Tag(name = "External Mock Airport API", description = "가상의 외부 공항 데이터 API")
+@Tag(name = "External Mock Airport API", description = "가상의 외부 항공편시스템 공항 데이터 API")
 public interface MockAirportControllerSwagger {
 
     @Operation(
