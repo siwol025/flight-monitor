@@ -1,5 +1,6 @@
 package com.siwol025.flight_monitor.mock.airline.controller;
 
+import com.siwol025.flight_monitor.mock.airline.dto.request.MockAirlineRequest;
 import com.siwol025.flight_monitor.mock.airline.dto.response.MockAirlineResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -20,4 +21,6 @@ public interface MockAirlineControllerSwagger {
             }
     )
     ResponseEntity<List<MockAirlineResponse>> getAirlines();
+
+    ResponseEntity<Long> addAirline(MockAirlineRequest mockAirlineRequest);
 }
