@@ -13,6 +13,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -33,5 +34,21 @@ public class FlightSeatPrice {
     @Column(name = "grade_name", nullable = false)
     private SeatGrade seatGrade;
 
+    @Column(nullable = false, precision = 12)
     private BigDecimal price;
+
+    @Builder
+    public FlightSeatPrice(Flight flight, SeatGrade seatGrade, BigDecimal price) {
+        this.flight = flight;
+        this.seatGrade = seatGrade;
+        this.price = price;
+    }
+
+    public void assignFlight(Flight flight) {
+        this.flight = flight;
+    }
+
+    public void updatePrice(BigDecimal price) {
+        this.price = price;
+    }
 }

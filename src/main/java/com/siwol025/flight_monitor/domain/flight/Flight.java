@@ -15,6 +15,8 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -44,8 +46,8 @@ public class Flight {
     @JoinColumn(name = "arrival_airport_id")
     private Airport arrivalAirport;
 
-//    @OneToMany(mappedBy = "flight", cascade = CascadeType.ALL, orphanRemoval = true)
-//    private FlightSeatPrice flightSeatPrice;
+    @OneToMany(mappedBy = "flight", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<FlightSeatPrice> flightSeatPrices = new ArrayList<>();
 
     private LocalDateTime departureTime;
     private LocalDateTime arrivalTime;
@@ -65,5 +67,10 @@ public class Flight {
         this.flightNumber = flightNumber;
         this.departureTime = departureTime;
         this.arrivalTime = arrivalTime;
+    }
+
+    public void addFlightSeatPrice(FlightSeatPrice flightSeatPrice) {
+        this.flightSeatPrices.add(flightSeatPrice);
+        flightSeatPrice.assignFlight(this);
     }
 }
