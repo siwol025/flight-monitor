@@ -6,7 +6,12 @@ import com.siwol025.flight_monitor.domain.flight.Flight;
 import com.siwol025.flight_monitor.mock.airline.repository.MockAirlineRepository;
 import com.siwol025.flight_monitor.mock.airport.repository.MockAirportRepository;
 import com.siwol025.flight_monitor.mock.flight.dto.request.MockFlightRequest;
+import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightResponse;
 import com.siwol025.flight_monitor.mock.flight.repository.MockFlightRepository;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +32,16 @@ public class MockFlightService {
 
         Flight saved = mockFlightRepository.save(request.toFlight(airline, departureAirport, arrivalAirport));
         return saved.getId();
+    }
+
+    public List<MockFlightResponse> searchFlights(String departureAirportCode, String arrivalAirportCode, LocalDate departureDate) {
+        LocalDateTime startOfDay = departureDate.atStartOfDay();
+        LocalDateTime endOfDay = departureDate.atTime(LocalTime.MAX);
+
+        return mockFlightRepository.findFlightsWithDetails(departureAirportCode, arrivalAirportCode, startOfDay, endOfDay)
+                .stream()
+                .map(MockFlightResponse::of)
+                .toList();
     }
 
     public Airline readAirline(String code) {
