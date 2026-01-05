@@ -3,6 +3,7 @@ package com.siwol025.flight_monitor.domain.flight;
 import com.siwol025.flight_monitor.domain.airline.Airline;
 import com.siwol025.flight_monitor.domain.airport.Airport;
 import jakarta.persistence.Access;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -11,6 +12,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
@@ -41,6 +43,9 @@ public class Flight {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "arrival_airport_id")
     private Airport arrivalAirport;
+
+//    @OneToMany(mappedBy = "flight", cascade = CascadeType.ALL, orphanRemoval = true)
+//    private FlightSeatPrice flightSeatPrice;
 
     private LocalDateTime departureTime;
     private LocalDateTime arrivalTime;
