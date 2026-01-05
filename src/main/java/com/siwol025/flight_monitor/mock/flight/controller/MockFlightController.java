@@ -32,4 +32,9 @@ public class MockFlightController implements MockFlightControllerSwagger{
                                                                   @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate departureDate) {
         return ResponseEntity.ok(mockFlightService.searchFlights(departureAirportCode, arrivalAirportCode, departureDate));
     }
+
+    @GetMapping
+    public ResponseEntity<List<MockFlightResponse>> getFlights() {
+        return ResponseEntity.ok(mockFlightService.readFlights());
+    }
 }

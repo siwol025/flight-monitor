@@ -44,4 +44,15 @@ public interface MockFlightControllerSwagger {
 
                                                            @Parameter(description = "출발 날짜 (yyyy-MM-dd)", example = "2026-05-10")
                                                            LocalDate departureDate);
+
+    @Operation(
+            summary = "항공권 리스트 검색",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "조회 성공"
+                    )
+            }
+    )
+    ResponseEntity<List<MockFlightResponse>> getFlights();
 }

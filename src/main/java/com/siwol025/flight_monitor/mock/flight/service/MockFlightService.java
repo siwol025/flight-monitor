@@ -44,6 +44,13 @@ public class MockFlightService {
                 .toList();
     }
 
+    public List<MockFlightResponse> readFlights() {
+        return mockFlightRepository.findAll()
+                .stream()
+                .map(MockFlightResponse::of)
+                .toList();
+    }
+
     public Airline readAirline(String code) {
         return mockAirlineRepository.findByAirlineCode(code)
                 .orElseThrow(() -> new IllegalArgumentException("해당 항공사를 찾을 수 없습니다."));
