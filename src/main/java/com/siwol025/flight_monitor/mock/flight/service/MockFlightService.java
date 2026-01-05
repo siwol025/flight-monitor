@@ -45,6 +45,14 @@ public class MockFlightService {
         flight.updateFlightInfo(request.flightNumber(), request.departureTime(), request.arrivalTime());
     }
 
+    @Transactional
+    public void deleteFlight(Long id) {
+        Flight flight = mockFlightRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("해당 항공편을 찾을 수 없습니다."));
+
+        mockFlightRepository.delete(flight);
+    }
+
     public List<MockFlightResponse> searchFlights(String departureAirportCode, String arrivalAirportCode, LocalDate departureDate) {
         LocalDateTime startOfDay = departureDate.atStartOfDay();
         LocalDateTime endOfDay = departureDate.atTime(LocalTime.MAX);
