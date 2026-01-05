@@ -26,6 +26,7 @@ public class MockFlightService {
 
     @Transactional
     public Long createFlight(MockFlightRequest request) {
+        validateFlight(request);
         Airline airline = readAirline(request.airlineCode());
         Airport departureAirport = readAirport(request.departureAirportCode());
         Airport arrivalAirport = readAirport(request.arrivalAirportCode());
@@ -49,6 +50,30 @@ public class MockFlightService {
                 .stream()
                 .map(MockFlightResponse::of)
                 .toList();
+    }
+
+    public MockFlightResponse readFlight(Long flightId) {
+        Flight flight = mockFlightRepository.findById(flightId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 항공편을 찾을 수 없습니다."));
+
+        return MockFlightResponse.of(flight);
+    }
+
+    public void validateFlight(MockFlightRequest request) {
+        if (isDuplicateFlight(request)) {
+            throw new IllegalArgumentException(
+                    String.format("이미 해당 날짜(%s)에 등록된 항공편(%s)이 존재합니다.",
+                            request.departureTime(), request.flightNumber())
+            );
+        }
+    }
+
+    public boolean isDuplicateFlight(MockFlightRequest request) {
+        LocalDate requestDate = request.departureTime().toLocalDate();
+        LocalDateTime startOfDay = requestDate.atStartOfDay();
+        LocalDateTime endOfDay = requestDate.atTime(LocalTime.MAX);
+
+        return mockFlightRepository.existsByFlightNumberAndDepartureTimeBetween(request.flightNumber(), startOfDay, endOfDay);
     }
 
     public Airline readAirline(String code) {
