@@ -60,4 +60,10 @@ public class Flight {
         this.departureTime = departureTime;
         this.arrivalTime = arrivalTime;
     }
+
+    public void updateFlightInfo(String flightNumber, LocalDateTime departureTime, LocalDateTime arrivalTime) {
+        this.flightNumber = flightNumber;
+        this.departureTime = departureTime;
+        this.arrivalTime = arrivalTime;
+    }
 }

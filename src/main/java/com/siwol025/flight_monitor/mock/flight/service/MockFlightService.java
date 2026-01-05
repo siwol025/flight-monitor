@@ -6,6 +6,7 @@ import com.siwol025.flight_monitor.domain.flight.Flight;
 import com.siwol025.flight_monitor.mock.airline.repository.MockAirlineRepository;
 import com.siwol025.flight_monitor.mock.airport.repository.MockAirportRepository;
 import com.siwol025.flight_monitor.mock.flight.dto.request.MockFlightRequest;
+import com.siwol025.flight_monitor.mock.flight.dto.request.MockFlightUpdateRequest;
 import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightResponse;
 import com.siwol025.flight_monitor.mock.flight.repository.MockFlightRepository;
 import java.time.LocalDate;
@@ -26,13 +27,22 @@ public class MockFlightService {
 
     @Transactional
     public Long createFlight(MockFlightRequest request) {
-        validateFlight(request);
+        validateFlight(request.flightNumber(), request.departureTime());
         Airline airline = readAirline(request.airlineCode());
         Airport departureAirport = readAirport(request.departureAirportCode());
         Airport arrivalAirport = readAirport(request.arrivalAirportCode());
 
         Flight saved = mockFlightRepository.save(request.toFlight(airline, departureAirport, arrivalAirport));
         return saved.getId();
+    }
+
+    @Transactional
+    public void updateFlight(Long id, MockFlightUpdateRequest request) {
+        validateFlight(request.flightNumber(), request.departureTime());
+        Flight flight = mockFlightRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("해당 항공편을 찾을 수 없습니다."));
+
+        flight.updateFlightInfo(request.flightNumber(), request.departureTime(), request.arrivalTime());
     }
 
     public List<MockFlightResponse> searchFlights(String departureAirportCode, String arrivalAirportCode, LocalDate departureDate) {
@@ -59,21 +69,21 @@ public class MockFlightService {
         return MockFlightResponse.of(flight);
     }
 
-    public void validateFlight(MockFlightRequest request) {
-        if (isDuplicateFlight(request)) {
+    public void validateFlight(String flightNumber, LocalDateTime departureTime) {
+        if (isDuplicateFlight(flightNumber, departureTime)) {
             throw new IllegalArgumentException(
                     String.format("이미 해당 날짜(%s)에 등록된 항공편(%s)이 존재합니다.",
-                            request.departureTime(), request.flightNumber())
+                            departureTime, flightNumber)
             );
         }
     }
 
-    public boolean isDuplicateFlight(MockFlightRequest request) {
-        LocalDate requestDate = request.departureTime().toLocalDate();
+    public boolean isDuplicateFlight(String flightNumber, LocalDateTime departureTime) {
+        LocalDate requestDate = departureTime.toLocalDate();
         LocalDateTime startOfDay = requestDate.atStartOfDay();
         LocalDateTime endOfDay = requestDate.atTime(LocalTime.MAX);
 
-        return mockFlightRepository.existsByFlightNumberAndDepartureTimeBetween(request.flightNumber(), startOfDay, endOfDay);
+        return mockFlightRepository.existsByFlightNumberAndDepartureTimeBetween(flightNumber, startOfDay, endOfDay);
     }
 
     public Airline readAirline(String code) {
