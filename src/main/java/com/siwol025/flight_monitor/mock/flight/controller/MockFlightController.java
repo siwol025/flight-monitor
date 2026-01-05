@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -36,5 +37,10 @@ public class MockFlightController implements MockFlightControllerSwagger{
     @GetMapping
     public ResponseEntity<List<MockFlightResponse>> getFlights() {
         return ResponseEntity.ok(mockFlightService.readFlights());
+    }
+
+    @GetMapping("/{flightId}")
+    public ResponseEntity<MockFlightResponse> getFlight(@PathVariable Long flightId) {
+        return ResponseEntity.ok(mockFlightService.readFlight(flightId));
     }
 }

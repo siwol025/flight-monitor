@@ -24,4 +24,10 @@ public interface MockFlightRepository extends JpaRepository<Flight, Long> {
             LocalDateTime startOfDay,
             LocalDateTime endOfDay
     );
+
+    boolean existsByFlightNumberAndDepartureTimeBetween(
+            String flightNumber,
+            LocalDateTime start,
+            LocalDateTime end
+    );
 }

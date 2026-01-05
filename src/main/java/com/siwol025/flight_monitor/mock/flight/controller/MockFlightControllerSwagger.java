@@ -27,8 +27,8 @@ public interface MockFlightControllerSwagger {
     ResponseEntity<Long> addFlight(MockFlightRequest request);
 
     @Operation(
-            summary = "항공권 조건 검색",
-            description = "출발/도착 공항 코드와 출발 날짜로 항공권을 조회합니다.",
+            summary = "항공 조건 검색",
+            description = "출발/도착 공항 코드와 출발 날짜로 항공편을 조회합니다.",
             responses = {
                     @ApiResponse(
                             responseCode = "200",
@@ -46,7 +46,7 @@ public interface MockFlightControllerSwagger {
                                                            LocalDate departureDate);
 
     @Operation(
-            summary = "항공권 리스트 검색",
+            summary = "항공편 리스트 검색",
             responses = {
                     @ApiResponse(
                             responseCode = "200",
@@ -55,4 +55,16 @@ public interface MockFlightControllerSwagger {
             }
     )
     ResponseEntity<List<MockFlightResponse>> getFlights();
+
+    @Operation(
+            summary = "항공편 상세 조회",
+            description = "특정 항공편 하나를 ID로 상세 조회하는 API",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "조회 성공"
+                    )
+            }
+    )
+    ResponseEntity<MockFlightResponse> getFlight(Long flightId);
 }
