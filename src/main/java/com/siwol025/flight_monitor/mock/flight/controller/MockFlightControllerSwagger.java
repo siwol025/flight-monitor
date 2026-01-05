@@ -74,10 +74,21 @@ public interface MockFlightControllerSwagger {
             description = "항공편의 편명, 출발 시간, 도착 시간을 수정하는 API",
             responses = {
                     @ApiResponse(
-                            responseCode = "200",
+                            responseCode = "204",
                             description = "수정 성공"
                     )
             }
     )
-    ResponseEntity<MockFlightResponse> editFlight(Long flightId, MockFlightUpdateRequest request);
+    ResponseEntity<Void> editFlight(Long flightId, MockFlightUpdateRequest request);
+
+    @Operation(
+            summary = "항공편 삭제",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "204",
+                            description = "삭제 성공"
+                    )
+            }
+    )
+    ResponseEntity<Void> deleteFlight(Long flightId);
 }

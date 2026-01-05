@@ -10,6 +10,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -49,8 +50,14 @@ public class MockFlightController implements MockFlightControllerSwagger{
     }
 
     @PutMapping("/{flightId}")
-    public ResponseEntity<MockFlightResponse> editFlight(@PathVariable Long flightId, @Valid @RequestBody MockFlightUpdateRequest request) {
+    public ResponseEntity<Void> editFlight(@PathVariable Long flightId, @Valid @RequestBody MockFlightUpdateRequest request) {
         mockFlightService.updateFlight(flightId, request);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{flightId}")
+    public ResponseEntity<Void> deleteFlight(@PathVariable Long flightId) {
+        mockFlightService.deleteFlight(flightId);
         return ResponseEntity.noContent().build();
     }
 }
