@@ -1,8 +1,10 @@
 package com.siwol025.flight_monitor.mock.flight.controller;
 
 import com.siwol025.flight_monitor.mock.flight.dto.request.MockFlightRequest;
+import com.siwol025.flight_monitor.mock.flight.dto.request.MockFlightUpdateRequest;
 import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightResponse;
 import com.siwol025.flight_monitor.mock.flight.service.MockFlightService;
+import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +13,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -22,7 +26,7 @@ public class MockFlightController implements MockFlightControllerSwagger{
     private final MockFlightService mockFlightService;
 
     @PostMapping
-    public ResponseEntity<Long> addFlight(MockFlightRequest request) {
+    public ResponseEntity<Long> addFlight(@Valid @RequestBody MockFlightRequest request) {
         Long flightId = mockFlightService.createFlight(request);
         return ResponseEntity.ok(flightId);
     }
@@ -42,5 +46,11 @@ public class MockFlightController implements MockFlightControllerSwagger{
     @GetMapping("/{flightId}")
     public ResponseEntity<MockFlightResponse> getFlight(@PathVariable Long flightId) {
         return ResponseEntity.ok(mockFlightService.readFlight(flightId));
+    }
+
+    @PutMapping("/{flightId}")
+    public ResponseEntity<MockFlightResponse> editFlight(@PathVariable Long flightId, @Valid @RequestBody MockFlightUpdateRequest request) {
+        mockFlightService.updateFlight(flightId, request);
+        return ResponseEntity.noContent().build();
     }
 }
