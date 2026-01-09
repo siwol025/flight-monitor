@@ -49,6 +49,9 @@ public class Flight {
     @OneToMany(mappedBy = "flight", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<FlightSeatPrice> flightSeatPrices = new ArrayList<>();
 
+    @OneToMany(mappedBy = "flight", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Seat> seats = new ArrayList<>();
+
     private LocalDateTime departureTime;
     private LocalDateTime arrivalTime;
 
@@ -72,5 +75,10 @@ public class Flight {
     public void addFlightSeatPrice(FlightSeatPrice flightSeatPrice) {
         this.flightSeatPrices.add(flightSeatPrice);
         flightSeatPrice.assignFlight(this);
+    }
+
+    public void addSeat(Seat seat) {
+        this.seats.add(seat);
+        seat.assignFlight(this);
     }
 }

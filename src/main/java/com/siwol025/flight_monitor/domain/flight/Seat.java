@@ -26,7 +26,7 @@ public class Seat {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "flight_id")
+    @JoinColumn(name = "flight_id", nullable = false)
     private Flight flight;
 
     @Enumerated(EnumType.STRING)
@@ -54,5 +54,9 @@ public class Seat {
 
     public void cancelReservation() {
         this.isBooked = false;
+    }
+
+    public void assignFlight(Flight flight) {
+        this.flight = flight;
     }
 }

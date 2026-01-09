@@ -7,11 +7,13 @@ import lombok.Builder;
 
 @Builder
 public record MockFlightSeatPriceResponse(
+        String flightNumber,
         SeatGrade seatGrade,
         BigDecimal price
 ) {
     public static MockFlightSeatPriceResponse of(FlightSeatPrice flightSeatPrice) {
         return MockFlightSeatPriceResponse.builder()
+                .flightNumber(flightSeatPrice.getFlight().getFlightNumber())
                 .seatGrade(flightSeatPrice.getSeatGrade())
                 .price(flightSeatPrice.getPrice())
                 .build();
