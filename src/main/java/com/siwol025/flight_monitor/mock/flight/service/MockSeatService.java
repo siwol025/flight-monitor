@@ -1,0 +1,50 @@
+package com.siwol025.flight_monitor.mock.flight.service;
+
+import com.siwol025.flight_monitor.domain.flight.Flight;
+import com.siwol025.flight_monitor.domain.flight.Seat;
+import com.siwol025.flight_monitor.domain.flight.SeatGrade;
+import com.siwol025.flight_monitor.mock.flight.dto.request.MockSeatBulkRequest;
+import com.siwol025.flight_monitor.mock.flight.repository.MockFlightRepository;
+import com.siwol025.flight_monitor.mock.flight.repository.MockSeatRepository;
+import java.util.ArrayList;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class MockSeatService {
+    private final MockSeatRepository mockSeatRepository;
+    private final MockFlightRepository mockFlightRepository;
+
+    @Transactional
+    public void createBulkSeats(Long flightId, MockSeatBulkRequest request) {
+        Flight flight = mockFlightRepository.findById(flightId)
+                .orElseThrow(() -> new IllegalArgumentException("항공편을 찾을 수 없습니다."));
+
+        List<Seat> seats = new ArrayList<>();
+        char[] symbols = request.seatSymbols().toCharArray();
+
+        for (int i = request.startRow(); i <= request.endRow(); i++) {
+            addSeats(seats, symbols, i, request.seatGrade(), flight);
+        }
+
+        mockSeatRepository.saveAll(seats);
+    }
+
+    private void addSeats(List<Seat> seats, char[] symbols, int row, SeatGrade seatGrade, Flight flight) {
+        for (char symbol : symbols) {
+            String seatNumber = row + String.valueOf(symbol);
+
+            seats.add(Seat.builder()
+                    .seatGrade(seatGrade)
+                    .seatNumber(seatNumber)
+                    .flight(flight)
+                    .isBooked(false)
+                    .build()
+            );
+        }
+    }
+}
