@@ -1,5 +1,6 @@
 package com.siwol025.flight_monitor.mock.flight.controller;
 
+import com.siwol025.flight_monitor.domain.flight.SeatGrade;
 import com.siwol025.flight_monitor.mock.flight.dto.request.MockFlightRequest;
 import com.siwol025.flight_monitor.mock.flight.dto.request.MockFlightUpdateRequest;
 import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightResponse;
@@ -28,8 +29,8 @@ public interface MockFlightControllerSwagger {
     ResponseEntity<Long> addFlight(MockFlightRequest request);
 
     @Operation(
-            summary = "항공 조건 검색",
-            description = "출발/도착 공항 코드와 출발 날짜로 항공편을 조회합니다.",
+            summary = "항공편 조건 검색",
+            description = "출발/도착 공항 코드와 출발 날짜, 좌석 등급으로 항공편을 조회합니다.",
             responses = {
                     @ApiResponse(
                             responseCode = "200",
@@ -44,7 +45,10 @@ public interface MockFlightControllerSwagger {
                                                            String arrivalAirportCode,
 
                                                            @Parameter(description = "출발 날짜 (yyyy-MM-dd)", example = "2026-05-10")
-                                                           LocalDate departureDate);
+                                                           LocalDate departureDate,
+
+                                                           @Parameter(description = "좌석 등급 (예: ECONOMY, BUSINESS, FIRST)", example = "ECONOMY")
+                                                           SeatGrade seatGrade);
 
     @Operation(
             summary = "항공편 리스트 검색",

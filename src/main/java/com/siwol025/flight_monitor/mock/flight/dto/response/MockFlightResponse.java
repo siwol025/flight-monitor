@@ -1,6 +1,7 @@
 package com.siwol025.flight_monitor.mock.flight.dto.response;
 
 import com.siwol025.flight_monitor.domain.flight.Flight;
+import com.siwol025.flight_monitor.domain.flight.SeatGrade;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -30,10 +31,13 @@ public record MockFlightResponse(
         @Schema(description = "도착 예상 시간", example = "2026-05-10T12:30:00", type = "string")
         LocalDateTime arrivalTime,
 
+        @Schema(description = "예약 가능 좌석 존재 여부")
+        boolean isSeatAvailable,
+
         @Schema(description = "좌석 등급별 가격")
         List<MockFlightSeatPriceResponse> seatPrices
 ) {
-    public static MockFlightResponse of(Flight flight) {
+    public static MockFlightResponse from(Flight flight) {
         return MockFlightResponse.builder()
                 .id(flight.getId())
                 .flightNumber(flight.getFlightNumber())
@@ -42,6 +46,25 @@ public record MockFlightResponse(
                 .arrivalAirportCode(flight.getArrivalAirport().getAirportCode())
                 .departureTime(flight.getDepartureTime())
                 .arrivalTime(flight.getArrivalTime())
+                .isSeatAvailable(flight.getSeats().stream()
+                        .anyMatch(s -> !s.isBooked()))
+                .seatPrices(flight.getFlightSeatPrices().stream()
+                        .map(MockFlightSeatPriceResponse::of)
+                        .toList())
+                .build();
+    }
+
+    public static MockFlightResponse of(Flight flight, SeatGrade targetGrade) {
+        return MockFlightResponse.builder()
+                .id(flight.getId())
+                .flightNumber(flight.getFlightNumber())
+                .airlineCode(flight.getAirline().getAirlineCode())
+                .departureAirportCode(flight.getDepartureAirport().getAirportCode())
+                .arrivalAirportCode(flight.getArrivalAirport().getAirportCode())
+                .departureTime(flight.getDepartureTime())
+                .arrivalTime(flight.getArrivalTime())
+                .isSeatAvailable(flight.getSeats().stream()
+                        .anyMatch(seat -> seat.getSeatGrade() == targetGrade && !seat.isBooked()))
                 .seatPrices(flight.getFlightSeatPrices().stream()
                         .map(MockFlightSeatPriceResponse::of)
                         .toList())
