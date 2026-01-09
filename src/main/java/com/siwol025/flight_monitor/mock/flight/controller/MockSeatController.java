@@ -1,9 +1,12 @@
 package com.siwol025.flight_monitor.mock.flight.controller;
 
 import com.siwol025.flight_monitor.mock.flight.dto.request.MockSeatBulkRequest;
+import com.siwol025.flight_monitor.mock.flight.dto.response.MockSeatResponse;
 import com.siwol025.flight_monitor.mock.flight.service.MockSeatService;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -19,6 +22,11 @@ public class MockSeatController implements MockSeatControllerSwagger{
     @PostMapping("/{flightId}")
     public ResponseEntity<Void> createBulkSeats(@PathVariable Long flightId, @RequestBody MockSeatBulkRequest request) {
         mockSeatService.createBulkSeats(flightId, request);
-        return ResponseEntity.noContent().build(); 
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping
+    public ResponseEntity<List<MockSeatResponse>> getSeats() {
+        return ResponseEntity.ok(mockSeatService.readSeats());
     }
 }
