@@ -9,6 +9,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -41,5 +42,11 @@ public class MockSeatController implements MockSeatControllerSwagger{
     @GetMapping("/{flightId}/filter")
     public ResponseEntity<List<MockSeatResponse>> getSeatsByFlightAndSeatGrade(@PathVariable Long flightId, @RequestParam SeatGrade seatGrade) {
         return ResponseEntity.ok(mockSeatService.readSeatsByFlightAndSeatGrade(flightId, seatGrade));
+    }
+
+    @PatchMapping("/{seatId}/reserve")
+    public ResponseEntity<Void> reserveSeat(@PathVariable Long seatId) {
+        mockSeatService.reserveSeat(seatId);
+        return ResponseEntity.noContent().build();
     }
 }
