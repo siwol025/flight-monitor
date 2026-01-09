@@ -4,6 +4,7 @@ import com.siwol025.flight_monitor.domain.flight.Flight;
 import com.siwol025.flight_monitor.domain.flight.Seat;
 import com.siwol025.flight_monitor.domain.flight.SeatGrade;
 import com.siwol025.flight_monitor.mock.flight.dto.request.MockSeatBulkRequest;
+import com.siwol025.flight_monitor.mock.flight.dto.response.MockSeatResponse;
 import com.siwol025.flight_monitor.mock.flight.repository.MockFlightRepository;
 import com.siwol025.flight_monitor.mock.flight.repository.MockSeatRepository;
 import java.util.ArrayList;
@@ -32,6 +33,14 @@ public class MockSeatService {
         }
 
         mockSeatRepository.saveAll(seats);
+    }
+
+    public List<MockSeatResponse> readSeats() {
+        List<Seat> seats = mockSeatRepository.findAll();
+
+        return seats.stream()
+                .map(MockSeatResponse::of)
+                .toList();
     }
 
     private void addSeats(List<Seat> seats, char[] symbols, int row, SeatGrade seatGrade, Flight flight) {
