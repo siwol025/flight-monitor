@@ -10,13 +10,13 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface MockSeatRepository extends JpaRepository<Seat, Long> {
-    @Query("SELECT s FROM Seat s "
+    @Query("SELECT distinct s FROM Seat s "
             + "JOIN FETCH s.flight "
             + "WHERE s.flight.id = :flightId "
             + "ORDER BY s.seatNumber")
     List<Seat> findSeatsByFlightIdOrderBySeatNumber(Long flightId);
 
-    @Query("SELECT s FROM Seat s "
+    @Query("SELECT distinct s FROM Seat s "
             + "JOIN FETCH s.flight "
             + "WHERE s.flight.id = :flightId "
             + "AND s.seatGrade = :seatGrade "

@@ -35,6 +35,16 @@ public class MockSeatService {
         mockSeatRepository.saveAll(seats);
     }
 
+    @Transactional
+    public void reserveSeat(Long seatId) {
+        Seat seat = mockSeatRepository.findById(seatId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 좌석을 찾을 수 없습니다."));
+
+        validateReserveSeat(seat);
+
+        seat.reserve();
+    }
+
     public List<MockSeatResponse> readSeatsByFlight(Long flightId) {
         List<Seat> seats = mockSeatRepository.findSeatsByFlightIdOrderBySeatNumber(flightId);
 
@@ -70,6 +80,12 @@ public class MockSeatService {
                     .isBooked(false)
                     .build()
             );
+        }
+    }
+
+    private void validateReserveSeat(Seat seat) {
+        if (seat.isBooked()) {
+            throw new IllegalArgumentException("이미 예약된 좌석입니다.");
         }
     }
 }
