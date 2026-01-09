@@ -1,5 +1,6 @@
 package com.siwol025.flight_monitor.mock.flight.controller;
 
+import com.siwol025.flight_monitor.domain.flight.SeatGrade;
 import com.siwol025.flight_monitor.mock.flight.dto.request.MockSeatBulkRequest;
 import com.siwol025.flight_monitor.mock.flight.dto.response.MockSeatResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -47,4 +48,16 @@ public interface MockSeatControllerSwagger {
             }
     )
     public ResponseEntity<List<MockSeatResponse>> getSeatsByFlight(Long flightId);
+
+    @Operation(
+            summary = "항공편 및 등급별 좌석 조회",
+            description = "특정 항공편 내에서 선택한 등급의 좌석만 조회합니다.",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "조회 성공"
+                    )
+            }
+    )
+    public ResponseEntity<List<MockSeatResponse>> getSeatsByFlightAndSeatGrade(Long flightId, SeatGrade seatGrade);
 }
