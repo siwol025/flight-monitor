@@ -36,7 +36,15 @@ public class MockSeatService {
     }
 
     public List<MockSeatResponse> readSeatsByFlight(Long flightId) {
-        List<Seat> seats = mockSeatRepository.findByFlightIdOrderBySeatNumber(flightId);
+        List<Seat> seats = mockSeatRepository.findSeatsByFlightIdOrderBySeatNumber(flightId);
+
+        return seats.stream()
+                .map(MockSeatResponse::of)
+                .toList();
+    }
+
+    public List<MockSeatResponse> readSeatsByFlightAndSeatGrade(Long flightId, SeatGrade seatGrade) {
+        List<Seat> seats = mockSeatRepository.findSeatsByFlightIdAndSeatGrade(flightId, seatGrade);
 
         return seats.stream()
                 .map(MockSeatResponse::of)
