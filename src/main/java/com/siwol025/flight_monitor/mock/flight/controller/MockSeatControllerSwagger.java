@@ -62,7 +62,7 @@ public interface MockSeatControllerSwagger {
     public ResponseEntity<List<MockSeatResponse>> getSeatsByFlightAndSeatGrade(Long flightId, SeatGrade seatGrade);
 
     @Operation(
-            summary = "단일 좌석 예약",
+            summary = "단일 좌석 예약(테스트 용)",
             description = "좌석의 ID를 받아 예약 상태(isBooked)를 true로 변경합니다.",
             responses = {
                     @ApiResponse(
@@ -72,4 +72,16 @@ public interface MockSeatControllerSwagger {
             }
     )
     public ResponseEntity<Void> reserveSeat(Long seatId);
+
+    @Operation(
+            summary = "좌석 예약 취소(테스트 용)",
+            description = "좌석의 ID를 받아 예약 상태(isBooked)를 false로 변경합니다.",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "204",
+                            description = "예약 취소 성공"
+                    )
+            }
+    )
+    public ResponseEntity<Void> cancelSeat(Long seatId);
 }

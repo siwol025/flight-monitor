@@ -45,6 +45,14 @@ public class MockSeatService {
         seat.reserve();
     }
 
+    @Transactional
+    public void cancelSeat(Long seatId) {
+        Seat seat = mockSeatRepository.findById(seatId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 좌석을 찾을 수 없습니다."));
+
+        seat.cancelReservation();
+    }
+
     public List<MockSeatResponse> readSeatsByFlight(Long flightId) {
         List<Seat> seats = mockSeatRepository.findSeatsByFlightIdOrderBySeatNumber(flightId);
 
