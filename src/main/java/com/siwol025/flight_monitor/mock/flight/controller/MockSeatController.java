@@ -49,4 +49,10 @@ public class MockSeatController implements MockSeatControllerSwagger{
         mockSeatService.reserveSeat(seatId);
         return ResponseEntity.noContent().build();
     }
+
+    @PatchMapping("/{seatId}/cancel")
+    public ResponseEntity<Void> cancelSeat(Long seatId) {
+        mockSeatService.cancelSeat(seatId);
+        return ResponseEntity.noContent().build();
+    }
 }
