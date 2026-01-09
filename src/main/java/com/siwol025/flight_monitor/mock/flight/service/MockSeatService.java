@@ -35,6 +35,14 @@ public class MockSeatService {
         mockSeatRepository.saveAll(seats);
     }
 
+    public List<MockSeatResponse> readSeatsByFlight(Long flightId) {
+        List<Seat> seats = mockSeatRepository.findByFlightIdOrderBySeatNumber(flightId);
+
+        return seats.stream()
+                .map(MockSeatResponse::of)
+                .toList();
+    }
+
     public List<MockSeatResponse> readSeats() {
         List<Seat> seats = mockSeatRepository.findAll();
 
