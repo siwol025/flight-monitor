@@ -1,9 +1,12 @@
 package com.siwol025.flight_monitor.mock.flight.controller;
 
 import com.siwol025.flight_monitor.mock.flight.dto.request.MockFlightSeatPriceRequest;
+import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightResponse;
+import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightSeatPriceResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.List;
 import org.springframework.http.ResponseEntity;
 
 @Tag(name = "External Mock Price API", description = "가상의 외부 항공편시스템의 좌석 가격 관리 API")
@@ -19,4 +22,15 @@ public interface MockFlightSeatPriceControllerSwagger {
             }
     )
     ResponseEntity<Void> upsertPrice(MockFlightSeatPriceRequest request);
+
+    @Operation(
+            summary = "좌석 가격 리스트 검색",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "조회 성공"
+                    )
+            }
+    )
+    ResponseEntity<List<MockFlightSeatPriceResponse>> getSeatPrices();
 }
