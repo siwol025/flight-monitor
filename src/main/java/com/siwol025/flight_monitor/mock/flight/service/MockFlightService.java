@@ -64,7 +64,7 @@ public class MockFlightService {
     }
 
     public List<MockFlightResponse> readFlights() {
-        return mockFlightRepository.findAll()
+        return mockFlightRepository.findAllWithPrices()
                 .stream()
                 .map(MockFlightResponse::of)
                 .toList();
