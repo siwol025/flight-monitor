@@ -28,7 +28,10 @@ public record MockFlightResponse(
         LocalDateTime departureTime,
 
         @Schema(description = "도착 예상 시간", example = "2026-05-10T12:30:00", type = "string")
-        LocalDateTime arrivalTime
+        LocalDateTime arrivalTime,
+
+        @Schema(description = "좌석 등급별 가격")
+        List<MockFlightSeatPriceResponse> seatPrices
 ) {
     public static MockFlightResponse of(Flight flight) {
         return MockFlightResponse.builder()
@@ -39,6 +42,9 @@ public record MockFlightResponse(
                 .arrivalAirportCode(flight.getArrivalAirport().getAirportCode())
                 .departureTime(flight.getDepartureTime())
                 .arrivalTime(flight.getArrivalTime())
+                .seatPrices(flight.getFlightSeatPrices().stream()
+                        .map(MockFlightSeatPriceResponse::of)
+                        .toList())
                 .build();
     }
 }

@@ -14,7 +14,7 @@ public interface MockFlightRepository extends JpaRepository<Flight, Long> {
             "JOIN FETCH f.airline " +
             "JOIN FETCH f.departureAirport " +
             "JOIN FETCH f.arrivalAirport " +
-            //"LEFT JOIN FETCH f.seatPrices " +
+            "LEFT JOIN FETCH f.flightSeatPrices " +
             "WHERE f.departureAirport.airportCode = :departureAirportCode " +
             "AND f.arrivalAirport.airportCode = :arrivalAirportCode " +
             "AND f.departureTime BETWEEN :startOfDay AND :endOfDay")
@@ -24,6 +24,13 @@ public interface MockFlightRepository extends JpaRepository<Flight, Long> {
             LocalDateTime startOfDay,
             LocalDateTime endOfDay
     );
+
+    @Query("SELECT DISTINCT f FROM Flight f " +
+            "JOIN FETCH f.airline " +
+            "JOIN FETCH f.departureAirport " +
+            "JOIN FETCH f.arrivalAirport " +
+            "LEFT JOIN FETCH f.flightSeatPrices")
+    List<Flight> findAllWithPrices();
 
     boolean existsByFlightNumberAndDepartureTimeBetween(
             String flightNumber,
