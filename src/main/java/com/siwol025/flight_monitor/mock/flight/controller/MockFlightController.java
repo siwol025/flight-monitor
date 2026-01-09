@@ -1,5 +1,6 @@
 package com.siwol025.flight_monitor.mock.flight.controller;
 
+import com.siwol025.flight_monitor.domain.flight.SeatGrade;
 import com.siwol025.flight_monitor.mock.flight.dto.request.MockFlightRequest;
 import com.siwol025.flight_monitor.mock.flight.dto.request.MockFlightUpdateRequest;
 import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightResponse;
@@ -35,8 +36,9 @@ public class MockFlightController implements MockFlightControllerSwagger{
     @GetMapping("/search")
     public ResponseEntity<List<MockFlightResponse>> searchFlights(@RequestParam String departureAirportCode,
                                                                   @RequestParam String arrivalAirportCode,
-                                                                  @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate departureDate) {
-        return ResponseEntity.ok(mockFlightService.searchFlights(departureAirportCode, arrivalAirportCode, departureDate));
+                                                                  @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate departureDate,
+                                                                  @RequestParam SeatGrade seatGrade) {
+        return ResponseEntity.ok(mockFlightService.searchFlights(departureAirportCode, arrivalAirportCode, departureDate, seatGrade));
     }
 
     @GetMapping

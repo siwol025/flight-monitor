@@ -3,6 +3,7 @@ package com.siwol025.flight_monitor.mock.flight.service;
 import com.siwol025.flight_monitor.domain.airline.Airline;
 import com.siwol025.flight_monitor.domain.airport.Airport;
 import com.siwol025.flight_monitor.domain.flight.Flight;
+import com.siwol025.flight_monitor.domain.flight.SeatGrade;
 import com.siwol025.flight_monitor.mock.airline.repository.MockAirlineRepository;
 import com.siwol025.flight_monitor.mock.airport.repository.MockAirportRepository;
 import com.siwol025.flight_monitor.mock.flight.dto.request.MockFlightRequest;
@@ -53,20 +54,20 @@ public class MockFlightService {
         mockFlightRepository.delete(flight);
     }
 
-    public List<MockFlightResponse> searchFlights(String departureAirportCode, String arrivalAirportCode, LocalDate departureDate) {
+    public List<MockFlightResponse> searchFlights(String departureAirportCode, String arrivalAirportCode, LocalDate departureDate, SeatGrade seatGrade) {
         LocalDateTime startOfDay = departureDate.atStartOfDay();
         LocalDateTime endOfDay = departureDate.atTime(LocalTime.MAX);
 
-        return mockFlightRepository.findFlightsWithDetails(departureAirportCode, arrivalAirportCode, startOfDay, endOfDay)
+        return mockFlightRepository.findFlightsWithDetails(departureAirportCode, arrivalAirportCode, startOfDay, endOfDay, seatGrade)
                 .stream()
-                .map(MockFlightResponse::of)
+                .map(flight -> MockFlightResponse.of(flight, seatGrade))
                 .toList();
     }
 
     public List<MockFlightResponse> readFlights() {
         return mockFlightRepository.findAllWithPrices()
                 .stream()
-                .map(MockFlightResponse::of)
+                .map(MockFlightResponse::from)
                 .toList();
     }
 
@@ -74,7 +75,7 @@ public class MockFlightService {
         Flight flight = mockFlightRepository.findById(flightId)
                 .orElseThrow(() -> new IllegalArgumentException("해당 항공편을 찾을 수 없습니다."));
 
-        return MockFlightResponse.of(flight);
+        return MockFlightResponse.from(flight);
     }
 
     public void validateFlight(String flightNumber, LocalDateTime departureTime) {
