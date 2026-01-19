@@ -2,7 +2,6 @@ package com.siwol025.flight_monitor.domain.flight;
 
 import com.siwol025.flight_monitor.domain.airline.Airline;
 import com.siwol025.flight_monitor.domain.airport.Airport;
-import jakarta.persistence.Access;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

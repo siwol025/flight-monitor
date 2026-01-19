@@ -2,7 +2,7 @@ package com.siwol025.flight_monitor.domain.subscription;
 
 import com.siwol025.flight_monitor.domain.flight.Flight;
 import com.siwol025.flight_monitor.domain.flight.SeatGrade;
-import com.siwol025.flight_monitor.domain.user.User;
+import com.siwol025.flight_monitor.user.domain.User;
 import com.siwol025.flight_monitor.global.entity.BaseTimeEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -14,7 +14,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
