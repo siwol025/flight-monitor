@@ -24,6 +24,11 @@ public class RefreshTokenService {
         refreshTokenRepository.save(new RefreshToken(user, hashedRefreshToken, issuedAt, expiration));
     }
 
+    @Transactional
+    public void deleteByUser(User user) {
+        refreshTokenRepository.deleteByUser(user);
+    }
+
     public RefreshToken getByUser(User user) {
         return refreshTokenRepository.findByUser(user)
                 .orElseThrow(() -> new UnauthorizedException(ErrorTag.REFRESH_TOKEN_NOT_FOUND));
