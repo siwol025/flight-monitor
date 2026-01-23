@@ -11,6 +11,7 @@ import com.siwol025.flight_monitor.user.domain.User;
 import io.swagger.v3.oas.annotations.Parameter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -36,6 +37,11 @@ public class AuthController implements AuthControllerSwagger{
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(@Parameter(hidden = true) @LoginUser User user) {
         authService.logout(user);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/token/verification")
+    public ResponseEntity<Void> verify(@Parameter(hidden = true) @LoginUser User user) {
         return ResponseEntity.noContent().build();
     }
 }
