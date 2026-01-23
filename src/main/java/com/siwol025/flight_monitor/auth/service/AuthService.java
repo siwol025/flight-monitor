@@ -66,6 +66,12 @@ public class AuthService {
         }
     }
 
+    @Transactional
+    public void logout(User user) {
+        User loginUser = getUserByUserId(user.getId());
+        refreshTokenService.deleteByUser(user);
+    }
+
     public LoginResponse loginWithGoogle(LoginRequest request) {
         String idToken = request.idToken();
         validateIdToken(idToken);;
