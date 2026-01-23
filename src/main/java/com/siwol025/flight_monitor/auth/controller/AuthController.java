@@ -1,7 +1,9 @@
 package com.siwol025.flight_monitor.auth.controller;
 
 import com.siwol025.flight_monitor.auth.dto.request.LoginRequest;
+import com.siwol025.flight_monitor.auth.dto.request.RefreshTokenRequest;
 import com.siwol025.flight_monitor.auth.dto.response.LoginResponse;
+import com.siwol025.flight_monitor.auth.dto.response.RefreshTokenResponse;
 import com.siwol025.flight_monitor.auth.service.AuthService;
 import com.siwol025.flight_monitor.user.domain.Provider;
 import lombok.RequiredArgsConstructor;
@@ -20,5 +22,10 @@ public class AuthController implements AuthControllerSwagger{
     @PostMapping("/login/google")
     public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request, Provider.GOOGLE));
+    }
+
+    @PostMapping("/token")
+    public ResponseEntity<RefreshTokenResponse> refresh(@RequestBody RefreshTokenRequest request) {
+        return ResponseEntity.ok(authService.refresh(request));
     }
 }
