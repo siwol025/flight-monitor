@@ -40,7 +40,7 @@ public class Subscription extends BaseTimeEntity {
     private Flight flight;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "grade_name", nullable = false)
+    @Column(name = "seat_grade", nullable = false)
     private SeatGrade seatGrade;
 
     @Column(nullable = false, precision = 12, scale = 2)
