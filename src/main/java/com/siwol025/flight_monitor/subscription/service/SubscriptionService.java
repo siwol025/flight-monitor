@@ -1,6 +1,15 @@
 package com.siwol025.flight_monitor.subscription.service;
 
+import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightResponse;
+import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightSeatPriceResponse;
+import com.siwol025.flight_monitor.subscription.domain.Subscription;
+import com.siwol025.flight_monitor.subscription.domain.flight.Flight;
+import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
+import com.siwol025.flight_monitor.subscription.repository.FlightRepository;
 import com.siwol025.flight_monitor.subscription.repository.SubscriptionRepository;
+import com.siwol025.flight_monitor.user.domain.User;
+import com.siwol025.flight_monitor.user.service.UserService;
+import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,5 +20,30 @@ import org.springframework.transaction.annotation.Transactional;
 public class SubscriptionService {
 
     private final SubscriptionRepository subscriptionRepository;
+    private final FlightService flightService;
+    private final FlightFetcher flightFetcher;
 
+    @Transactional
+    public void subscribe(User user, Long flightId, SeatGrade seatGrade) {
+        MockFlightResponse response = flightFetcher.fetchMockFlight(flightId);
+        Flight flight = flightService.findOrCreateFlight(response);
+        BigDecimal currentPrice = extractPriceByGrade(response, seatGrade);
+
+        Subscription subscription = Subscription.builder()
+                .user(user)
+                .flight(flight)
+                .seatGrade(seatGrade)
+                .price(currentPrice)
+                .build();
+
+        subscriptionRepository.save(subscription);
+    }
+
+    private BigDecimal extractPriceByGrade(MockFlightResponse response, SeatGrade seatGrade) {
+        return response.seatPrices().stream()
+                .filter(sp -> sp.seatGrade() == seatGrade)
+                .map(MockFlightSeatPriceResponse::price)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("해당 좌석 등급의 가격 정보를 찾을 수 없습니다."));
+    }
 }
