@@ -1,7 +1,7 @@
-package com.siwol025.flight_monitor.domain.flight;
+package com.siwol025.flight_monitor.mock.flight.domain;
 
-import com.siwol025.flight_monitor.domain.airline.Airline;
-import com.siwol025.flight_monitor.domain.airport.Airport;
+import com.siwol025.flight_monitor.mock.airline.domain.MockAirline;
+import com.siwol025.flight_monitor.mock.airport.domain.MockAirport;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -23,10 +23,11 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.BatchSize;
 
 @Entity
-@Table(name = "flights")
+@Table(name = "mock_flights")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Flight {
+public class MockFlight {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -36,15 +37,15 @@ public class Flight {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "airline_id")
-    private Airline airline;
+    private MockAirline airline;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "departure_airport_id")
-    private Airport departureAirport;
+    private MockAirport departureAirport;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "arrival_airport_id")
-    private Airport arrivalAirport;
+    private MockAirport arrivalAirport;
 
     @OneToMany(mappedBy = "flight", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<FlightSeatPrice> flightSeatPrices = new ArrayList<>();
@@ -57,8 +58,8 @@ public class Flight {
     private LocalDateTime arrivalTime;
 
     @Builder
-    public Flight(String flightNumber, Airline airline, Airport departureAirport, Airport arrivalAirport,
-                  LocalDateTime departureTime, LocalDateTime arrivalTime) {
+    public MockFlight(String flightNumber, MockAirline airline, MockAirport departureAirport, MockAirport arrivalAirport,
+                      LocalDateTime departureTime, LocalDateTime arrivalTime) {
         this.flightNumber = flightNumber;
         this.airline = airline;
         this.departureAirport = departureAirport;

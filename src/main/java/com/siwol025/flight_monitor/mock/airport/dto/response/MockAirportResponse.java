@@ -1,6 +1,6 @@
 package com.siwol025.flight_monitor.mock.airport.dto.response;
 
-import com.siwol025.flight_monitor.domain.airport.Airport;
+import com.siwol025.flight_monitor.mock.airport.domain.MockAirport;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 
@@ -12,10 +12,10 @@ public record MockAirportResponse (
         @Schema(description = "공항 이름", example = "인천국제공항")
         String name
 ) {
-    public static MockAirportResponse of(Airport airport) {
+    public static MockAirportResponse of(MockAirport mockAirport) {
         return MockAirportResponse.builder()
-                .code(airport.getAirportCode())
-                .name(airport.getAirportName())
+                .code(mockAirport.getAirportCode())
+                .name(mockAirport.getAirportName())
                 .build();
     }
 }

@@ -1,4 +1,4 @@
-package com.siwol025.flight_monitor.domain.airline;
+package com.siwol025.flight_monitor.mock.airline.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -12,10 +12,11 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "airlines")
+@Table(name = "mock_airlines")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Airline {
+public class MockAirline {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -27,7 +28,7 @@ public class Airline {
     private String airlineName;
 
     @Builder
-    public Airline(String airlineCode, String airlineName) {
+    public MockAirline(String airlineCode, String airlineName) {
         this.airlineCode = airlineCode;
         this.airlineName = airlineName;
     }

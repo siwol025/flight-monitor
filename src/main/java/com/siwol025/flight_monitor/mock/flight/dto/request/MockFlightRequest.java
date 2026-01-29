@@ -1,9 +1,8 @@
 package com.siwol025.flight_monitor.mock.flight.dto.request;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
-import com.siwol025.flight_monitor.domain.airline.Airline;
-import com.siwol025.flight_monitor.domain.airport.Airport;
-import com.siwol025.flight_monitor.domain.flight.Flight;
+import com.siwol025.flight_monitor.mock.airline.domain.MockAirline;
+import com.siwol025.flight_monitor.mock.airport.domain.MockAirport;
+import com.siwol025.flight_monitor.mock.flight.domain.MockFlight;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -35,10 +34,10 @@ public record MockFlightRequest(
         @Schema(description = "도착 예상 시간", example = "2026-05-10T12:30:00", type = "string")
         LocalDateTime arrivalTime
 ) {
-    public Flight toFlight(Airline airline,
-                           Airport departureAirport,
-                           Airport arrivalAirport) {
-        return Flight.builder()
+    public MockFlight toFlight(MockAirline airline,
+                               MockAirport departureAirport,
+                               MockAirport arrivalAirport) {
+        return MockFlight.builder()
                 .flightNumber(flightNumber)
                 .airline(airline)
                 .departureAirport(departureAirport)

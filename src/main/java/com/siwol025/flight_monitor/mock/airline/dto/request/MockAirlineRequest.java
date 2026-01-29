@@ -1,6 +1,6 @@
 package com.siwol025.flight_monitor.mock.airline.dto.request;
 
-import com.siwol025.flight_monitor.domain.airline.Airline;
+import com.siwol025.flight_monitor.mock.airline.domain.MockAirline;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotEmpty;
 
@@ -14,8 +14,8 @@ public record MockAirlineRequest(
         @Schema(description = "항공사 이름", example = "대한항공")
         String name
 ) {
-    public Airline toAirline() {
-        return Airline.builder()
+    public MockAirline toAirline() {
+        return MockAirline.builder()
                 .airlineCode(code)
                 .airlineName(name)
                 .build();

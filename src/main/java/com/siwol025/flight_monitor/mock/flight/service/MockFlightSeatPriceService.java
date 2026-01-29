@@ -1,7 +1,7 @@
 package com.siwol025.flight_monitor.mock.flight.service;
 
-import com.siwol025.flight_monitor.domain.flight.Flight;
-import com.siwol025.flight_monitor.domain.flight.FlightSeatPrice;
+import com.siwol025.flight_monitor.mock.flight.domain.FlightSeatPrice;
+import com.siwol025.flight_monitor.mock.flight.domain.MockFlight;
 import com.siwol025.flight_monitor.mock.flight.dto.request.MockFlightSeatPriceRequest;
 import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightSeatPriceResponse;
 import com.siwol025.flight_monitor.mock.flight.repository.MockFlightRepository;
@@ -21,7 +21,7 @@ public class MockFlightSeatPriceService {
 
     @Transactional
     public void upsertPrice(MockFlightSeatPriceRequest request) {
-        Flight flight = mockFlightRepository.findById(request.flightId())
+        MockFlight flight = mockFlightRepository.findById(request.flightId())
                 .orElseThrow(() -> new IllegalArgumentException("해당 항공편을 찾을 수 없습니다."));
 
         Optional<FlightSeatPrice> existingPrice = mockFlightSeatPriceRepository.findByFlightIdAndSeatGrade(

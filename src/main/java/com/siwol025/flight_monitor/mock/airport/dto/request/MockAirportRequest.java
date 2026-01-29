@@ -1,6 +1,6 @@
 package com.siwol025.flight_monitor.mock.airport.dto.request;
 
-import com.siwol025.flight_monitor.domain.airport.Airport;
+import com.siwol025.flight_monitor.mock.airport.domain.MockAirport;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotEmpty;
 
@@ -14,8 +14,8 @@ public record MockAirportRequest(
         @Schema(description = "공항 이름", example = "인천국제공항")
         String name
 ) {
-    public Airport toAirport() {
-        return Airport.builder()
+    public MockAirport toAirport() {
+        return MockAirport.builder()
                 .airportCode(code)
                 .airportName(name)
                 .build();

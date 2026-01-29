@@ -1,6 +1,6 @@
 package com.siwol025.flight_monitor.mock.airline.service;
 
-import com.siwol025.flight_monitor.domain.airline.Airline;
+import com.siwol025.flight_monitor.mock.airline.domain.MockAirline;
 import com.siwol025.flight_monitor.mock.airline.dto.request.MockAirlineRequest;
 import com.siwol025.flight_monitor.mock.airline.dto.response.MockAirlineResponse;
 import com.siwol025.flight_monitor.mock.airline.repository.MockAirlineRepository;
@@ -23,15 +23,15 @@ public class MockAirlineService {
 
     @Transactional
     public Long createAirline(MockAirlineRequest request) {
-        Airline savedAirline = mockAirlineRepository.save(request.toAirline());
-        return savedAirline.getId();
+        MockAirline savedMockAirline = mockAirlineRepository.save(request.toAirline());
+        return savedMockAirline.getId();
     }
 
     @Transactional
     public void deleteAirline(String code) {
-        Airline airline = mockAirlineRepository.findByAirlineCode(code)
+        MockAirline mockAirline = mockAirlineRepository.findByAirlineCode(code)
                 .orElseThrow(() -> new IllegalArgumentException("해당 항공사 데이터를 찾을 수 없습니다."));
 
-        mockAirlineRepository.delete(airline);
+        mockAirlineRepository.delete(mockAirline);
     }
 }

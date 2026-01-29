@@ -1,6 +1,6 @@
 package com.siwol025.flight_monitor.mock.flight.dto.request;
 
-import com.siwol025.flight_monitor.domain.flight.SeatGrade;
+import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;

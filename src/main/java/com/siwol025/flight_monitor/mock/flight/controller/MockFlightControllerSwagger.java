@@ -1,6 +1,6 @@
 package com.siwol025.flight_monitor.mock.flight.controller;
 
-import com.siwol025.flight_monitor.domain.flight.SeatGrade;
+import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
 import com.siwol025.flight_monitor.mock.flight.dto.request.MockFlightRequest;
 import com.siwol025.flight_monitor.mock.flight.dto.request.MockFlightUpdateRequest;
 import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightResponse;
@@ -10,9 +10,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.LocalDate;
 import java.util.List;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.RequestParam;
 
 @Tag(name = "External Mock Flight API", description = "가상의 외부 항공편시스템의 항공편 데이터 API")
 public interface MockFlightControllerSwagger {

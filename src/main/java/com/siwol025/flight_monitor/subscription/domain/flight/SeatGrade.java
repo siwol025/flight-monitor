@@ -1,4 +1,4 @@
-package com.siwol025.flight_monitor.domain.flight;
+package com.siwol025.flight_monitor.subscription.domain.flight;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

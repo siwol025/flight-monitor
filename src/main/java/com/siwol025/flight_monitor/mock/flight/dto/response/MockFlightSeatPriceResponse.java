@@ -1,7 +1,7 @@
 package com.siwol025.flight_monitor.mock.flight.dto.response;
 
-import com.siwol025.flight_monitor.domain.flight.FlightSeatPrice;
-import com.siwol025.flight_monitor.domain.flight.SeatGrade;
+import com.siwol025.flight_monitor.mock.flight.domain.FlightSeatPrice;
+import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import lombok.Builder;

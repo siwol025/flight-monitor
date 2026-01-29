@@ -1,6 +1,6 @@
 package com.siwol025.flight_monitor.mock.airline.dto.response;
 
-import com.siwol025.flight_monitor.domain.airline.Airline;
+import com.siwol025.flight_monitor.mock.airline.domain.MockAirline;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 
@@ -13,10 +13,10 @@ public record MockAirlineResponse(
         @Schema(description = "항공사 이름", example = "대한항공")
         String name
 ) {
-    public static MockAirlineResponse of(Airline airline) {
+    public static MockAirlineResponse of(MockAirline mockAirline) {
         return MockAirlineResponse.builder()
-                .code(airline.getAirlineCode())
-                .name(airline.getAirlineName())
+                .code(mockAirline.getAirlineCode())
+                .name(mockAirline.getAirlineName())
                 .build();
     }
 }

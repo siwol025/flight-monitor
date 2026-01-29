@@ -1,5 +1,6 @@
-package com.siwol025.flight_monitor.domain.flight;
+package com.siwol025.flight_monitor.mock.flight.domain;
 
+import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -18,7 +19,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "flight_seat_prices")
+@Table(name = "mock_flight_seat_prices")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class FlightSeatPrice {
@@ -28,7 +29,7 @@ public class FlightSeatPrice {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "flight_id")
-    private Flight flight;
+    private MockFlight flight;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "grade_name", nullable = false)
@@ -38,13 +39,13 @@ public class FlightSeatPrice {
     private BigDecimal price;
 
     @Builder
-    public FlightSeatPrice(Flight flight, SeatGrade seatGrade, BigDecimal price) {
+    public FlightSeatPrice(MockFlight flight, SeatGrade seatGrade, BigDecimal price) {
         this.flight = flight;
         this.seatGrade = seatGrade;
         this.price = price;
     }
 
-    public void assignFlight(Flight flight) {
+    public void assignFlight(MockFlight flight) {
         this.flight = flight;
     }
 

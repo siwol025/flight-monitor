@@ -1,11 +1,11 @@
 package com.siwol025.flight_monitor.mock.flight.service;
 
-import com.siwol025.flight_monitor.domain.airline.Airline;
-import com.siwol025.flight_monitor.domain.airport.Airport;
-import com.siwol025.flight_monitor.domain.flight.Flight;
-import com.siwol025.flight_monitor.domain.flight.SeatGrade;
+import com.siwol025.flight_monitor.mock.airline.domain.MockAirline;
+import com.siwol025.flight_monitor.mock.airport.domain.MockAirport;
+import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
 import com.siwol025.flight_monitor.mock.airline.repository.MockAirlineRepository;
 import com.siwol025.flight_monitor.mock.airport.repository.MockAirportRepository;
+import com.siwol025.flight_monitor.mock.flight.domain.MockFlight;
 import com.siwol025.flight_monitor.mock.flight.dto.request.MockFlightRequest;
 import com.siwol025.flight_monitor.mock.flight.dto.request.MockFlightUpdateRequest;
 import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightResponse;
@@ -29,29 +29,29 @@ public class MockFlightService {
     @Transactional
     public Long createFlight(MockFlightRequest request) {
         validateFlight(request.flightNumber(), request.departureTime());
-        Airline airline = readAirline(request.airlineCode());
-        Airport departureAirport = readAirport(request.departureAirportCode());
-        Airport arrivalAirport = readAirport(request.arrivalAirportCode());
+        MockAirline mockAirline = readAirline(request.airlineCode());
+        MockAirport departureMockAirport = readAirport(request.departureAirportCode());
+        MockAirport arrivalMockAirport = readAirport(request.arrivalAirportCode());
 
-        Flight saved = mockFlightRepository.save(request.toFlight(airline, departureAirport, arrivalAirport));
+        MockFlight saved = mockFlightRepository.save(request.toFlight(mockAirline, departureMockAirport, arrivalMockAirport));
         return saved.getId();
     }
 
     @Transactional
     public void updateFlight(Long id, MockFlightUpdateRequest request) {
         validateFlight(request.flightNumber(), request.departureTime());
-        Flight flight = mockFlightRepository.findById(id)
+        MockFlight mockFlight = mockFlightRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("해당 항공편을 찾을 수 없습니다."));
 
-        flight.updateFlightInfo(request.flightNumber(), request.departureTime(), request.arrivalTime());
+        mockFlight.updateFlightInfo(request.flightNumber(), request.departureTime(), request.arrivalTime());
     }
 
     @Transactional
     public void deleteFlight(Long id) {
-        Flight flight = mockFlightRepository.findById(id)
+        MockFlight mockFlight = mockFlightRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("해당 항공편을 찾을 수 없습니다."));
 
-        mockFlightRepository.delete(flight);
+        mockFlightRepository.delete(mockFlight);
     }
 
     public List<MockFlightResponse> searchFlights(String departureAirportCode, String arrivalAirportCode, LocalDate departureDate, SeatGrade seatGrade) {
@@ -72,10 +72,10 @@ public class MockFlightService {
     }
 
     public MockFlightResponse readFlight(Long flightId) {
-        Flight flight = mockFlightRepository.findById(flightId)
+        MockFlight mockFlight = mockFlightRepository.findById(flightId)
                 .orElseThrow(() -> new IllegalArgumentException("해당 항공편을 찾을 수 없습니다."));
 
-        return MockFlightResponse.from(flight);
+        return MockFlightResponse.from(mockFlight);
     }
 
     public void validateFlight(String flightNumber, LocalDateTime departureTime) {
@@ -95,12 +95,12 @@ public class MockFlightService {
         return mockFlightRepository.existsByFlightNumberAndDepartureTimeBetween(flightNumber, startOfDay, endOfDay);
     }
 
-    public Airline readAirline(String code) {
+    public MockAirline readAirline(String code) {
         return mockAirlineRepository.findByAirlineCode(code)
                 .orElseThrow(() -> new IllegalArgumentException("해당 항공사를 찾을 수 없습니다."));
     }
 
-    public Airport readAirport(String code) {
+    public MockAirport readAirport(String code) {
         return mockAirportRepository.findByAirportCode(code)
                 .orElseThrow(() -> new IllegalArgumentException("해당 공항을 찾을 수 없습니다."));
     }
