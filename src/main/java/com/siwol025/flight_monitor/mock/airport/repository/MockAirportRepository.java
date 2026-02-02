@@ -7,5 +7,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface MockAirportRepository extends JpaRepository<MockAirport, Long> {
+
     Optional<MockAirport> findByAirportCode(String AirportCode);
 }

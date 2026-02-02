@@ -2,8 +2,10 @@ package com.siwol025.flight_monitor;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
 @SpringBootApplication
+@EnableJpaAuditing
 public class FlightMonitorApplication {
 
 	public static void main(String[] args) {

@@ -1,14 +1,36 @@
 package com.siwol025.flight_monitor.subscription.controller;
 
-import com.siwol025.flight_monitor.subscription.dto.SubscriptionRequest;
+import com.siwol025.flight_monitor.subscription.dto.request.SubscriptionRequest;
+import com.siwol025.flight_monitor.subscription.dto.response.SubscriptionResponse;
 import com.siwol025.flight_monitor.user.domain.User;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.List;
 import org.springframework.http.ResponseEntity;
 
 @Tag(name = "Subscription", description = "항공편 구독 관련 API")
 public interface SubscriptionControllerSwagger {
 
-    @Operation(summary = "항공편 구독 신청", description = "외부 항공편 정보를 운영 DB에 동기화하고 구독 레코드를 생성합니다.")
+    @Operation(
+            summary = "항공편 구독 생성",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "204",
+                            description = "구독 성공"
+                    )
+            }
+    )
     ResponseEntity<Void> subscribe(User user, SubscriptionRequest request);
+
+    @Operation(
+            summary = "회원별 구독 목록 조회",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "조회 성공"
+                    )
+            }
+    )
+    ResponseEntity<List<SubscriptionResponse>> getMySubscriptions(User user);
 }

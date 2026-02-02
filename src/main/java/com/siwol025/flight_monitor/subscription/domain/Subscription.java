@@ -25,7 +25,7 @@ import lombok.NoArgsConstructor;
 @Table(name = "subscriptions")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Subscription extends BaseTimeEntity {
+public class Subscription extends BaseTimeEntity{
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

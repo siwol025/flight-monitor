@@ -1,4 +1,4 @@
-package com.siwol025.flight_monitor.subscription.dto;
+package com.siwol025.flight_monitor.subscription.dto.request;
 
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
 import io.swagger.v3.oas.annotations.media.Schema;

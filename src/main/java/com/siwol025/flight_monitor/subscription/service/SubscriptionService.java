@@ -5,11 +5,11 @@ import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightSeatPriceR
 import com.siwol025.flight_monitor.subscription.domain.Subscription;
 import com.siwol025.flight_monitor.subscription.domain.flight.Flight;
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
-import com.siwol025.flight_monitor.subscription.repository.FlightRepository;
+import com.siwol025.flight_monitor.subscription.dto.response.SubscriptionResponse;
 import com.siwol025.flight_monitor.subscription.repository.SubscriptionRepository;
 import com.siwol025.flight_monitor.user.domain.User;
-import com.siwol025.flight_monitor.user.service.UserService;
 import java.math.BigDecimal;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +37,14 @@ public class SubscriptionService {
                 .build();
 
         subscriptionRepository.save(subscription);
+    }
+
+    public List<SubscriptionResponse> getSubscriptions(User user) {
+        List<Subscription> subscriptions = subscriptionRepository.findAllByUserId(user.getId());
+
+        return subscriptions.stream()
+                .map(SubscriptionResponse::from)
+                .toList();
     }
 
     private BigDecimal extractPriceByGrade(MockFlightResponse response, SeatGrade seatGrade) {
