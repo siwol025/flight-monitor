@@ -2,6 +2,7 @@ package com.siwol025.flight_monitor.subscription.controller;
 
 import com.siwol025.flight_monitor.auth.annotation.LoginUser;
 import com.siwol025.flight_monitor.subscription.dto.request.SubscriptionRequest;
+import com.siwol025.flight_monitor.subscription.dto.response.SubscriptionDetailResponse;
 import com.siwol025.flight_monitor.subscription.dto.response.SubscriptionResponse;
 import com.siwol025.flight_monitor.subscription.service.SubscriptionService;
 import com.siwol025.flight_monitor.user.domain.User;
@@ -10,6 +11,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -34,6 +36,12 @@ public class SubscriptionController implements SubscriptionControllerSwagger{
     @GetMapping("/my")
     public ResponseEntity<List<SubscriptionResponse>> getMySubscriptions(@Parameter(hidden = true) @LoginUser User user) {
         List<SubscriptionResponse> response = subscriptionService.getSubscriptions(user);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{subscriptionId}")
+    public ResponseEntity<SubscriptionDetailResponse> getMySubscriptions(@PathVariable Long subscriptionId) {
+        SubscriptionDetailResponse response = subscriptionService.getSubscription(subscriptionId);
         return ResponseEntity.ok(response);
     }
 }

@@ -1,6 +1,7 @@
 package com.siwol025.flight_monitor.subscription.controller;
 
 import com.siwol025.flight_monitor.subscription.dto.request.SubscriptionRequest;
+import com.siwol025.flight_monitor.subscription.dto.response.SubscriptionDetailResponse;
 import com.siwol025.flight_monitor.subscription.dto.response.SubscriptionResponse;
 import com.siwol025.flight_monitor.user.domain.User;
 import io.swagger.v3.oas.annotations.Operation;
@@ -33,4 +34,15 @@ public interface SubscriptionControllerSwagger {
             }
     )
     ResponseEntity<List<SubscriptionResponse>> getMySubscriptions(User user);
+
+    @Operation(
+            summary = "구독 내역 상세 조회",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "조회 성공"
+                    )
+            }
+    )
+    ResponseEntity<SubscriptionDetailResponse> getMySubscriptions(Long subscriptionId);
 }

@@ -2,8 +2,10 @@ package com.siwol025.flight_monitor.subscription.repository;
 
 import com.siwol025.flight_monitor.subscription.domain.Subscription;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -14,4 +16,9 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
             "WHERE s.user.id = :userId " +
             "ORDER BY s.createdAt desc")
     List<Subscription> findAllByUserId(Long userId);
+
+    @Query("SELECT s FROM Subscription s " +
+            "JOIN FETCH s.flight " +
+            "WHERE s.id = :id")
+    Optional<Subscription> findByIdWithFlight(@Param("id") Long id);
 }

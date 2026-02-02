@@ -5,6 +5,7 @@ import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightSeatPriceR
 import com.siwol025.flight_monitor.subscription.domain.Subscription;
 import com.siwol025.flight_monitor.subscription.domain.flight.Flight;
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
+import com.siwol025.flight_monitor.subscription.dto.response.SubscriptionDetailResponse;
 import com.siwol025.flight_monitor.subscription.dto.response.SubscriptionResponse;
 import com.siwol025.flight_monitor.subscription.repository.SubscriptionRepository;
 import com.siwol025.flight_monitor.user.domain.User;
@@ -45,6 +46,21 @@ public class SubscriptionService {
         return subscriptions.stream()
                 .map(SubscriptionResponse::from)
                 .toList();
+    }
+
+    public SubscriptionDetailResponse getSubscription(Long subscriptionId) {
+        Subscription subscription = subscriptionRepository.findByIdWithFlight(subscriptionId)
+                .orElseThrow(() -> new IllegalArgumentException("구독내역을 찾을 수 없습니다."));
+
+        MockFlightResponse mockFlightResponse = flightFetcher.fetchMockFlight(subscription.getFlight().getId());
+
+        BigDecimal currentPrice = mockFlightResponse.seatPrices().stream()
+                .filter(sp -> sp.seatGrade() == subscription.getSeatGrade())
+                .map(MockFlightSeatPriceResponse::price)
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("현재 해당 좌석의 가격 정보를 가져올 수 없습니다."));
+
+        return SubscriptionDetailResponse.of(subscription, currentPrice);
     }
 
     private BigDecimal extractPriceByGrade(MockFlightResponse response, SeatGrade seatGrade) {
