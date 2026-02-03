@@ -44,5 +44,16 @@ public interface SubscriptionControllerSwagger {
                     )
             }
     )
-    ResponseEntity<SubscriptionDetailResponse> getMySubscriptions(Long subscriptionId);
+    ResponseEntity<SubscriptionDetailResponse> getMySubscription(Long subscriptionId);
+
+    @Operation(
+            summary = "구독 취소",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "204",
+                            description = "삭제 성공"
+                    )
+            }
+    )
+    ResponseEntity<SubscriptionDetailResponse> cancelSubscription(User user, Long subscriptionId);
 }

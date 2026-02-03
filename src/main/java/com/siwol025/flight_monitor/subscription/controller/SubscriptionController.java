@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -40,8 +41,14 @@ public class SubscriptionController implements SubscriptionControllerSwagger{
     }
 
     @GetMapping("/{subscriptionId}")
-    public ResponseEntity<SubscriptionDetailResponse> getMySubscriptions(@PathVariable Long subscriptionId) {
+    public ResponseEntity<SubscriptionDetailResponse> getMySubscription(@PathVariable Long subscriptionId) {
         SubscriptionDetailResponse response = subscriptionService.getSubscription(subscriptionId);
         return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{subscriptionId}")
+    public ResponseEntity<SubscriptionDetailResponse> cancelSubscription(@Parameter(hidden = true) @LoginUser User user, @PathVariable Long subscriptionId) {
+        subscriptionService.unsubscribe(user, subscriptionId);
+        return ResponseEntity.noContent().build();
     }
 }

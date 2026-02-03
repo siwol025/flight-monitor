@@ -26,6 +26,8 @@ public class SubscriptionService {
 
     @Transactional
     public void subscribe(User user, Long flightId, SeatGrade seatGrade) {
+        validateDuplicateSubscription(user.getId(), flightId, seatGrade);
+
         MockFlightResponse response = flightFetcher.fetchMockFlight(flightId);
         Flight flight = flightService.findOrCreateFlight(response);
         BigDecimal currentPrice = extractPriceByGrade(response, seatGrade);
@@ -40,6 +42,14 @@ public class SubscriptionService {
         subscriptionRepository.save(subscription);
     }
 
+    @Transactional
+    public void unsubscribe(User user, Long subscriptionId) {
+        Subscription subscription = findSubscription(subscriptionId);
+        subscription.validateOwner(user);
+
+        subscriptionRepository.delete(subscription);
+    }
+
     public List<SubscriptionResponse> getSubscriptions(User user) {
         List<Subscription> subscriptions = subscriptionRepository.findAllByUserId(user.getId());
 
@@ -49,8 +59,7 @@ public class SubscriptionService {
     }
 
     public SubscriptionDetailResponse getSubscription(Long subscriptionId) {
-        Subscription subscription = subscriptionRepository.findByIdWithFlight(subscriptionId)
-                .orElseThrow(() -> new IllegalArgumentException("구독내역을 찾을 수 없습니다."));
+        Subscription subscription = findSubscription(subscriptionId);
 
         MockFlightResponse mockFlightResponse = flightFetcher.fetchMockFlight(subscription.getFlight().getId());
 
@@ -69,5 +78,16 @@ public class SubscriptionService {
                 .map(MockFlightSeatPriceResponse::price)
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("해당 좌석 등급의 가격 정보를 찾을 수 없습니다."));
+    }
+
+    private void validateDuplicateSubscription(Long userId, Long flightId, SeatGrade seatGrade) {
+        if (subscriptionRepository.existsByUserIdAndFlightIdAndSeatGrade(userId, flightId, seatGrade)) {
+            throw new IllegalArgumentException("이미 등록된 구독입니다.");
+        }
+    }
+
+    private Subscription findSubscription(Long subscriptionId) {
+        return subscriptionRepository.findByIdWithFlight(subscriptionId)
+                .orElseThrow(() -> new IllegalArgumentException("구독내역을 찾을 수 없습니다."));
     }
 }

@@ -1,6 +1,7 @@
 package com.siwol025.flight_monitor.subscription.repository;
 
 import com.siwol025.flight_monitor.subscription.domain.Subscription;
+import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -21,4 +22,6 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
             "JOIN FETCH s.flight " +
             "WHERE s.id = :id")
     Optional<Subscription> findByIdWithFlight(@Param("id") Long id);
+
+    boolean existsByUserIdAndFlightIdAndSeatGrade(Long userId, Long flightId, SeatGrade seatGrade);
 }

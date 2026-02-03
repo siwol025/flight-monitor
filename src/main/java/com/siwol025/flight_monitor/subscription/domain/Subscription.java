@@ -65,4 +65,10 @@ public class Subscription extends BaseTimeEntity{
     public void updateStatus(SubscriptionStatus status) {
         this.status = status;
     }
+
+    public void validateOwner(User requester) {
+        if (!this.user.equals(requester)) {
+            throw new IllegalArgumentException("해당 구독을 취소할 권한이 없습니다.");
+        }
+    }
 }

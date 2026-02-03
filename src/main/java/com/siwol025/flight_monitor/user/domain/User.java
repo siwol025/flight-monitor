@@ -9,6 +9,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.util.Objects;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -46,5 +47,17 @@ public class User extends BaseTimeEntity {
         this.provider = provider;
         this.providerId = providerId;
         this.role = role;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true; // 주소값이 같으면 당연히 true
+        if (!(o instanceof User user)) return false; // 타입 체크
+        return id != null && id.equals(user.id); // ID(PK)가 같으면 같은 유저로 판단
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
     }
 }
