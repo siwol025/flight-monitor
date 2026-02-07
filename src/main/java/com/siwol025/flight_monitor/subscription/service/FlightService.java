@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class FlightService {
 
     private final FlightRepository flightRepository;
@@ -27,5 +28,10 @@ public class FlightService {
                                 .arrivalTime(response.arrivalTime())
                                 .build()
                 ));
+    }
+
+    public Flight getFlight(Long flightId) {
+        return flightRepository.findById(flightId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 항공편을 찾을 수 없습니다."));
     }
 }

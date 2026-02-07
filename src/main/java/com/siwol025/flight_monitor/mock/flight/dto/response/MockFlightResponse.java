@@ -3,6 +3,7 @@ package com.siwol025.flight_monitor.mock.flight.dto.response;
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
 import com.siwol025.flight_monitor.mock.flight.domain.MockFlight;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.Builder;
@@ -10,6 +11,7 @@ import lombok.Builder;
 @Builder
 @Schema(description = "가상의 외부 항공편시스템의 항공편 API 응답 DTO")
 public record MockFlightResponse(
+
         @Schema(description = "항공편 아이디", example = "123")
         Long id,
 
@@ -69,5 +71,13 @@ public record MockFlightResponse(
                         .map(MockFlightSeatPriceResponse::of)
                         .toList())
                 .build();
+    }
+
+    public BigDecimal getPriceBySeatClass(SeatGrade targetGrade) {
+        return seatPrices.stream()
+                .filter(s -> s.seatGrade() == targetGrade)
+                .map(MockFlightSeatPriceResponse::price)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("해당 좌석 등급의 가격을 찾을 수 없습니다."));
     }
 }

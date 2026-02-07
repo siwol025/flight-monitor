@@ -1,5 +1,7 @@
-package com.siwol025.flight_monitor.mock.flight.domain;
+package com.siwol025.flight_monitor.monitor.domain;
 
+import com.siwol025.flight_monitor.mock.flight.domain.MockFlight;
+import com.siwol025.flight_monitor.subscription.domain.flight.Flight;
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -19,10 +21,10 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "mock_flight_seat_prices")
+@Table(name = "flight_seat_grade_prices")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class FlightSeatPrice {
+public class FlightSeatGradePrice {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -30,24 +32,20 @@ public class FlightSeatPrice {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "flight_id")
-    private MockFlight flight;
+    private Flight flight;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "grade_name", nullable = false)
+    @Column(name = "seat_grade", nullable = false)
     private SeatGrade seatGrade;
 
     @Column(nullable = false, precision = 12)
     private BigDecimal price;
 
     @Builder
-    public FlightSeatPrice(MockFlight flight, SeatGrade seatGrade, BigDecimal price) {
+    public FlightSeatGradePrice(Flight flight, SeatGrade seatGrade, BigDecimal price) {
         this.flight = flight;
         this.seatGrade = seatGrade;
         this.price = price;
-    }
-
-    public void assignFlight(MockFlight flight) {
-        this.flight = flight;
     }
 
     public void updatePrice(BigDecimal price) {
