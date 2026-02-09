@@ -6,7 +6,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -22,6 +21,9 @@ public class Flight {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(nullable = false, unique = true)
+    private Long flightId;
 
     @Column(nullable = false)
     private String flightNumber;
@@ -39,8 +41,9 @@ public class Flight {
     private LocalDateTime arrivalTime;
 
     @Builder
-    public Flight(String flightNumber, String airlineCode, String departureAirport, String arrivalAirport,
+    public Flight(Long flightId, String flightNumber, String airlineCode, String departureAirport, String arrivalAirport,
                   LocalDateTime departureTime, LocalDateTime arrivalTime) {
+        this.flightId = flightId;
         this.flightNumber = flightNumber;
         this.airlineCode = airlineCode;
         this.departureAirport = departureAirport;

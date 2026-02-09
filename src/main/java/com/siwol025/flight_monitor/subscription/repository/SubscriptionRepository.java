@@ -34,7 +34,7 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
 
     @Query(
             "SELECT DISTINCT " +
-                "com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade(s.flight.id, s.seatGrade) " +
+                "new com.siwol025.flight_monitor.subscription.dto.FlightSeatGradeDto(s.flight.flightId, s.seatGrade) " +
             "FROM Subscription s " +
             "JOIN s.flight f " +
             "WHERE f.departureTime > CURRENT_TIMESTAMP " +

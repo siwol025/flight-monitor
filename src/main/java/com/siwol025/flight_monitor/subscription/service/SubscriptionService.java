@@ -3,8 +3,10 @@ package com.siwol025.flight_monitor.subscription.service;
 import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightResponse;
 import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightSeatPriceResponse;
 import com.siwol025.flight_monitor.subscription.domain.Subscription;
+import com.siwol025.flight_monitor.subscription.domain.SubscriptionStatus;
 import com.siwol025.flight_monitor.subscription.domain.flight.Flight;
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
+import com.siwol025.flight_monitor.subscription.dto.FlightSeatGradeDto;
 import com.siwol025.flight_monitor.subscription.dto.response.SubscriptionDetailResponse;
 import com.siwol025.flight_monitor.subscription.dto.response.SubscriptionResponse;
 import com.siwol025.flight_monitor.subscription.repository.SubscriptionRepository;
@@ -89,5 +91,9 @@ public class SubscriptionService {
     private Subscription findSubscription(Long subscriptionId) {
         return subscriptionRepository.findByIdWithFlight(subscriptionId)
                 .orElseThrow(() -> new IllegalArgumentException("구독내역을 찾을 수 없습니다."));
+    }
+
+    public List<FlightSeatGradeDto> getActiveFlights() {
+        return subscriptionRepository.findActiveFlightIdsAndSeatGrade(SubscriptionStatus.ACTIVE);
     }
 }

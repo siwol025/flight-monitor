@@ -20,6 +20,7 @@ public class FlightService {
                         response.flightNumber(), response.departureTime())
                 .orElseGet(() -> flightRepository.save(
                         Flight.builder()
+                                .flightId(response.id())
                                 .flightNumber(response.flightNumber())
                                 .airlineCode(response.airlineCode())
                                 .departureAirport(response.departureAirportCode())
@@ -31,7 +32,7 @@ public class FlightService {
     }
 
     public Flight getFlight(Long flightId) {
-        return flightRepository.findById(flightId)
+        return flightRepository.findByFlightId(flightId)
                 .orElseThrow(() -> new IllegalArgumentException("해당 항공편을 찾을 수 없습니다."));
     }
 }
