@@ -2,6 +2,7 @@ package com.siwol025.flight_monitor.monitor.worker;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.siwol025.flight_monitor.monitor.dto.PriceDropNotificationDto;
+import com.siwol025.flight_monitor.monitor.service.MailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -16,6 +17,7 @@ public class NotificationWorker {
 
     private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
+    private final MailService mailService;
     private static final String QUEUE_NAME = "notification:queue";
 
     @Async("mailExecutor")
@@ -27,9 +29,14 @@ public class NotificationWorker {
         try {
             PriceDropNotificationDto priceDropNotificationDto = objectMapper.readValue(json,
                     PriceDropNotificationDto.class);
+
             log.info("📩 [Worker] 알림 처리 시작: 항공편 ID: {}", priceDropNotificationDto.flightNumber());
 
-            //Thread.sleep(3000);
+            String content = String.format(
+                    "항공편 ID: %s\n좌석: %s\n가격 변동: %s -> %s",
+                    priceDropNotificationDto.flightNumber(), priceDropNotificationDto.seatGrade(), priceDropNotificationDto.oldPrice(), priceDropNotificationDto.newPrice()
+            );
+            mailService.sendPriceDropEmail("cyj5695@naver.com", content);
 
             log.info("✅ [Worker] 알림 발송 완료! (항공편: {})", priceDropNotificationDto.flightNumber());
         } catch (Exception e) {
