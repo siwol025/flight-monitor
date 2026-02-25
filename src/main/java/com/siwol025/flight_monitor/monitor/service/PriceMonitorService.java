@@ -1,5 +1,6 @@
 package com.siwol025.flight_monitor.monitor.service;
 
+import com.siwol025.flight_monitor.global.annotation.DistributedLock;
 import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightResponse;
 import com.siwol025.flight_monitor.monitor.domain.FlightSeatGradePrice;
 import com.siwol025.flight_monitor.monitor.dto.PriceDropNotificationDto;
@@ -28,6 +29,7 @@ public class PriceMonitorService {
     private final FlightSeatGradePriceService flightSeatGradePriceService;
     private final NotificationProducer producer;
 
+    @DistributedLock(key = "#flightId")
     @Transactional
     public void checkAndUpdatePrice(Long flightId, SeatGrade seatGrade) {
         String redisKey = "flight:price:" + flightId + ":" + seatGrade.name();

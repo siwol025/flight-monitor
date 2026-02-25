@@ -1,10 +1,6 @@
 package com.siwol025.flight_monitor.monitor.service;
 
 import com.siwol025.flight_monitor.monitor.dto.EmailSendTaskDto;
-import com.siwol025.flight_monitor.monitor.dto.PriceDropNotificationDto;
-import com.siwol025.flight_monitor.subscription.service.SubscriptionService;
-import com.siwol025.flight_monitor.user.dto.UserEmailDto;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
