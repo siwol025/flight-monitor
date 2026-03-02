@@ -1,5 +1,6 @@
 package com.siwol025.flight_monitor.monitor.scheduler;
 
+import com.siwol025.flight_monitor.monitor.service.MonitorService;
 import com.siwol025.flight_monitor.monitor.service.PriceMonitorService;
 import com.siwol025.flight_monitor.subscription.dto.FlightSeatGradeDto;
 import com.siwol025.flight_monitor.subscription.service.SubscriptionService;
@@ -15,17 +16,17 @@ import org.springframework.stereotype.Component;
 public class PriceScheduler {
 
     private final SubscriptionService subscriptionService;
-    private final PriceMonitorService priceMonitorService;
+    private final MonitorService monitorService;
 
     @Scheduled(fixedRate = 600000)
     public void runPriceMonitoring() {
-        List<FlightSeatGradeDto> targetList = subscriptionService.getActiveFlights();
+        List<FlightSeatGradeDto> flights = subscriptionService.getActiveFlights();
 
-        log.info("=== [가격 모니터링 스케줄러 시작] 총 감시 대상 수: {}건 ===", targetList.size());
+        log.info("=== [가격 모니터링 스케줄러 시작] 총 감시 대상 수: {}건 ===", flights.size());
 
-        for (FlightSeatGradeDto target : targetList) {
+        for (FlightSeatGradeDto flight : flights) {
             try {
-                priceMonitorService.checkAndUpdatePrice(target.flightId(), target.seatGrade());
+                monitorService.checkAndUpdatePrice(flight.flightId(), flight.seatGrade());
 
                 Thread.sleep(200);
             } catch (InterruptedException e) {
@@ -34,7 +35,7 @@ public class PriceScheduler {
                 break;
             } catch (Exception e) {
                 log.error("[모니터링 실패] 항공편 ID: {}, 좌석: {}, 사유: {}",
-                        target.flightId(), target.seatGrade(), e.getMessage());
+                        flight.flightId(), flight.seatGrade(), e.getMessage());
             }
         }
 
