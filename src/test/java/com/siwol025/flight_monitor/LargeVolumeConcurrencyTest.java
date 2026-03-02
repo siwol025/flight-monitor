@@ -7,13 +7,13 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockingDetails;
 
+import com.siwol025.flight_monitor.monitor.service.PriceMonitorService;
 import lombok.extern.slf4j.Slf4j;
 import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightResponse;
 import com.siwol025.flight_monitor.monitor.domain.FlightSeatGradePrice;
 import com.siwol025.flight_monitor.monitor.producer.NotificationProducer;
 import com.siwol025.flight_monitor.monitor.repository.NotificationHistoryRepository;
 import com.siwol025.flight_monitor.monitor.service.FlightSeatGradePriceService;
-import com.siwol025.flight_monitor.monitor.service.PriceMonitorService;
 import com.siwol025.flight_monitor.subscription.domain.flight.Flight;
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
 import com.siwol025.flight_monitor.subscription.service.FlightFetcher;

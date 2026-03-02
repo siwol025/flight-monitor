@@ -8,8 +8,7 @@ import org.springframework.stereotype.Component;
 public class DynamicTtlCalculator {
 
     public Duration calculateCooldownTtl(LocalDateTime departureTime, LocalDateTime currentTime) {
-        Duration timeUntilDeparture = Duration.between(departureTime, currentTime);
-
+        Duration timeUntilDeparture = Duration.between(currentTime, departureTime);
         if (timeUntilDeparture.isNegative() || timeUntilDeparture.isZero()) {
             return Duration.ZERO;
         }

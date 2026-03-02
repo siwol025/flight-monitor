@@ -1,6 +1,5 @@
 package com.siwol025.flight_monitor.monitor.scheduler;
 
-import com.siwol025.flight_monitor.monitor.service.MonitorService;
 import com.siwol025.flight_monitor.monitor.service.PriceMonitorService;
 import com.siwol025.flight_monitor.subscription.dto.FlightSeatGradeDto;
 import com.siwol025.flight_monitor.subscription.service.SubscriptionService;
@@ -16,7 +15,7 @@ import org.springframework.stereotype.Component;
 public class PriceScheduler {
 
     private final SubscriptionService subscriptionService;
-    private final MonitorService monitorService;
+    private final PriceMonitorService priceMonitorService;
 
     @Scheduled(fixedRate = 600000)
     public void runPriceMonitoring() {
@@ -26,7 +25,7 @@ public class PriceScheduler {
 
         for (FlightSeatGradeDto flight : flights) {
             try {
-                monitorService.checkAndUpdatePrice(flight.flightId(), flight.seatGrade());
+                priceMonitorService.checkAndUpdatePrice(flight.flightId(), flight.seatGrade());
 
                 Thread.sleep(200);
             } catch (InterruptedException e) {
