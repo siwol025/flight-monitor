@@ -17,7 +17,7 @@ public class PriceScheduler {
     private final SubscriptionService subscriptionService;
     private final PriceMonitorService priceMonitorService;
 
-    @Scheduled(fixedRate = 600000)
+    @Scheduled(fixedRate = 60000)
     public void runPriceMonitoring() {
         List<FlightSeatGradeDto> flights = subscriptionService.getActiveFlights();
 

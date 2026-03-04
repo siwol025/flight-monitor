@@ -2,6 +2,7 @@ package com.siwol025.flight_monitor.monitor.service;
 
 import com.siwol025.flight_monitor.global.annotation.DistributedLock;
 import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightResponse;
+import com.siwol025.flight_monitor.monitor.utils.ApiCooldownCircuitBreaker;
 import com.siwol025.flight_monitor.monitor.utils.DynamicTtlCalculator;
 import com.siwol025.flight_monitor.subscription.domain.flight.Flight;
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
@@ -27,6 +28,7 @@ public class PriceMonitorService {
     private final FlightService flightService;
     private final FlightSeatGradePriceService flightSeatGradePriceService;
     private final DynamicTtlCalculator ttlCalculator;
+    private final ApiCooldownCircuitBreaker cooldownCircuitBreaker;
 
     private static final String API_COOLDOWN_PREFIX = "flight:api_cooldown:";
     private static final String FLIGHT_PRICE_PREFIX = "flight:price:";
@@ -54,7 +56,7 @@ public class PriceMonitorService {
     private boolean hasCoolDownKey(Long flightId) {
         String cooldownKey = API_COOLDOWN_PREFIX + flightId;
 
-        return Boolean.TRUE.equals(redisTemplate.hasKey(cooldownKey));
+        return cooldownCircuitBreaker.hasCooldown(cooldownKey);
     }
 
     private void setCoolDownKey(Long flightId, LocalDateTime departureTime) {
@@ -62,7 +64,7 @@ public class PriceMonitorService {
         Duration nextTtl = ttlCalculator.calculateCooldownTtl(departureTime, LocalDateTime.now());
 
         if (!nextTtl.isZero()) {
-            redisTemplate.opsForValue().set(cooldownKey, "LOCKED", nextTtl);
+            cooldownCircuitBreaker.setCooldown(cooldownKey, nextTtl);
         }
     }
 
