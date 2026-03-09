@@ -3,7 +3,7 @@ package com.siwol025.flight_monitor.subscription.repository;
 import com.siwol025.flight_monitor.subscription.domain.Subscription;
 import com.siwol025.flight_monitor.subscription.domain.SubscriptionStatus;
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
-import com.siwol025.flight_monitor.subscription.dto.FlightSeatGradeDto;
+import com.siwol025.flight_monitor.subscription.dto.FlightMonitorTaskDto;
 import com.siwol025.flight_monitor.user.dto.UserEmailDto;
 import java.util.List;
 import java.util.Optional;
@@ -35,13 +35,13 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
 
     @Query(
             "SELECT DISTINCT " +
-                "new com.siwol025.flight_monitor.subscription.dto.FlightSeatGradeDto(s.flight.flightId, s.seatGrade) " +
+                "new com.siwol025.flight_monitor.subscription.dto.FlightMonitorTaskDto(s.flight.flightId, s.seatGrade) " +
             "FROM Subscription s " +
             "JOIN s.flight f " +
             "WHERE f.departureTime > CURRENT_TIMESTAMP " +
             "AND s.status = :status"
     )
-    List<FlightSeatGradeDto> findActiveFlightIdsAndSeatGrade(SubscriptionStatus status);
+    List<FlightMonitorTaskDto> findActiveFlightIdsAndSeatGrade(SubscriptionStatus status);
 
     @Query(
             "SELECT DISTINCT " +

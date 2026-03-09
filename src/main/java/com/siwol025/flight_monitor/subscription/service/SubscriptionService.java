@@ -6,7 +6,7 @@ import com.siwol025.flight_monitor.subscription.domain.Subscription;
 import com.siwol025.flight_monitor.subscription.domain.SubscriptionStatus;
 import com.siwol025.flight_monitor.subscription.domain.flight.Flight;
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
-import com.siwol025.flight_monitor.subscription.dto.FlightSeatGradeDto;
+import com.siwol025.flight_monitor.subscription.dto.FlightMonitorTaskDto;
 import com.siwol025.flight_monitor.subscription.dto.response.SubscriptionDetailResponse;
 import com.siwol025.flight_monitor.subscription.dto.response.SubscriptionResponse;
 import com.siwol025.flight_monitor.subscription.repository.SubscriptionRepository;
@@ -98,7 +98,7 @@ public class SubscriptionService {
                 .orElseThrow(() -> new IllegalArgumentException("구독내역을 찾을 수 없습니다."));
     }
 
-    public List<FlightSeatGradeDto> getActiveFlights() {
+    public List<FlightMonitorTaskDto> getActiveFlights() {
         return subscriptionRepository.findActiveFlightIdsAndSeatGrade(SubscriptionStatus.ACTIVE);
     }
 }

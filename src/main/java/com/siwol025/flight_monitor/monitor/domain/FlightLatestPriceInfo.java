@@ -1,6 +1,5 @@
 package com.siwol025.flight_monitor.monitor.domain;
 
-import com.siwol025.flight_monitor.mock.flight.domain.MockFlight;
 import com.siwol025.flight_monitor.subscription.domain.flight.Flight;
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
 import jakarta.persistence.Column;
@@ -24,7 +23,7 @@ import lombok.NoArgsConstructor;
 @Table(name = "flight_seat_grade_prices")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class FlightSeatGradePrice {
+public class FlightLatestPriceInfo {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -42,7 +41,7 @@ public class FlightSeatGradePrice {
     private BigDecimal price;
 
     @Builder
-    public FlightSeatGradePrice(Flight flight, SeatGrade seatGrade, BigDecimal price) {
+    public FlightLatestPriceInfo(Flight flight, SeatGrade seatGrade, BigDecimal price) {
         this.flight = flight;
         this.seatGrade = seatGrade;
         this.price = price;
