@@ -4,6 +4,7 @@ import com.siwol025.flight_monitor.monitor.dto.EmailSendTaskDto;
 import com.siwol025.flight_monitor.monitor.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -13,7 +14,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class EmailTaskWorker {
+@ConditionalOnProperty(name = "notification.mode", havingValue = "redis")
+public class RedisEmailTaskWorker {
     private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
     private final NotificationService notificationService;

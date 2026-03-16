@@ -1,17 +1,13 @@
 package com.siwol025.flight_monitor.monitor.service;
 
-import com.siwol025.flight_monitor.global.annotation.DistributedLock;
 import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightResponse;
-import com.siwol025.flight_monitor.monitor.domain.FlightLatestPriceInfo;
 import com.siwol025.flight_monitor.monitor.dto.PriceDropNotificationDto;
-import com.siwol025.flight_monitor.monitor.producer.NotificationProducer;
+import com.siwol025.flight_monitor.monitor.producer.NotificationPublisher;
 import com.siwol025.flight_monitor.monitor.utils.ApiCooldownCircuitBreaker;
 import com.siwol025.flight_monitor.monitor.utils.DynamicTtlCalculator;
-import com.siwol025.flight_monitor.subscription.domain.flight.Flight;
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
 import com.siwol025.flight_monitor.subscription.dto.FlightMonitorTaskDto;
 import com.siwol025.flight_monitor.subscription.service.FlightFetcher;
-import com.siwol025.flight_monitor.subscription.service.FlightService;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -29,7 +25,7 @@ public class PriceMonitorService {
 
     private final StringRedisTemplate redisTemplate;
     private final FlightFetcher flightFetcher;
-    private final NotificationProducer producer;
+    private final NotificationPublisher producer;
     private final FlightLatestPriceInfoService flightLatestPriceInfoService;
     private final DynamicTtlCalculator ttlCalculator;
     private final ApiCooldownCircuitBreaker cooldownCircuitBreaker;
@@ -38,10 +34,10 @@ public class PriceMonitorService {
     private static final String FLIGHT_PRICE_PREFIX = "flight:price:";
 
     public void checkPriceAndNotify(FlightMonitorTaskDto taskDto) {
-        if (hasCoolDownKey(taskDto.flightId(), taskDto.seatGrade())) {
-            log.info("📥 [CoolDown] FlightID={}, SeatGrade={}", taskDto.flightId(), taskDto.seatGrade());
-            return;
-        }
+//        if (hasCoolDownKey(taskDto.flightId(), taskDto.seatGrade())) {
+//            log.info("📥 [CoolDown] FlightID={}, SeatGrade={}", taskDto.flightId(), taskDto.seatGrade());
+//            return;
+//        }
 
         MockFlightResponse latestInfo = flightFetcher.fetchMockFlight(taskDto.flightId());
         if (latestInfo == null) {

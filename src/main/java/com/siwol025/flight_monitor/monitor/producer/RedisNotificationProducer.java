@@ -5,13 +5,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.siwol025.flight_monitor.monitor.dto.PriceDropNotificationDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class NotificationProducer {
+@ConditionalOnProperty(name = "notification.mode", havingValue = "redis")
+public class RedisNotificationProducer implements NotificationPublisher{
 
     private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
