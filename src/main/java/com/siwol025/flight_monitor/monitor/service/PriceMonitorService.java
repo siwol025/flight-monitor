@@ -19,7 +19,6 @@ import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
-@Profile("dev")
 @RequiredArgsConstructor
 public class PriceMonitorService {
 

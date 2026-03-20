@@ -39,7 +39,8 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
             "FROM Subscription s " +
             "JOIN s.flight f " +
             "WHERE f.departureTime > CURRENT_TIMESTAMP " +
-            "AND s.status = :status"
+            "AND s.status = :status " +
+            "ORDER BY s.createdAt desc"
     )
     List<FlightMonitorTaskDto> findActiveFlightIdsAndSeatGrade(SubscriptionStatus status);
 
