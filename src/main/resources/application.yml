@@ -3,16 +3,59 @@ spring:
     name: flight-monitor
   profiles:
     active: dev
-  data:
-    redis:
-      host: localhost
-      port: 6379
-  kafka:
-    bootstrap-servers: localhost:9092
 
+  # DB 계정 및 JPA 기본 설정 (주소 제외)
+  datasource:
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc.batch_size: 50
+        order_inserts: true
+
+  # 메일 발송 설정
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+  # OAuth2 설정 (리다이렉트 URI 제외)
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: "${OAUTH2_GOOGLE_CLIENT_ID}"
+            client-secret: "${OAUTH2_GOOGLE_CLIENT_SECRET}"
+            scope:
+              - email
+              - profile
+
+# 커스텀 비즈니스 설정
 monitor:
   worker:
     count: 3
 
 notification:
   mode: kafka
+
+jwt:
+  secret: "${JWT_SECRET}"
+  access-token-expiration-ms: 3600000
+  refresh-token-expiration-ms: 1209600000
+
+google:
+  client-id: "${OAUTH2_GOOGLE_CLIENT_ID}"

@@ -11,7 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
-@Profile("dev")
+@Profile({"dev", "docker"})
 @RequiredArgsConstructor
 public class MockMailService implements NotificationService{
 
