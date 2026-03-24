@@ -59,3 +59,21 @@ jwt:
 
 google:
   client-id: "${OAUTH2_GOOGLE_CLIENT_ID}"
+
+# 서킷 브레이커
+resilience4j.circuitbreaker:
+  configs:
+    default:
+      registerHealthIndicator: true
+      slidingWindowSize: 10                  # 최근 10번의 호출을 기준으로 실패율 계산
+      minimumNumberOfCalls: 5                # 실패율을 계산하기 위한 최소 호출 횟수
+      permittedNumberOfCallsInHalfOpenState: 3 # Half-Open 상태에서 허용할 테스트 호출 횟수
+      automaticTransitionFromOpenToHalfOpenEnabled: true # 지정된 시간 후 자동으로 Half-Open 전환
+      waitDurationInOpenState: 30s           # Circuit Open 상태 유지 시간 (30초 후 Half-Open 전환)
+      failureRateThreshold: 50               # 실패율이 50% 이상일 때 Circuit Open
+      eventConsumerBufferSize: 10
+  instances:
+    redisCache:
+      baseConfig: default
+    redisQueue:
+      baseConfig: default

@@ -2,6 +2,7 @@ package com.siwol025.flight_monitor.monitor.worker;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.siwol025.flight_monitor.monitor.service.PriceMonitorService;
+import com.siwol025.flight_monitor.monitor.utils.TaskQueueConsumerManager;
 import com.siwol025.flight_monitor.subscription.dto.FlightMonitorTaskDto;
 import jakarta.annotation.PreDestroy;
 import java.util.concurrent.ExecutorService;
@@ -19,9 +20,9 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class FlightMonitoringWorker {
 
-    private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
     private final PriceMonitorService priceMonitorService;
+    private final TaskQueueConsumerManager taskQueueConsumerManager;
 
     private static final String TASK_QUEUE_KEY = "monitoring:task:queue";
 
@@ -43,11 +44,14 @@ public class FlightMonitoringWorker {
     private void pollQueue() {
         while (isRunning && !Thread.currentThread().isInterrupted()) {
             try {
-                String jsonPayload = redisTemplate.opsForList().rightPop(TASK_QUEUE_KEY, java.time.Duration.ofSeconds(3));
+                String jsonPayload = taskQueueConsumerManager.popTask();
 
-                if (jsonPayload != null) {
-                    processTask(jsonPayload);
+                if (jsonPayload == null) {
+                    Thread.sleep(1000);
+                    continue;
                 }
+
+                processTask(jsonPayload);
             } catch (Exception e) {
                 log.error("🚨 [Consumer] 큐 폴링 중 오류 발생: {}", e.getMessage());
                 try {

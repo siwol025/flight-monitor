@@ -52,6 +52,9 @@ dependencies {
 
 	implementation 'org.redisson:redisson:3.43.0'
 	implementation 'org.springframework.kafka:spring-kafka'
+
+	implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.2.0'
+	implementation 'org.springframework.boot:spring-boot-starter-aop:3.3.0'
 }
 
 tasks.named('test') {

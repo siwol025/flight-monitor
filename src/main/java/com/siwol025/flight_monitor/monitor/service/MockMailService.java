@@ -19,8 +19,8 @@ public class MockMailService implements NotificationService{
 
     @Transactional
     public void sendPriceDropNotification(EmailSendTaskDto taskDto) {
-        try {
-            Thread.sleep(1500); // 레이스 컨디션 유발용 지연 시간
+        //try {
+            //Thread.sleep(1500); // 레이스 컨디션 유발용 지연 시간
 
             NotificationHistory history = NotificationHistory.builder()
                     .subject(taskDto.subject())
@@ -28,8 +28,8 @@ public class MockMailService implements NotificationService{
                     .toEmail(taskDto.toEmail())
                     .build();
             historyRepository.save(history);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        //} catch (InterruptedException e) {
+          //  Thread.currentThread().interrupt();
+        //}
     }
 }
