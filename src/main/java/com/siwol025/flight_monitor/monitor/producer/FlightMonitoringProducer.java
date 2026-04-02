@@ -20,9 +20,8 @@ public class FlightMonitoringProducer {
     private final ObjectMapper objectMapper;
     private final TaskQueueManager taskQueueManager;
 
-    private static final String DISTRIBUTED_LOCK_KEY = "lock:flight:chunk:";
-    private static final int MAX_QUEUE_THRESHOLD = 10000;
-    private static final int CHUNK_SIZE = 1000;
+    private static final int MAX_QUEUE_THRESHOLD = 20000;
+    private static final int CHUNK_SIZE = 100;
 
     @Scheduled(fixedRate = 60000)
     public void produceMonitoringTasks() {
@@ -41,13 +40,12 @@ public class FlightMonitoringProducer {
         for (int i = 0; i < targets.size(); i += CHUNK_SIZE) {
             int end = Math.min(i+CHUNK_SIZE, targets.size());
             List<FlightMonitorTaskDto> chunk = targets.subList(i, end);
-            String chunkLockKey = DISTRIBUTED_LOCK_KEY + i;
 
             List<String> jsonPayloads = chunk.stream()
                     .map(this::toJson)
                     .toList();
 
-            taskQueueManager.publishTasks(chunkLockKey, jsonPayloads);
+            taskQueueManager.publishTasks(jsonPayloads);
         }
     }
 

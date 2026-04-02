@@ -4,6 +4,7 @@ import com.siwol025.flight_monitor.global.fallback.repository.FallbackMonitoring
 import com.siwol025.flight_monitor.global.fallback.service.FallbackTaskService;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -22,7 +23,7 @@ public class TaskQueueConsumerManager {
 
     @CircuitBreaker(name = "redisQueue", fallbackMethod = "fallbackPopTask")
     public String popTask() {
-        return redisTemplate.opsForList().rightPop(TASK_QUEUE_KEY, Duration.ofSeconds(3));
+        return redisTemplate.opsForList().rightPop(TASK_QUEUE_KEY, 1, TimeUnit.SECONDS);
     }
 
     public String fallbackPopTask(Throwable t) {
