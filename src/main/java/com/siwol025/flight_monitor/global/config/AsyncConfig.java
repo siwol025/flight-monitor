@@ -17,7 +17,7 @@ public class AsyncConfig {
         executor.setCorePoolSize(3);
         executor.setMaxPoolSize(10);
         executor.setQueueCapacity(100);
-        executor.setThreadNamePrefix("MonitorWorker-");
+        executor.setThreadNamePrefix("MonitorWorker-Async-");
 
         executor.setWaitForTasksToCompleteOnShutdown(true);
         executor.setAwaitTerminationSeconds(30);
@@ -26,13 +26,13 @@ public class AsyncConfig {
         return executor;
     }
 
-    @Bean(name = "outboxEventExecutor")
-    public Executor outboxEventExecutor() {
+    @Bean(name = "notificationEventExecutor")
+    public Executor notificationEventExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(5);
         executor.setMaxPoolSize(20);
         executor.setQueueCapacity(1000);
-        executor.setThreadNamePrefix("Outbox-Async-");
+        executor.setThreadNamePrefix("notification-Async-");
 
         executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
         executor.initialize();
