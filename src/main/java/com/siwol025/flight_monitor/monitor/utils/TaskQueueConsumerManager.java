@@ -1,15 +1,12 @@
 package com.siwol025.flight_monitor.monitor.utils;
 
-import com.siwol025.flight_monitor.global.fallback.repository.FallbackMonitoringTaskRepository;
 import com.siwol025.flight_monitor.global.fallback.service.FallbackTaskService;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Component
@@ -21,7 +18,7 @@ public class TaskQueueConsumerManager {
 
     private static final String TASK_QUEUE_KEY = "monitoring:task:queue";
 
-    @CircuitBreaker(name = "redisQueue", fallbackMethod = "fallbackPopTask")
+    @CircuitBreaker(name = "redisQueueRead", fallbackMethod = "fallbackPopTask")
     public String popTask() {
         return redisTemplate.opsForList().rightPop(TASK_QUEUE_KEY, 1, TimeUnit.SECONDS);
     }

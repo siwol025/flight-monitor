@@ -63,17 +63,30 @@ google:
 # 서킷 브레이커
 resilience4j.circuitbreaker:
   configs:
-    default:
+    default: # Write 및 일반적인 용도의 기본 설정 (기존 유지)
       registerHealthIndicator: true
-      slidingWindowSize: 10                  # 최근 10번의 호출을 기준으로 실패율 계산
-      minimumNumberOfCalls: 5                # 실패율을 계산하기 위한 최소 호출 횟수
-      permittedNumberOfCallsInHalfOpenState: 3 # Half-Open 상태에서 허용할 테스트 호출 횟수
-      automaticTransitionFromOpenToHalfOpenEnabled: true # 지정된 시간 후 자동으로 Half-Open 전환
-      waitDurationInOpenState: 30s           # Circuit Open 상태 유지 시간 (30초 후 Half-Open 전환)
-      failureRateThreshold: 50               # 실패율이 50% 이상일 때 Circuit Open
+      slidingWindowSize: 10
+      minimumNumberOfCalls: 5
+      permittedNumberOfCallsInHalfOpenState: 3
+      automaticTransitionFromOpenToHalfOpenEnabled: true
+      waitDurationInOpenState: 30s
+      failureRateThreshold: 50
       eventConsumerBufferSize: 10
+
+    read-heavy: # 지속적인 Polling(Read)이 발생하는 곳을 위한 설정 추가
+      registerHealthIndicator: true
+      slidingWindowSize: 60                  # 최근 60번의 호출(약 1분 치)을 기준으로 평가
+      minimumNumberOfCalls: 30               # 최소 30번은 호출되어야 실패율 계산 시작
+      permittedNumberOfCallsInHalfOpenState: 5
+      automaticTransitionFromOpenToHalfOpenEnabled: true
+      waitDurationInOpenState: 20s           # Read는 빨리 회복하는지 자주 확인하도록 대기 시간 단축
+      failureRateThreshold: 50
+      eventConsumerBufferSize: 10
+
   instances:
     redisCache:
       baseConfig: default
-    redisQueue:
+    redisQueueWrite: # Write 전용 인스턴스
       baseConfig: default
+    redisQueueRead:  # Read 전용 인스턴스 (새로 추가한 read-heavy 설정 사용)
+      baseConfig: read-heavy

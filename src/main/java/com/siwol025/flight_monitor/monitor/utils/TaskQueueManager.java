@@ -28,7 +28,7 @@ public class TaskQueueManager {
     private static final long WAIT_TIME = 0L;
     private static final long LEASE_TIME = 50L;
 
-    @CircuitBreaker(name = "redisQueue", fallbackMethod = "fallbackPublishTasks")
+    @CircuitBreaker(name = "redisQueueWrite", fallbackMethod = "fallbackPublishTasks")
     public void publishTasks(List<String> jsonPayloads) {
         if (jsonPayloads == null || jsonPayloads.isEmpty()) {
             return;
@@ -72,7 +72,7 @@ public class TaskQueueManager {
         }
     }
 
-    @CircuitBreaker(name = "redisQueue", fallbackMethod = "fallbackGetQueueSizeSafely")
+    @CircuitBreaker(name = "redisQueueWrite", fallbackMethod = "fallbackGetQueueSizeSafely")
     public Long getQueueSizeSafely() {
         return redisTemplate.opsForList().size(TASK_QUEUE_KEY);
     }
