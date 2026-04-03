@@ -21,7 +21,7 @@ public class FlightMonitoringProducer {
     private final TaskQueueManager taskQueueManager;
 
     private static final int MAX_QUEUE_THRESHOLD = 20000;
-    private static final int CHUNK_SIZE = 100;
+    private static final int CHUNK_SIZE = 1000;
 
     @Scheduled(fixedRate = 60000)
     public void produceMonitoringTasks() {

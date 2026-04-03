@@ -1,5 +1,6 @@
 package com.siwol025.flight_monitor.subscription.service;
 
+import com.siwol025.flight_monitor.global.config.CacheConfig;
 import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightResponse;
 import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightSeatPriceResponse;
 import com.siwol025.flight_monitor.subscription.domain.Subscription;
@@ -15,6 +16,7 @@ import com.siwol025.flight_monitor.user.dto.UserEmailDto;
 import java.math.BigDecimal;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -98,6 +100,7 @@ public class SubscriptionService {
                 .orElseThrow(() -> new IllegalArgumentException("구독내역을 찾을 수 없습니다."));
     }
 
+    @Cacheable(value = CacheConfig.MONITORING_LIST_CACHE, key = "'all'")
     public List<FlightMonitorTaskDto> getActiveFlights() {
         return subscriptionRepository.findActiveFlightIdsAndSeatGrade(SubscriptionStatus.ACTIVE);
     }
