@@ -24,7 +24,17 @@ public class TaskQueueConsumerManager {
     }
 
     public String fallbackPopTask(Throwable t) {
-        log.warn("🚨 [Fallback] Redis 큐 다운. DB에서 안전하게 대체 작업을 가져옵니다.");
-        return fallbackTaskService.processPendingTask();
+        String jsonPayload = fallbackTaskService.processPendingTask();
+
+        if (jsonPayload == null) {
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return null;
+            }
+        }
+
+        return jsonPayload;
     }
 }
