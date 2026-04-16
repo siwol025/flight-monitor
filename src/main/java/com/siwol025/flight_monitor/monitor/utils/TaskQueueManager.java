@@ -38,7 +38,6 @@ public class TaskQueueManager {
 
             if (lock.tryLock(WAIT_TIME, LEASE_TIME, TimeUnit.SECONDS)) {
                 log.info("✅ [Redis Lock] 락 획득 성공. 레디스 큐에 작업을 저장합니다.");
-
                 redisTemplate.opsForList().leftPushAll(TASK_QUEUE_KEY, jsonPayloads);
             }
         } catch (InterruptedException e) {

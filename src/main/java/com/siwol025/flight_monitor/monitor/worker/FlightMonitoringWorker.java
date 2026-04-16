@@ -1,54 +1,48 @@
 package com.siwol025.flight_monitor.monitor.worker;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.siwol025.flight_monitor.monitor.service.PriceMonitorService;
 import com.siwol025.flight_monitor.monitor.utils.TaskQueueConsumerManager;
-import com.siwol025.flight_monitor.subscription.dto.FlightMonitorTaskDto;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
-import java.util.concurrent.Executor;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
+@Profile("!mock")
 public class FlightMonitoringWorker {
 
-    private final ObjectMapper objectMapper;
-    private final PriceMonitorService priceMonitorService;
     private final TaskQueueConsumerManager taskQueueConsumerManager;
-    private final Executor taskExecutor;
+    private final MonitoringTaskProcessor taskProcessor;
 
     private volatile boolean isRunning = true;
     private Thread pollerThread;
-
-    public FlightMonitoringWorker(
-            TaskQueueConsumerManager taskQueueConsumerManager,
-            PriceMonitorService priceMonitorService,
-            ObjectMapper objectMapper,
-            @Qualifier("monitoringTaskExecutor") Executor taskExecutor) {
-        this.taskQueueConsumerManager = taskQueueConsumerManager;
-        this.priceMonitorService = priceMonitorService;
-        this.objectMapper = objectMapper;
-        this.taskExecutor = taskExecutor;
-    }
 
     @PostConstruct
     public void startWorkers() {
         pollerThread = new Thread(this::pollQueue, "MonitorPoller");
         pollerThread.setDaemon(true);
         pollerThread.start();
-        log.info("FlightMonitoring Poller started.");
     }
 
     private void pollQueue() {
         while (isRunning) {
             try {
-                String jsonPayload = taskQueueConsumerManager.popTask();
+                String firstPayload = taskQueueConsumerManager.blockAndPopTask(1);
 
-                if (jsonPayload != null) {
-                    taskExecutor.execute(() -> processTask(jsonPayload));
+                if (firstPayload != null) {
+                    taskProcessor.processTask(firstPayload);
+
+                    List<String> batchPayloads = taskQueueConsumerManager.popTasksBatch(99);
+
+                    if (batchPayloads != null && !batchPayloads.isEmpty()) {
+                        for (String payload : batchPayloads) {
+                            taskProcessor.processTask(payload);
+                        }
+                    }
                 }
             } catch (Exception e) {
                 if (Thread.currentThread().isInterrupted()) {
@@ -57,17 +51,6 @@ public class FlightMonitoringWorker {
                 }
                 log.error("Error occurred while polling or delegating task", e);
             }
-        }
-    }
-
-    private void processTask(String jsonPayload) {
-        try {
-            FlightMonitorTaskDto taskDto = objectMapper.readValue(jsonPayload, FlightMonitorTaskDto.class);
-            log.info("[Monitoring Worker] 작업 처리 시작: FlightID={}, SeatGrade={}", taskDto.flightId(), taskDto.seatGrade());
-
-            priceMonitorService.checkPriceAndNotify(taskDto);
-        } catch (Exception e) {
-            log.error("🚨 [Monitoring Worker] 작업 처리 실패 (Payload: {}): {}", jsonPayload, e.getMessage());
         }
     }
 

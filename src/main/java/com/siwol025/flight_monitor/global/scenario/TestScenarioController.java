@@ -4,6 +4,8 @@ import com.siwol025.flight_monitor.mock.airline.domain.MockAirline;
 import com.siwol025.flight_monitor.mock.airport.domain.MockAirport;
 import com.siwol025.flight_monitor.mock.flight.domain.FlightSeatPrice;
 import com.siwol025.flight_monitor.mock.flight.domain.MockFlight;
+import com.siwol025.flight_monitor.mock.flight.repository.MockFlightRepository;
+import com.siwol025.flight_monitor.monitor.domain.FlightLatestPriceInfo;
 import com.siwol025.flight_monitor.subscription.domain.Subscription;
 import com.siwol025.flight_monitor.subscription.domain.flight.Flight;
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
@@ -31,6 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class TestScenarioController {
 
     private final EntityManager em;
+    private final MockFlightRepository mockFlightRepository;
 
     @PostMapping("/seed")
     @Transactional

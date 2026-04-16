@@ -41,7 +41,8 @@ public class KafkaConfig {
     @Bean
     public NewTopic priceDropEventTopic() {
         return TopicBuilder.name("flight-price-drop-events")
-                .partitions(3)
+                //.partitions(50)
+                .partitions(10)
                 .replicas(1)
                 .build();
     }
@@ -49,7 +50,8 @@ public class KafkaConfig {
     @Bean
     public NewTopic emailSendTaskTopic() {
         return TopicBuilder.name("email-send-tasks")
-                .partitions(3)
+                //.partitions(50)
+                .partitions(10)
                 .replicas(1)
                 .build();
     }
@@ -92,6 +94,7 @@ public class KafkaConfig {
     public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
+        factory.setConcurrency(10);
 
         return factory;
     }

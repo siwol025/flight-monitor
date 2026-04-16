@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Configuration;
 public class CacheConfig {
 
     public static final String MONITORING_LIST_CACHE = "MONITORING_LIST_CACHE";
-    // TTL: 5분 (밀리초 단위 계산)
+    // TTL: 5분
     private static final long DEFAULT_TTL_MILLIS = 300_000L;
 
     @Bean

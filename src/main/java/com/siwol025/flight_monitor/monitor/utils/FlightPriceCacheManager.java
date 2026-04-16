@@ -45,10 +45,9 @@ public class FlightPriceCacheManager {
 
     @CircuitBreaker(name = "redisCache", fallbackMethod = "dbFallbackSaveToCache")
     public void saveToCache(String redisKey, String value) {
-        redisTemplate.opsForValue().set(redisKey, value, Duration.ofDays(7));
+        redisTemplate.opsForValue().set(redisKey, value, Duration.ofDays(1));
     }
 
-    // 장애 시 실행될 Fallback (그냥 에러 로그만 찍고 즉각 종료)
     public void dbFallbackSaveToCache(String redisKey, String value, Throwable t) {
         log.warn("🚨 [CircuitBreaker] Redis가 다운되어 캐시 갱신을 포기합니다. (Key: {})", redisKey);
     }

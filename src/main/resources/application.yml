@@ -6,6 +6,9 @@ spring:
 
   # DB 계정 및 JPA 기본 설정 (주소 제외)
   datasource:
+    hikari:
+      pool-name: HikariCP
+      maximum-pool-size: 80
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -16,8 +19,8 @@ spring:
     properties:
       hibernate:
         format_sql: true
-        jdbc.batch_size: 50
         order_inserts: true
+        generate_statistics: false
 
   # 메일 발송 설정
   mail:
@@ -90,3 +93,23 @@ resilience4j.circuitbreaker:
       baseConfig: default
     redisQueueRead:  # Read 전용 인스턴스 (새로 추가한 read-heavy 설정 사용)
       baseConfig: read-heavy
+
+server:
+  tomcat:
+    mbeanregistry:
+      enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: prometheus, health, info, metrics
+  endpoint:
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: flight-monitor
+    export:
+      prometheus:
+        enabled: true

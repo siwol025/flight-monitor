@@ -21,4 +21,5 @@ spring:
 external:
   api:
     # 각 애플리케이션 컨테이너가 직접 통신하지 않고 Nginx를 거치도록 설정
-    url: "http://nginx/external/api/flights/"
+    # url: "http://nginx/external/api/flights/"
+    url: ${EXTERNAL_API_URL:http://localhost:8080/external/api/flights/}

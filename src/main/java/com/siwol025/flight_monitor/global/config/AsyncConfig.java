@@ -14,9 +14,9 @@ public class AsyncConfig {
     @Bean(name = "monitoringTaskExecutor")
     public Executor monitoringTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(3);
-        executor.setMaxPoolSize(10);
-        executor.setQueueCapacity(100);
+        executor.setCorePoolSize(40);
+        executor.setMaxPoolSize(40);
+        executor.setQueueCapacity(10000);
         executor.setThreadNamePrefix("MonitorWorker-Async-");
 
         executor.setWaitForTasksToCompleteOnShutdown(true);
@@ -29,9 +29,9 @@ public class AsyncConfig {
     @Bean(name = "notificationEventExecutor")
     public Executor notificationEventExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(5);
-        executor.setMaxPoolSize(20);
-        executor.setQueueCapacity(1000);
+        executor.setCorePoolSize(30);
+        executor.setMaxPoolSize(30);
+        executor.setQueueCapacity(10000);
         executor.setThreadNamePrefix("notification-Async-");
 
         executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());

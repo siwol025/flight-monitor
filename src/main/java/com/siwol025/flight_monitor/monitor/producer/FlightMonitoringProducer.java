@@ -8,12 +8,14 @@ import com.siwol025.flight_monitor.subscription.service.SubscriptionService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@Profile("!mock")
 public class FlightMonitoringProducer {
 
     private final SubscriptionService subscriptionService;
@@ -23,7 +25,7 @@ public class FlightMonitoringProducer {
     private static final int MAX_QUEUE_THRESHOLD = 20000;
     private static final int CHUNK_SIZE = 1000;
 
-    @Scheduled(fixedRate = 60000)
+    @Scheduled(fixedRate = 120000)
     public void produceMonitoringTasks() {
         Long currentQueueSize = taskQueueManager.getQueueSizeSafely();
 
