@@ -26,7 +26,7 @@ public class KafkaNotificationListener {
 
     private static final String OUT_TOPIC = "email-send-tasks";
 
-    @KafkaListener(topics = "flight-price-drop-events", groupId = "notification-fanout-group")
+    @KafkaListener(topics = "flight-price-drop-events", groupId = "notification-fanout-group", concurrency = "3")
     public void processNotification(PriceDropNotificationDto eventDto) {
         try {
             List<UserEmailDto> subscribers = subscriptionService.getSubscribers(eventDto.flightId());
@@ -41,7 +41,7 @@ public class KafkaNotificationListener {
             for (UserEmailDto user : subscribers) {
                 EmailSendTaskDto taskDto = new EmailSendTaskDto(user.email(), subject, content);
                 try {
-                    kafkaTemplate.send(OUT_TOPIC, user.email(), taskDto);
+                    kafkaTemplate.send(OUT_TOPIC, eventDto.flightNumber() + user.email(), taskDto);
                 } catch (Exception e) {
                     log.error("🚨 [Kafka] 특정 유저 이메일 작업 전송 실패: {}", user.email(), e);
                 }

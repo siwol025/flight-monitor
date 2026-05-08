@@ -1,5 +1,6 @@
 package com.siwol025.flight_monitor.monitor.worker;
 
+import com.google.common.util.concurrent.RateLimiter;
 import com.siwol025.flight_monitor.monitor.utils.TaskQueueConsumerManager;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -17,6 +18,7 @@ public class FlightMonitoringWorker {
 
     private final TaskQueueConsumerManager taskQueueConsumerManager;
     private final MonitoringTaskProcessor taskProcessor;
+    //private final RateLimiter rateLimiter = RateLimiter.create(90.0);
 
     private volatile boolean isRunning = true;
     private Thread pollerThread;
@@ -31,19 +33,13 @@ public class FlightMonitoringWorker {
     private void pollQueue() {
         while (isRunning) {
             try {
-                String firstPayload = taskQueueConsumerManager.blockAndPopTask(1);
+                //rateLimiter.acquire();
 
-                if (firstPayload != null) {
-                    taskProcessor.processTask(firstPayload);
-
-                    List<String> batchPayloads = taskQueueConsumerManager.popTasksBatch(99);
-
-                    if (batchPayloads != null && !batchPayloads.isEmpty()) {
-                        for (String payload : batchPayloads) {
-                            taskProcessor.processTask(payload);
-                        }
-                    }
+                String payload = taskQueueConsumerManager.blockAndPopTask(30);
+                if (payload != null) {
+                    taskProcessor.processTask(payload);
                 }
+
             } catch (Exception e) {
                 if (Thread.currentThread().isInterrupted()) {
                     log.info("MonitorPoller thread is interrupted. Stopping polling...");

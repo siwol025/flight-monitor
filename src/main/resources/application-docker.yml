@@ -18,6 +18,11 @@ spring:
             # Nginx(80포트)를 통해 통신하므로 포트번호 제거
             redirect-uri: "http://localhost/login/oauth2/code/google"
 
+logging:
+  level:
+    org.apache.kafka: INFO
+    org.springframework.kafka: INFO
+
 external:
   api:
     # 각 애플리케이션 컨테이너가 직접 통신하지 않고 Nginx를 거치도록 설정

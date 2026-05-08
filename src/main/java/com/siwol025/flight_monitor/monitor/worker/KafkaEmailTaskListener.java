@@ -18,7 +18,7 @@ public class KafkaEmailTaskListener {
 
     private final NotificationService notificationService;
 
-    @KafkaListener(topics = "email-send-tasks", groupId = "email-sender-group")
+    @KafkaListener(topics = "email-send-tasks", groupId = "email-sender-group", concurrency = "50")
     public void processEmailTask(EmailSendTaskDto taskDto) {
         try {
             notificationService.sendPriceDropNotification(taskDto);
