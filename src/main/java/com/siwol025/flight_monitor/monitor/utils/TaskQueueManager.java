@@ -21,6 +21,7 @@ public class TaskQueueManager {
     private final StringRedisTemplate redisTemplate;
     private final FallbackMonitoringTaskRepository fallbackRepository;
     private final RedissonClient redissonClient;
+    private final TaskQueueConsumerManager taskQueueConsumerManager;
 
     private static final String TASK_QUEUE_KEY = "monitoring:task:queue";
     private static final String DB_LOCK_KEY = "db:lock:flight";
@@ -28,7 +29,7 @@ public class TaskQueueManager {
     private static final long WAIT_TIME = 0L;
     private static final long LEASE_TIME = 50L;
 
-    @CircuitBreaker(name = "redisQueueWrite", fallbackMethod = "fallbackPublishTasks")
+    @CircuitBreaker(name = "redisPushCircuitBreaker", fallbackMethod = "fallbackPublishTasks")
     public void publishTasks(List<String> jsonPayloads) {
         if (jsonPayloads == null || jsonPayloads.isEmpty()) {
             return;
@@ -45,10 +46,11 @@ public class TaskQueueManager {
         }
     }
 
-    private void fallbackPublishTasks(List<String> jsonPayloads, Throwable t) {
+    public void fallbackPublishTasks(List<String> jsonPayloads, Throwable t) {
         log.warn("🚨 [CircuitBreaker] Redis 큐 발행 실패. DB 대기열로 전환합니다. 원인: {}", t.getMessage());
 
         executeDbFallbackWithLock(jsonPayloads);
+        taskQueueConsumerManager.markFallbackTaskExists();
     }
 
     @Transactional
@@ -71,7 +73,7 @@ public class TaskQueueManager {
         }
     }
 
-    @CircuitBreaker(name = "redisQueueWrite", fallbackMethod = "fallbackGetQueueSizeSafely")
+    @CircuitBreaker(name = "redisPushCircuitBreaker", fallbackMethod = "fallbackGetQueueSizeSafely")
     public Long getQueueSizeSafely() {
         return redisTemplate.opsForList().size(TASK_QUEUE_KEY);
     }

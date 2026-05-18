@@ -20,7 +20,7 @@ public class FlightPriceCacheManager {
 
     private static final String FLIGHT_PRICE_PREFIX = "flight:price:";
 
-    @CircuitBreaker(name = "redisCache", fallbackMethod = "dbFallbackPreviousPrice")
+    @CircuitBreaker(name = "redisPopCircuitBreaker", fallbackMethod = "dbFallbackPreviousPrice")
     public BigDecimal getPreviousPrice(Long flightId, SeatGrade seatGrade, BigDecimal currentPrice) {
         String redisKey = FLIGHT_PRICE_PREFIX + flightId + ":" + seatGrade.name();
         String cachedPriceStr = redisTemplate.opsForValue().get(redisKey);
@@ -43,7 +43,7 @@ public class FlightPriceCacheManager {
                 .orElseGet(() -> flightLatestPriceInfoService.createLatestPriceInfo(flightId, seatGrade, currentPrice).getPrice());
     }
 
-    @CircuitBreaker(name = "redisCache", fallbackMethod = "dbFallbackSaveToCache")
+    @CircuitBreaker(name = "redisPopCircuitBreaker", fallbackMethod = "dbFallbackSaveToCache")
     public void saveToCache(String redisKey, String value) {
         redisTemplate.opsForValue().set(redisKey, value, Duration.ofDays(1));
     }

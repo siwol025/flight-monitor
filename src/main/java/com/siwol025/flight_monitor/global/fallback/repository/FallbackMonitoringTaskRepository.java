@@ -15,4 +15,13 @@ public interface FallbackMonitoringTaskRepository extends JpaRepository<Fallback
 
     @Query(value = "SELECT RELEASE_LOCK(:key)", nativeQuery = true)
     Integer releaseLock(@Param("key") String key);
+
+    @Query("""
+        SELECT EXISTS (
+            SELECT 1
+            FROM FallbackMonitoringTask f
+            WHERE f.status = 'PENDING'
+        )
+    """)
+    boolean existsPendingTask();
 }

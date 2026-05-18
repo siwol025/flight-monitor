@@ -16,9 +16,9 @@ import org.springframework.stereotype.Component;
 @Profile("!mock")
 public class FlightMonitoringWorker {
 
-    private final TaskQueueConsumerManager taskQueueConsumerManager;
+    private final TaskQueueConsumerManager queueManager;
     private final MonitoringTaskProcessor taskProcessor;
-    //private final RateLimiter rateLimiter = RateLimiter.create(90.0);
+    private final RateLimiter rateLimiter = RateLimiter.create(90.0);
 
     private volatile boolean isRunning = true;
     private Thread pollerThread;
@@ -33,12 +33,18 @@ public class FlightMonitoringWorker {
     private void pollQueue() {
         while (isRunning) {
             try {
-                //rateLimiter.acquire();
+                rateLimiter.acquire();
 
-                String payload = taskQueueConsumerManager.blockAndPopTask(30);
-                if (payload != null) {
-                    taskProcessor.processTask(payload);
+                String payload = queueManager.blockAndPopTask(3);
+
+                if (payload == null && queueManager.hasPendingFallbackTask()) {
+                    payload = queueManager.pollFallbackQueue();
                 }
+
+                if (payload == null) {
+                    continue;
+                }
+                taskProcessor.processTask(payload);
 
             } catch (Exception e) {
                 if (Thread.currentThread().isInterrupted()) {

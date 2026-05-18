@@ -64,35 +64,42 @@ google:
   client-id: "${OAUTH2_GOOGLE_CLIENT_ID}"
 
 # 서킷 브레이커
-resilience4j.circuitbreaker:
-  configs:
-    default: # Write 및 일반적인 용도의 기본 설정 (기존 유지)
-      registerHealthIndicator: true
-      slidingWindowSize: 10
-      minimumNumberOfCalls: 5
-      permittedNumberOfCallsInHalfOpenState: 3
-      automaticTransitionFromOpenToHalfOpenEnabled: true
-      waitDurationInOpenState: 30s
-      failureRateThreshold: 50
-      eventConsumerBufferSize: 10
+resilience4j:
+  circuitbreaker:
+    instances:
+      # Producer(Push) 전용
+      redisPushCircuitBreaker:
+        # 최근 호출 횟수 기준으로 판단
+        slidingWindowType: COUNT_BASED
+        # 최근 2번의 요청 결과를 저장 (성공/실패 여부 기억)
+        slidingWindowSize: 2
+        # 최소 1번만 호출돼도 실패율 계산 시작 (호출 수가 적음)
+        minimumNumberOfCalls: 1
+        # 실패율이 100%면 OPEN (즉, 최근 호출이 실패하면 바로 OPEN)
+        failureRateThreshold: 100
+        # OPEN 상태가 되면 30초 동안 Redis 접근 차단
+        waitDurationInOpenState: 30s
+        # HALF_OPEN 상태에서 1건만 테스트 요청 허용
+        permittedNumberOfCallsInHalfOpenState: 1
 
-    read-heavy: # 지속적인 Polling(Read)이 발생하는 곳을 위한 설정 추가
-      registerHealthIndicator: true
-      slidingWindowSize: 60                  # 최근 60번의 호출(약 1분 치)을 기준으로 평가
-      minimumNumberOfCalls: 30               # 최소 30번은 호출되어야 실패율 계산 시작
-      permittedNumberOfCallsInHalfOpenState: 5
-      automaticTransitionFromOpenToHalfOpenEnabled: true
-      waitDurationInOpenState: 20s           # Read는 빨리 회복하는지 자주 확인하도록 대기 시간 단축
-      failureRateThreshold: 50
-      eventConsumerBufferSize: 10
-
-  instances:
-    redisCache:
-      baseConfig: default
-    redisQueueWrite: # Write 전용 인스턴스
-      baseConfig: default
-    redisQueueRead:  # Read 전용 인스턴스 (새로 추가한 read-heavy 설정 사용)
-      baseConfig: read-heavy
+      # Consumer(Pop) 전용
+      redisPopCircuitBreaker:
+        # Pop은 실시간으로 계속 호출되는 고빈도 작업이기 때문에 시간 기준으로 통계 계산
+        slidingWindowType: TIME_BASED
+        # 최근 20초간의 요청 상태를 기준으로 판단
+        slidingWindowSize: 20
+        # 최소 20건 이상 호출되어야 실패율 계산 시작
+        minimumNumberOfCalls: 20
+        # 실패율이 30% 넘으면 OPEN
+        failureRateThreshold: 30
+        # 느린 요청 비율이 40% 넘으면 OPEN
+        slowCallRateThreshold: 40
+        # 3초 이상 걸리면 느린 요청으로 판단
+        slowCallDurationThreshold: 3s
+        # OPEN 상태가 되면 30초 동안 Redis 접근 차단
+        waitDurationInOpenState: 30s
+        # HALF_OPEN 상태에서 5건만 테스트 요청 허용
+        permittedNumberOfCallsInHalfOpenState: 5
 
 server:
   tomcat:

@@ -24,4 +24,9 @@ public class FallbackTaskService {
                     return payload;
                 }).orElse(null);
     }
+
+    @Transactional(readOnly = true)
+    public boolean hasPendingTask() {
+        return fallbackRepository.existsPendingTask();
+    }
 }
