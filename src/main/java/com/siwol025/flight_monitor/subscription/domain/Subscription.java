@@ -1,5 +1,7 @@
 package com.siwol025.flight_monitor.subscription.domain;
 
+import com.siwol025.flight_monitor.global.exception.ErrorTag;
+import com.siwol025.flight_monitor.global.exception.custom.UnauthorizedException;
 import com.siwol025.flight_monitor.subscription.domain.flight.Flight;
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
 import com.siwol025.flight_monitor.user.domain.User;
@@ -68,7 +70,7 @@ public class Subscription extends BaseTimeEntity{
 
     public void validateOwner(User requester) {
         if (!this.user.equals(requester)) {
-            throw new IllegalArgumentException("해당 구독을 취소할 권한이 없습니다.");
+            throw new UnauthorizedException(ErrorTag.UNAUTHORIZED_SUBSCRIPTION);
         }
     }
 }

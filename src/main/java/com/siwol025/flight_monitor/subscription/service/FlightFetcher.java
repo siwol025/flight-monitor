@@ -1,5 +1,7 @@
 package com.siwol025.flight_monitor.subscription.service;
 
+import com.siwol025.flight_monitor.global.exception.ErrorTag;
+import com.siwol025.flight_monitor.global.exception.custom.NotFoundException;
 import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +27,7 @@ public class FlightFetcher {
             MockFlightResponse response = restTemplate.getForObject(url, MockFlightResponse.class);
 
             if (response == null) {
-                throw new RuntimeException("해당 ID의 항공편 정보를 찾을 수 없습니다: " + flightId);
+                throw new NotFoundException(ErrorTag.FLIGHT_NOT_FOUND);
             }
             return response;
         } catch (RestClientException e) {

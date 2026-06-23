@@ -7,6 +7,7 @@ import com.siwol025.flight_monitor.subscription.dto.response.SubscriptionRespons
 import com.siwol025.flight_monitor.subscription.service.SubscriptionService;
 import com.siwol025.flight_monitor.user.domain.User;
 import io.swagger.v3.oas.annotations.Parameter;
+import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -28,7 +29,7 @@ public class SubscriptionController implements SubscriptionControllerSwagger{
     @PostMapping
     public ResponseEntity<Void> subscribe(
             @Parameter(hidden = true) @LoginUser User user,
-            @RequestBody SubscriptionRequest request
+            @Valid @RequestBody SubscriptionRequest request
     ) {
         subscriptionService.subscribe(user, request.flightId(), request.seatGrade());
         return ResponseEntity.noContent().build();
@@ -47,7 +48,7 @@ public class SubscriptionController implements SubscriptionControllerSwagger{
     }
 
     @DeleteMapping("/{subscriptionId}")
-    public ResponseEntity<SubscriptionDetailResponse> cancelSubscription(@Parameter(hidden = true) @LoginUser User user, @PathVariable Long subscriptionId) {
+    public ResponseEntity<Void> cancelSubscription(@Parameter(hidden = true) @LoginUser User user, @PathVariable Long subscriptionId) {
         subscriptionService.unsubscribe(user, subscriptionId);
         return ResponseEntity.noContent().build();
     }

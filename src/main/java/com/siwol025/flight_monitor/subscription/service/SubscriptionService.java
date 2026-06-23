@@ -1,6 +1,9 @@
 package com.siwol025.flight_monitor.subscription.service;
 
 import com.siwol025.flight_monitor.global.config.CacheConfig;
+import com.siwol025.flight_monitor.global.exception.ErrorTag;
+import com.siwol025.flight_monitor.global.exception.custom.BadRequestException;
+import com.siwol025.flight_monitor.global.exception.custom.NotFoundException;
 import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightResponse;
 import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightSeatPriceResponse;
 import com.siwol025.flight_monitor.subscription.domain.Subscription;
@@ -76,7 +79,7 @@ public class SubscriptionService {
                 .filter(sp -> sp.seatGrade() == subscription.getSeatGrade())
                 .map(MockFlightSeatPriceResponse::price)
                 .findFirst()
-                .orElseThrow(() -> new RuntimeException("현재 해당 좌석의 가격 정보를 가져올 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException(ErrorTag.SEAT_PRICE_NOT_FOUND));
 
         return SubscriptionDetailResponse.of(subscription, currentPrice);
     }
@@ -86,18 +89,18 @@ public class SubscriptionService {
                 .filter(sp -> sp.seatGrade() == seatGrade)
                 .map(MockFlightSeatPriceResponse::price)
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("해당 좌석 등급의 가격 정보를 찾을 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException(ErrorTag.SEAT_PRICE_NOT_FOUND));
     }
 
     private void validateDuplicateSubscription(Long userId, Long flightId, SeatGrade seatGrade) {
         if (subscriptionRepository.existsByUserIdAndFlightIdAndSeatGrade(userId, flightId, seatGrade)) {
-            throw new IllegalArgumentException("이미 등록된 구독입니다.");
+            throw new BadRequestException(ErrorTag.DUPLICATE_SUBSCRIPTION);
         }
     }
 
     private Subscription findSubscription(Long subscriptionId) {
         return subscriptionRepository.findByIdWithFlight(subscriptionId)
-                .orElseThrow(() -> new IllegalArgumentException("구독내역을 찾을 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException(ErrorTag.SUBSCRIPTION_NOT_FOUND));
     }
 
     @Cacheable(value = CacheConfig.MONITORING_LIST_CACHE, key = "'all'")

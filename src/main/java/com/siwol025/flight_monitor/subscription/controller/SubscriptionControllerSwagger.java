@@ -55,5 +55,5 @@ public interface SubscriptionControllerSwagger {
                     )
             }
     )
-    ResponseEntity<SubscriptionDetailResponse> cancelSubscription(User user, Long subscriptionId);
+    ResponseEntity<Void> cancelSubscription(User user, Long subscriptionId);
 }

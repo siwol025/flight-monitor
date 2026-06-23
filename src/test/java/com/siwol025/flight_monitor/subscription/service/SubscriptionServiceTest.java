@@ -1,0 +1,156 @@
+package com.siwol025.flight_monitor.subscription.service;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
+
+import com.siwol025.flight_monitor.global.exception.ErrorTag;
+import com.siwol025.flight_monitor.global.exception.custom.BadRequestException;
+import com.siwol025.flight_monitor.global.exception.custom.NotFoundException;
+import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightResponse;
+import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightSeatPriceResponse;
+import com.siwol025.flight_monitor.subscription.domain.Subscription;
+import com.siwol025.flight_monitor.subscription.domain.flight.Flight;
+import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
+import com.siwol025.flight_monitor.subscription.repository.SubscriptionRepository;
+import com.siwol025.flight_monitor.user.domain.User;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+@ExtendWith(MockitoExtension.class)
+class SubscriptionServiceTest {
+
+    @Mock private SubscriptionRepository subscriptionRepository;
+    @Mock private FlightService flightService;
+    @Mock private FlightFetcher flightFetcher;
+
+    @InjectMocks
+    private SubscriptionService subscriptionService;
+
+    private User testUser;
+
+    @BeforeEach
+    void setUp() {
+        testUser = mock(User.class);
+    }
+
+    // ─── subscribe ────────────────────────────────────────────────────────────
+
+    @Test
+    void subscribe_이미구독중이면_BadRequestException_DUPLICATE_SUBSCRIPTION() {
+        given(testUser.getId()).willReturn(1L);
+        given(subscriptionRepository.existsByUserIdAndFlightIdAndSeatGrade(1L, 10L, SeatGrade.ECONOMY))
+                .willReturn(true);
+
+        BadRequestException ex = assertThrows(
+                BadRequestException.class,
+                () -> subscriptionService.subscribe(testUser, 10L, SeatGrade.ECONOMY)
+        );
+
+        assertThat(ex.getErrorTag()).isEqualTo(ErrorTag.DUPLICATE_SUBSCRIPTION);
+        assertThat(ex.getStatus().value()).isEqualTo(400);
+    }
+
+    @Test
+    void subscribe_좌석등급가격없으면_NotFoundException_SEAT_PRICE_NOT_FOUND() {
+        given(subscriptionRepository.existsByUserIdAndFlightIdAndSeatGrade(any(), any(), any()))
+                .willReturn(false);
+
+        // ECONOMY 가격 없이 BUSINESS만 포함한 응답
+        MockFlightResponse response = flightResponseWithSeatPrices(
+                new MockFlightSeatPriceResponse("KE101", SeatGrade.BUSINESS, BigDecimal.valueOf(500_000))
+        );
+        Flight flight = mock(Flight.class);
+
+        given(flightFetcher.fetchMockFlight(10L)).willReturn(response);
+        given(flightService.findOrCreateFlight(response)).willReturn(flight);
+
+        NotFoundException ex = assertThrows(
+                NotFoundException.class,
+                () -> subscriptionService.subscribe(testUser, 10L, SeatGrade.ECONOMY)
+        );
+
+        assertThat(ex.getErrorTag()).isEqualTo(ErrorTag.SEAT_PRICE_NOT_FOUND);
+        assertThat(ex.getStatus().value()).isEqualTo(404);
+    }
+
+    // ─── unsubscribe ──────────────────────────────────────────────────────────
+
+    @Test
+    void unsubscribe_구독없으면_NotFoundException_SUBSCRIPTION_NOT_FOUND() {
+        given(subscriptionRepository.findByIdWithFlight(99L)).willReturn(Optional.empty());
+
+        NotFoundException ex = assertThrows(
+                NotFoundException.class,
+                () -> subscriptionService.unsubscribe(testUser, 99L)
+        );
+
+        assertThat(ex.getErrorTag()).isEqualTo(ErrorTag.SUBSCRIPTION_NOT_FOUND);
+        assertThat(ex.getStatus().value()).isEqualTo(404);
+    }
+
+    // ─── getSubscription ──────────────────────────────────────────────────────
+
+    @Test
+    void getSubscription_구독없으면_NotFoundException_SUBSCRIPTION_NOT_FOUND() {
+        given(subscriptionRepository.findByIdWithFlight(99L)).willReturn(Optional.empty());
+
+        NotFoundException ex = assertThrows(
+                NotFoundException.class,
+                () -> subscriptionService.getSubscription(99L)
+        );
+
+        assertThat(ex.getErrorTag()).isEqualTo(ErrorTag.SUBSCRIPTION_NOT_FOUND);
+    }
+
+    @Test
+    void getSubscription_현재가격없으면_NotFoundException_SEAT_PRICE_NOT_FOUND() {
+        Subscription subscription = mock(Subscription.class);
+        Flight flight = mock(Flight.class);
+
+        given(subscription.getFlight()).willReturn(flight);
+        given(flight.getId()).willReturn(10L);
+        given(subscription.getSeatGrade()).willReturn(SeatGrade.ECONOMY);
+        given(subscriptionRepository.findByIdWithFlight(1L)).willReturn(Optional.of(subscription));
+
+        // 외부 API가 ECONOMY 가격 없이 응답
+        MockFlightResponse response = flightResponseWithSeatPrices(
+                new MockFlightSeatPriceResponse("KE101", SeatGrade.BUSINESS, BigDecimal.valueOf(500_000))
+        );
+        given(flightFetcher.fetchMockFlight(10L)).willReturn(response);
+
+        NotFoundException ex = assertThrows(
+                NotFoundException.class,
+                () -> subscriptionService.getSubscription(1L)
+        );
+
+        assertThat(ex.getErrorTag()).isEqualTo(ErrorTag.SEAT_PRICE_NOT_FOUND);
+        assertThat(ex.getStatus().value()).isEqualTo(404);
+    }
+
+    // ─── helpers ──────────────────────────────────────────────────────────────
+
+    private MockFlightResponse flightResponseWithSeatPrices(MockFlightSeatPriceResponse... prices) {
+        return MockFlightResponse.builder()
+                .id(10L)
+                .flightNumber("KE101")
+                .airlineCode("KE")
+                .departureAirportCode("ICN")
+                .arrivalAirportCode("NRT")
+                .departureTime(LocalDateTime.of(2026, 7, 1, 10, 0))
+                .arrivalTime(LocalDateTime.of(2026, 7, 1, 12, 0))
+                .isSeatAvailable(true)
+                .seatPrices(List.of(prices))
+                .build();
+    }
+}
