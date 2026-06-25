@@ -74,7 +74,7 @@ public class AuthService {
 
     public LoginResponse loginWithGoogle(LoginRequest request) {
         String idToken = request.idToken();
-        validateIdToken(idToken);;
+        validateIdToken(idToken);
 
         Provider provider = googleTokenParser.getProvider();
         String providerId = googleTokenParser.getProviderId(idToken);
