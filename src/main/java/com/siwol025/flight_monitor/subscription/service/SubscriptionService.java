@@ -70,8 +70,9 @@ public class SubscriptionService {
         return subscriptionRepository.findSubscriberByFlightId(flightId);
     }
 
-    public SubscriptionDetailResponse getSubscription(Long subscriptionId) {
+    public SubscriptionDetailResponse getSubscription(User user, Long subscriptionId) {
         Subscription subscription = findSubscription(subscriptionId);
+        subscription.validateOwner(user);
 
         MockFlightResponse mockFlightResponse = flightFetcher.fetchMockFlight(subscription.getFlight().getId());
 

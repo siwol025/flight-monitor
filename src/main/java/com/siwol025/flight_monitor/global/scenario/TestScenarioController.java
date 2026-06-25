@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Profile;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -33,6 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/test")
 @RequiredArgsConstructor
 @Tag(name = "Test Scenario", description = "장애 및 스케일 아웃 부하 테스트용 API")
+@Profile({"dev", "local"})
 public class TestScenarioController {
 
     private final EntityManager em;

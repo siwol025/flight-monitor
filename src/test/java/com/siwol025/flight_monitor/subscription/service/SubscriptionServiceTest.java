@@ -4,11 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 
 import com.siwol025.flight_monitor.global.exception.ErrorTag;
 import com.siwol025.flight_monitor.global.exception.custom.BadRequestException;
 import com.siwol025.flight_monitor.global.exception.custom.NotFoundException;
+import com.siwol025.flight_monitor.global.exception.custom.UnauthorizedException;
 import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightResponse;
 import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightSeatPriceResponse;
 import com.siwol025.flight_monitor.subscription.domain.Subscription;
@@ -107,7 +110,7 @@ class SubscriptionServiceTest {
 
         NotFoundException ex = assertThrows(
                 NotFoundException.class,
-                () -> subscriptionService.getSubscription(99L)
+                () -> subscriptionService.getSubscription(testUser, 99L)
         );
 
         assertThat(ex.getErrorTag()).isEqualTo(ErrorTag.SUBSCRIPTION_NOT_FOUND);
@@ -122,6 +125,7 @@ class SubscriptionServiceTest {
         given(flight.getId()).willReturn(10L);
         given(subscription.getSeatGrade()).willReturn(SeatGrade.ECONOMY);
         given(subscriptionRepository.findByIdWithFlight(1L)).willReturn(Optional.of(subscription));
+        doNothing().when(subscription).validateOwner(testUser);
 
         // 외부 API가 ECONOMY 가격 없이 응답
         MockFlightResponse response = flightResponseWithSeatPrices(
@@ -131,11 +135,27 @@ class SubscriptionServiceTest {
 
         NotFoundException ex = assertThrows(
                 NotFoundException.class,
-                () -> subscriptionService.getSubscription(1L)
+                () -> subscriptionService.getSubscription(testUser, 1L)
         );
 
         assertThat(ex.getErrorTag()).isEqualTo(ErrorTag.SEAT_PRICE_NOT_FOUND);
         assertThat(ex.getStatus().value()).isEqualTo(404);
+    }
+
+    @Test
+    void getSubscription_타인구독이면_UnauthorizedException_UNAUTHORIZED_SUBSCRIPTION() {
+        User other = mock(User.class);
+        Subscription subscription = mock(Subscription.class);
+
+        given(subscriptionRepository.findByIdWithFlight(1L)).willReturn(Optional.of(subscription));
+        doThrow(new UnauthorizedException(ErrorTag.UNAUTHORIZED_SUBSCRIPTION)).when(subscription).validateOwner(other);
+
+        UnauthorizedException ex = assertThrows(
+                UnauthorizedException.class,
+                () -> subscriptionService.getSubscription(other, 1L)
+        );
+
+        assertThat(ex.getErrorTag()).isEqualTo(ErrorTag.UNAUTHORIZED_SUBSCRIPTION);
     }
 
     // ─── helpers ──────────────────────────────────────────────────────────────

@@ -44,7 +44,7 @@ public interface SubscriptionControllerSwagger {
                     )
             }
     )
-    ResponseEntity<SubscriptionDetailResponse> getMySubscription(Long subscriptionId);
+    ResponseEntity<SubscriptionDetailResponse> getMySubscription(User user, Long subscriptionId);
 
     @Operation(
             summary = "구독 취소",

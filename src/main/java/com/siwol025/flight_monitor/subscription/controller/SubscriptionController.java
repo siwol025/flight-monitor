@@ -42,8 +42,11 @@ public class SubscriptionController implements SubscriptionControllerSwagger{
     }
 
     @GetMapping("/{subscriptionId}")
-    public ResponseEntity<SubscriptionDetailResponse> getMySubscription(@PathVariable Long subscriptionId) {
-        SubscriptionDetailResponse response = subscriptionService.getSubscription(subscriptionId);
+    public ResponseEntity<SubscriptionDetailResponse> getMySubscription(
+            @Parameter(hidden = true) @LoginUser User user,
+            @PathVariable Long subscriptionId
+    ) {
+        SubscriptionDetailResponse response = subscriptionService.getSubscription(user, subscriptionId);
         return ResponseEntity.ok(response);
     }
 
