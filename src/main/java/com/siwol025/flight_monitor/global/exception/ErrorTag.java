@@ -16,12 +16,13 @@ public enum ErrorTag {
     USER_NOT_FOUND("회원을 찾을 수 없습니다."),
     FLIGHT_NOT_FOUND("해당 항공편 정보를 찾을 수 없습니다."),
     SUBSCRIPTION_NOT_FOUND("구독내역을 찾을 수 없습니다."),
+    FLIGHT_PRICE_INFO_NOT_FOUND("해당 항공권의 이전 가격 정보를 찾을 수 없습니다."),
+    SEAT_PRICE_NOT_FOUND("해당 좌석 등급의 가격 정보를 찾을 수 없습니다."),
 
     // 400 Bad Request
     DUPLICATE_SUBSCRIPTION("이미 등록된 구독입니다."),
-    SEAT_PRICE_NOT_FOUND("해당 좌석 등급의 가격 정보를 찾을 수 없습니다."),
 
-    // 401 Unauthorized
+    // 403 Forbidden (resource ownership)
     UNAUTHORIZED_SUBSCRIPTION("해당 구독을 취소할 권한이 없습니다.");
 
     private final String message;

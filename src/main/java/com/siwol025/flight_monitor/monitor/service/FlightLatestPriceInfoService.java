@@ -1,5 +1,7 @@
 package com.siwol025.flight_monitor.monitor.service;
 
+import com.siwol025.flight_monitor.global.exception.ErrorTag;
+import com.siwol025.flight_monitor.global.exception.custom.NotFoundException;
 import com.siwol025.flight_monitor.monitor.domain.FlightLatestPriceInfo;
 import com.siwol025.flight_monitor.monitor.repository.FlightLatestPriceInfoRepository;
 import com.siwol025.flight_monitor.subscription.domain.flight.Flight;
@@ -43,6 +45,6 @@ public class FlightLatestPriceInfoService {
 
     private FlightLatestPriceInfo getFlightLatestPriceInfo(Long flightId, SeatGrade seatGrade) {
         return flightLatestPriceInfoRepository.findByFlightIdAndSeatGrade(flightId, seatGrade)
-                .orElseThrow(() -> new IllegalArgumentException("해당 항공권의 이전 가격을 찾을 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException(ErrorTag.FLIGHT_PRICE_INFO_NOT_FOUND));
     }
 }
