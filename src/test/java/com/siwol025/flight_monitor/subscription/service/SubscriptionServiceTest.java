@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -50,6 +51,25 @@ class SubscriptionServiceTest {
     // ─── subscribe ────────────────────────────────────────────────────────────
 
     @Test
+    void subscribe_정상흐름_구독저장됨() {
+        given(testUser.getId()).willReturn(1L);
+        given(subscriptionRepository.existsByUserIdAndFlightIdAndSeatGrade(1L, 10L, SeatGrade.ECONOMY))
+                .willReturn(false);
+
+        MockFlightResponse response = flightResponseWithSeatPrices(
+                new MockFlightSeatPriceResponse("KE101", SeatGrade.ECONOMY, BigDecimal.valueOf(300_000))
+        );
+        Flight flight = mock(Flight.class);
+
+        given(flightFetcher.fetchMockFlight(10L)).willReturn(response);
+        given(flightService.findOrCreateFlight(response)).willReturn(flight);
+
+        subscriptionService.subscribe(testUser, 10L, SeatGrade.ECONOMY);
+
+        then(subscriptionRepository).should().save(any(Subscription.class));
+    }
+
+    @Test
     void subscribe_이미구독중이면_BadRequestException_DUPLICATE_SUBSCRIPTION() {
         given(testUser.getId()).willReturn(1L);
         given(subscriptionRepository.existsByUserIdAndFlightIdAndSeatGrade(1L, 10L, SeatGrade.ECONOMY))
@@ -66,7 +86,8 @@ class SubscriptionServiceTest {
 
     @Test
     void subscribe_좌석등급가격없으면_NotFoundException_SEAT_PRICE_NOT_FOUND() {
-        given(subscriptionRepository.existsByUserIdAndFlightIdAndSeatGrade(any(), any(), any()))
+        given(testUser.getId()).willReturn(1L);
+        given(subscriptionRepository.existsByUserIdAndFlightIdAndSeatGrade(1L, 10L, SeatGrade.ECONOMY))
                 .willReturn(false);
 
         // ECONOMY 가격 없이 BUSINESS만 포함한 응답
