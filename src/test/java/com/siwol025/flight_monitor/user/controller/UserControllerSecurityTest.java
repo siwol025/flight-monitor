@@ -29,6 +29,26 @@ class UserControllerSecurityTest {
         }
     }
 
+    @Test
+    @DisplayName("GET /api/me 반환 타입이 ResponseEntity<UserResponse>이어야 한다")
+    void getMyInfo_반환타입이_UserResponse이어야한다() {
+        Method targetMethod = Arrays.stream(UserController.class.getDeclaredMethods())
+                .filter(m -> {
+                    GetMapping mapping = m.getAnnotation(GetMapping.class);
+                    return mapping != null && Arrays.asList(mapping.value()).contains("/api/me");
+                })
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("GET /api/me 매핑 메서드를 찾을 수 없습니다"));
+
+        String returnTypeName = targetMethod.getGenericReturnType().getTypeName();
+
+        if (!returnTypeName.contains("UserResponse")) {
+            fail("getMyInfo() 반환 타입이 ResponseEntity<UserResponse>이어야 합니다. " +
+                 "현재 반환 타입: " + returnTypeName +
+                 " — User 엔티티를 직접 반환하면 민감 필드(providerId, provider, role)가 노출됩니다.");
+        }
+    }
+
     private boolean mapsToLoginSuccess(Method method) {
         GetMapping getMapping = method.getAnnotation(GetMapping.class);
         if (getMapping != null) {

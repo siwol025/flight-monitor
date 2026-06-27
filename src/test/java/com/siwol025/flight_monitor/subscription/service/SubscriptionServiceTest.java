@@ -18,6 +18,7 @@ import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightSeatPriceR
 import com.siwol025.flight_monitor.subscription.domain.Subscription;
 import com.siwol025.flight_monitor.subscription.domain.flight.Flight;
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
+import com.siwol025.flight_monitor.subscription.dto.response.SubscriptionDetailResponse;
 import com.siwol025.flight_monitor.subscription.repository.SubscriptionRepository;
 import com.siwol025.flight_monitor.user.domain.User;
 import java.math.BigDecimal;
@@ -111,6 +112,17 @@ class SubscriptionServiceTest {
     // ─── unsubscribe ──────────────────────────────────────────────────────────
 
     @Test
+    void unsubscribe_정상흐름_구독삭제됨() {
+        Subscription subscription = mock(Subscription.class);
+        given(subscriptionRepository.findByIdWithFlight(1L)).willReturn(Optional.of(subscription));
+        doNothing().when(subscription).validateOwner(testUser);
+
+        subscriptionService.unsubscribe(testUser, 1L);
+
+        then(subscriptionRepository).should().delete(subscription);
+    }
+
+    @Test
     void unsubscribe_구독없으면_NotFoundException_SUBSCRIPTION_NOT_FOUND() {
         given(subscriptionRepository.findByIdWithFlight(99L)).willReturn(Optional.empty());
 
@@ -124,6 +136,31 @@ class SubscriptionServiceTest {
     }
 
     // ─── getSubscription ──────────────────────────────────────────────────────
+
+    @Test
+    void getSubscription_정상흐름_응답DTO반환됨() {
+        Subscription subscription = mock(Subscription.class);
+        Flight flight = mock(Flight.class);
+        BigDecimal subscribedPrice = BigDecimal.valueOf(300_000);
+        BigDecimal currentPrice = BigDecimal.valueOf(250_000);
+
+        given(subscriptionRepository.findByIdWithFlight(1L)).willReturn(Optional.of(subscription));
+        doNothing().when(subscription).validateOwner(testUser);
+        given(subscription.getFlight()).willReturn(flight);
+        given(flight.getId()).willReturn(10L);
+        given(subscription.getSeatGrade()).willReturn(SeatGrade.ECONOMY);
+        given(subscription.getPrice()).willReturn(subscribedPrice);
+        given(flightFetcher.fetchMockFlight(10L)).willReturn(
+                flightResponseWithSeatPrices(
+                        new MockFlightSeatPriceResponse("KE101", SeatGrade.ECONOMY, currentPrice)
+                )
+        );
+
+        SubscriptionDetailResponse result = subscriptionService.getSubscription(testUser, 1L);
+
+        assertThat(result.currentPrice()).isEqualByComparingTo(currentPrice);
+        assertThat(result.priceDifference()).isEqualByComparingTo(BigDecimal.valueOf(-50_000));
+    }
 
     @Test
     void getSubscription_구독없으면_NotFoundException_SUBSCRIPTION_NOT_FOUND() {
