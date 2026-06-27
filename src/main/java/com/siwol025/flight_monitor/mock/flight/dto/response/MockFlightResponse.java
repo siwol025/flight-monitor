@@ -1,5 +1,7 @@
 package com.siwol025.flight_monitor.mock.flight.dto.response;
 
+import com.siwol025.flight_monitor.global.exception.ErrorTag;
+import com.siwol025.flight_monitor.global.exception.custom.NotFoundException;
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
 import com.siwol025.flight_monitor.mock.flight.domain.MockFlight;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -78,6 +80,6 @@ public record MockFlightResponse(
                 .filter(s -> s.seatGrade() == targetGrade)
                 .map(MockFlightSeatPriceResponse::price)
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("해당 좌석 등급의 가격을 찾을 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException(ErrorTag.SEAT_PRICE_NOT_FOUND));
     }
 }

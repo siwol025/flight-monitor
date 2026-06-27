@@ -1,5 +1,7 @@
 package com.siwol025.flight_monitor.subscription.service;
 
+import com.siwol025.flight_monitor.global.exception.ErrorTag;
+import com.siwol025.flight_monitor.global.exception.custom.NotFoundException;
 import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightResponse;
 import com.siwol025.flight_monitor.subscription.domain.flight.Flight;
 import com.siwol025.flight_monitor.subscription.repository.FlightRepository;
@@ -33,6 +35,6 @@ public class FlightService {
 
     public Flight getFlight(Long flightId) {
         return flightRepository.findByFlightId(flightId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 항공편을 찾을 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException(ErrorTag.FLIGHT_NOT_FOUND));
     }
 }

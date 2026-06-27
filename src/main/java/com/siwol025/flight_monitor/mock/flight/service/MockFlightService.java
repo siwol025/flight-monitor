@@ -1,5 +1,7 @@
 package com.siwol025.flight_monitor.mock.flight.service;
 
+import com.siwol025.flight_monitor.global.exception.ErrorTag;
+import com.siwol025.flight_monitor.global.exception.custom.NotFoundException;
 import com.siwol025.flight_monitor.mock.airline.domain.MockAirline;
 import com.siwol025.flight_monitor.mock.airport.domain.MockAirport;
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
@@ -41,7 +43,7 @@ public class MockFlightService {
     public void updateFlight(Long id, MockFlightUpdateRequest request) {
         validateFlight(request.flightNumber(), request.departureTime());
         MockFlight mockFlight = mockFlightRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("해당 항공편을 찾을 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException(ErrorTag.FLIGHT_NOT_FOUND));
 
         mockFlight.updateFlightInfo(request.flightNumber(), request.departureTime(), request.arrivalTime());
     }
@@ -49,7 +51,7 @@ public class MockFlightService {
     @Transactional
     public void deleteFlight(Long id) {
         MockFlight mockFlight = mockFlightRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("해당 항공편을 찾을 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException(ErrorTag.FLIGHT_NOT_FOUND));
 
         mockFlightRepository.delete(mockFlight);
     }
@@ -80,7 +82,7 @@ public class MockFlightService {
         }
 
         MockFlight mockFlight = mockFlightRepository.findById(flightId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 항공편을 찾을 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException(ErrorTag.FLIGHT_NOT_FOUND));
 
         return MockFlightResponse.from(mockFlight);
     }
@@ -104,11 +106,11 @@ public class MockFlightService {
 
     public MockAirline readAirline(String code) {
         return mockAirlineRepository.findByAirlineCode(code)
-                .orElseThrow(() -> new IllegalArgumentException("해당 항공사를 찾을 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException(ErrorTag.AIRLINE_NOT_FOUND));
     }
 
     public MockAirport readAirport(String code) {
         return mockAirportRepository.findByAirportCode(code)
-                .orElseThrow(() -> new IllegalArgumentException("해당 공항을 찾을 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException(ErrorTag.AIRPORT_NOT_FOUND));
     }
 }

@@ -1,5 +1,7 @@
 package com.siwol025.flight_monitor.mock.airport.service;
 
+import com.siwol025.flight_monitor.global.exception.ErrorTag;
+import com.siwol025.flight_monitor.global.exception.custom.NotFoundException;
 import com.siwol025.flight_monitor.mock.airport.domain.MockAirport;
 import com.siwol025.flight_monitor.mock.airport.dto.request.MockAirportRequest;
 import com.siwol025.flight_monitor.mock.airport.dto.response.MockAirportResponse;
@@ -30,7 +32,7 @@ public class MockAirportService {
     @Transactional
     public MockAirportResponse updateAirport(MockAirportRequest request) {
         MockAirport mockAirport = mockAirportRepository.findByAirportCode(request.code())
-                .orElseThrow(() -> new IllegalArgumentException("해당 공항데이터를 찾을 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException(ErrorTag.AIRPORT_NOT_FOUND));
 
         mockAirport.updateName(request.name());
         return MockAirportResponse.of(mockAirport);
@@ -39,7 +41,7 @@ public class MockAirportService {
     @Transactional
     public void deleteAirport(String code) {
         MockAirport mockAirport = mockAirportRepository.findByAirportCode(code)
-                .orElseThrow(() -> new IllegalArgumentException("해당 공항데이터를 찾을 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException(ErrorTag.AIRPORT_NOT_FOUND));
 
         mockAirportRepository.delete(mockAirport);
     }

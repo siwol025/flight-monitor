@@ -7,6 +7,8 @@ import com.siwol025.flight_monitor.mock.flight.dto.request.MockSeatBulkRequest;
 import com.siwol025.flight_monitor.mock.flight.dto.response.MockSeatResponse;
 import com.siwol025.flight_monitor.mock.flight.repository.MockFlightRepository;
 import com.siwol025.flight_monitor.mock.flight.repository.MockSeatRepository;
+import com.siwol025.flight_monitor.global.exception.ErrorTag;
+import com.siwol025.flight_monitor.global.exception.custom.NotFoundException;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +25,7 @@ public class MockSeatService {
     @Transactional
     public void createBulkSeats(Long flightId, MockSeatBulkRequest request) {
         MockFlight mockFlight = mockFlightRepository.findById(flightId)
-                .orElseThrow(() -> new IllegalArgumentException("항공편을 찾을 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException(ErrorTag.FLIGHT_NOT_FOUND));
 
         List<Seat> seats = new ArrayList<>();
         char[] symbols = request.seatSymbols().toCharArray();
@@ -38,7 +40,7 @@ public class MockSeatService {
     @Transactional
     public void reserveSeat(Long seatId) {
         Seat seat = mockSeatRepository.findById(seatId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 좌석을 찾을 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException(ErrorTag.SEAT_NOT_FOUND));
 
         validateReserveSeat(seat);
 
@@ -48,7 +50,7 @@ public class MockSeatService {
     @Transactional
     public void cancelSeat(Long seatId) {
         Seat seat = mockSeatRepository.findById(seatId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 좌석을 찾을 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException(ErrorTag.SEAT_NOT_FOUND));
 
         seat.cancelReservation();
     }

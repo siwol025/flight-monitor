@@ -6,6 +6,8 @@ import com.siwol025.flight_monitor.mock.flight.dto.request.MockFlightSeatPriceRe
 import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightSeatPriceResponse;
 import com.siwol025.flight_monitor.mock.flight.repository.MockFlightRepository;
 import com.siwol025.flight_monitor.mock.flight.repository.MockFlightSeatPriceRepository;
+import com.siwol025.flight_monitor.global.exception.ErrorTag;
+import com.siwol025.flight_monitor.global.exception.custom.NotFoundException;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +24,7 @@ public class MockFlightSeatPriceService {
     @Transactional
     public void upsertPrice(MockFlightSeatPriceRequest request) {
         MockFlight flight = mockFlightRepository.findById(request.flightId())
-                .orElseThrow(() -> new IllegalArgumentException("해당 항공편을 찾을 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException(ErrorTag.FLIGHT_NOT_FOUND));
 
         Optional<FlightSeatPrice> existingPrice = mockFlightSeatPriceRepository.findByFlightIdAndSeatGrade(
                 request.flightId(), request.seatGrade());

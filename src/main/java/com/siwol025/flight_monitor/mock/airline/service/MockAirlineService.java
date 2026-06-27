@@ -1,5 +1,7 @@
 package com.siwol025.flight_monitor.mock.airline.service;
 
+import com.siwol025.flight_monitor.global.exception.ErrorTag;
+import com.siwol025.flight_monitor.global.exception.custom.NotFoundException;
 import com.siwol025.flight_monitor.mock.airline.domain.MockAirline;
 import com.siwol025.flight_monitor.mock.airline.dto.request.MockAirlineRequest;
 import com.siwol025.flight_monitor.mock.airline.dto.response.MockAirlineResponse;
@@ -30,7 +32,7 @@ public class MockAirlineService {
     @Transactional
     public void deleteAirline(String code) {
         MockAirline mockAirline = mockAirlineRepository.findByAirlineCode(code)
-                .orElseThrow(() -> new IllegalArgumentException("해당 항공사 데이터를 찾을 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException(ErrorTag.AIRLINE_NOT_FOUND));
 
         mockAirlineRepository.delete(mockAirline);
     }

@@ -15,8 +15,11 @@ public enum ErrorTag {
     // 404 Not Found
     USER_NOT_FOUND("회원을 찾을 수 없습니다."),
     FLIGHT_NOT_FOUND("해당 항공편 정보를 찾을 수 없습니다."),
+    AIRLINE_NOT_FOUND("해당 항공사를 찾을 수 없습니다."),
+    AIRPORT_NOT_FOUND("해당 공항을 찾을 수 없습니다."),
     SUBSCRIPTION_NOT_FOUND("구독내역을 찾을 수 없습니다."),
     FLIGHT_PRICE_INFO_NOT_FOUND("해당 항공권의 이전 가격 정보를 찾을 수 없습니다."),
+    SEAT_NOT_FOUND("해당 좌석을 찾을 수 없습니다."),
     SEAT_PRICE_NOT_FOUND("해당 좌석 등급의 가격 정보를 찾을 수 없습니다."),
 
     // 400 Bad Request
