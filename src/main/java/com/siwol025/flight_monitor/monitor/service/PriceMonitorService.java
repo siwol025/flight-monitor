@@ -6,7 +6,7 @@ import com.siwol025.flight_monitor.monitor.producer.NotificationPublisher;
 import com.siwol025.flight_monitor.monitor.utils.FlightPriceCacheManager;
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
 import com.siwol025.flight_monitor.subscription.dto.FlightMonitorTaskDto;
-import com.siwol025.flight_monitor.subscription.service.FlightFetcher;
+import com.siwol025.flight_monitor.subscription.service.FlightDataProvider;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +20,7 @@ import org.springframework.stereotype.Service;
 @Profile("!mock")
 public class PriceMonitorService {
 
-    private final FlightFetcher flightFetcher;
+    private final FlightDataProvider flightFetcher;
     private final NotificationPublisher producer;
     private final FlightLatestPriceInfoService flightLatestPriceInfoService;
     private final FlightPriceCacheManager cacheManager;

@@ -3,7 +3,6 @@ package com.siwol025.flight_monitor.subscription.service;
 import com.siwol025.flight_monitor.global.exception.ErrorTag;
 import com.siwol025.flight_monitor.global.exception.custom.NotFoundException;
 import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightResponse;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -11,15 +10,19 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 @Component
-@RequiredArgsConstructor
 @Slf4j
-public class FlightFetcher {
+public class FlightFetcher implements FlightDataProvider {
 
     private final RestTemplate restTemplate;
+    private final String mockApiUrl;
 
-    @Value("${external.api.url}")
-    private String mockApiUrl;
+    public FlightFetcher(RestTemplate restTemplate,
+                         @Value("${external.api.url}") String mockApiUrl) {
+        this.restTemplate = restTemplate;
+        this.mockApiUrl = mockApiUrl;
+    }
 
+    @Override
     public MockFlightResponse fetchMockFlight(Long flightId) {
         String url = mockApiUrl + flightId;
 

@@ -37,7 +37,7 @@ class SubscriptionServiceTest {
 
     @Mock private SubscriptionRepository subscriptionRepository;
     @Mock private FlightService flightService;
-    @Mock private FlightFetcher flightFetcher;
+    @Mock private FlightDataProvider flightDataProvider;
 
     @InjectMocks
     private SubscriptionService subscriptionService;
@@ -62,7 +62,7 @@ class SubscriptionServiceTest {
         );
         Flight flight = mock(Flight.class);
 
-        given(flightFetcher.fetchMockFlight(10L)).willReturn(response);
+        given(flightDataProvider.fetchMockFlight(10L)).willReturn(response);
         given(flightService.findOrCreateFlight(response)).willReturn(flight);
 
         subscriptionService.subscribe(testUser, 10L, SeatGrade.ECONOMY);
@@ -97,7 +97,7 @@ class SubscriptionServiceTest {
         );
         Flight flight = mock(Flight.class);
 
-        given(flightFetcher.fetchMockFlight(10L)).willReturn(response);
+        given(flightDataProvider.fetchMockFlight(10L)).willReturn(response);
         given(flightService.findOrCreateFlight(response)).willReturn(flight);
 
         NotFoundException ex = assertThrows(
@@ -150,7 +150,7 @@ class SubscriptionServiceTest {
         given(flight.getId()).willReturn(10L);
         given(subscription.getSeatGrade()).willReturn(SeatGrade.ECONOMY);
         given(subscription.getPrice()).willReturn(subscribedPrice);
-        given(flightFetcher.fetchMockFlight(10L)).willReturn(
+        given(flightDataProvider.fetchMockFlight(10L)).willReturn(
                 flightResponseWithSeatPrices(
                         new MockFlightSeatPriceResponse("KE101", SeatGrade.ECONOMY, currentPrice)
                 )
@@ -189,7 +189,7 @@ class SubscriptionServiceTest {
         MockFlightResponse response = flightResponseWithSeatPrices(
                 new MockFlightSeatPriceResponse("KE101", SeatGrade.BUSINESS, BigDecimal.valueOf(500_000))
         );
-        given(flightFetcher.fetchMockFlight(10L)).willReturn(response);
+        given(flightDataProvider.fetchMockFlight(10L)).willReturn(response);
 
         NotFoundException ex = assertThrows(
                 NotFoundException.class,
@@ -214,6 +214,16 @@ class SubscriptionServiceTest {
         );
 
         assertThat(ex.getErrorTag()).isEqualTo(ErrorTag.UNAUTHORIZED_SUBSCRIPTION);
+    }
+
+    // ─── 구조 테스트 ──────────────────────────────────────────────────────────────
+
+    @Test
+    void SubscriptionService는_FlightDataProvider_인터페이스에_의존해야한다() {
+        boolean hasFlightDataProviderField = java.util.Arrays.stream(SubscriptionService.class.getDeclaredFields())
+                .anyMatch(f -> f.getType().equals(FlightDataProvider.class));
+
+        assertThat(hasFlightDataProviderField).isTrue();
     }
 
     // ─── helpers ──────────────────────────────────────────────────────────────

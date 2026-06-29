@@ -7,7 +7,7 @@ import com.siwol025.flight_monitor.monitor.producer.NotificationPublisher;
 import com.siwol025.flight_monitor.monitor.utils.FlightPriceCacheManager;
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
 import com.siwol025.flight_monitor.subscription.dto.FlightMonitorTaskDto;
-import com.siwol025.flight_monitor.subscription.service.FlightFetcher;
+import com.siwol025.flight_monitor.subscription.service.FlightDataProvider;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,9 +17,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.*;
 import static org.mockito.ArgumentMatchers.*;
 
@@ -27,7 +29,7 @@ import static org.mockito.ArgumentMatchers.*;
 class PriceMonitorServiceTest {
 
     @Mock
-    private FlightFetcher flightFetcher;
+    private FlightDataProvider flightDataProvider;
 
     @Mock
     private NotificationPublisher producer;
@@ -60,7 +62,7 @@ class PriceMonitorServiceTest {
     @Test
     void checkPriceAndNotify_API_null_응답이면_조기리턴_알림없음() {
         // given
-        given(flightFetcher.fetchMockFlight(1L)).willReturn(null);
+        given(flightDataProvider.fetchMockFlight(1L)).willReturn(null);
 
         // when
         priceMonitorService.checkPriceAndNotify(taskDto);
@@ -73,7 +75,7 @@ class PriceMonitorServiceTest {
     void checkPriceAndNotify_캐시가격과_현재가격이_같으면_알림없음() {
         // given
         BigDecimal price = BigDecimal.valueOf(100_000);
-        given(flightFetcher.fetchMockFlight(1L)).willReturn(mockFlightResponse(price));
+        given(flightDataProvider.fetchMockFlight(1L)).willReturn(mockFlightResponse(price));
         given(cacheManager.getPreviousPrice(1L, SeatGrade.ECONOMY, price)).willReturn(price);
 
         // when
@@ -88,7 +90,7 @@ class PriceMonitorServiceTest {
         // given
         BigDecimal currentPrice = BigDecimal.valueOf(100_000);
         BigDecimal staleCachePrice = BigDecimal.valueOf(80_000);
-        given(flightFetcher.fetchMockFlight(1L)).willReturn(mockFlightResponse(currentPrice));
+        given(flightDataProvider.fetchMockFlight(1L)).willReturn(mockFlightResponse(currentPrice));
         given(cacheManager.getPreviousPrice(1L, SeatGrade.ECONOMY, currentPrice)).willReturn(staleCachePrice);
         given(flightLatestPriceInfoService.getPreviousPrice(1L, SeatGrade.ECONOMY))
                 .willReturn(Optional.of(currentPrice));
@@ -106,7 +108,7 @@ class PriceMonitorServiceTest {
         // given
         BigDecimal currentPrice = BigDecimal.valueOf(80_000);
         BigDecimal previousPrice = BigDecimal.valueOf(100_000);
-        given(flightFetcher.fetchMockFlight(1L)).willReturn(mockFlightResponse(currentPrice));
+        given(flightDataProvider.fetchMockFlight(1L)).willReturn(mockFlightResponse(currentPrice));
         given(cacheManager.getPreviousPrice(1L, SeatGrade.ECONOMY, currentPrice)).willReturn(previousPrice);
         given(flightLatestPriceInfoService.getPreviousPrice(1L, SeatGrade.ECONOMY))
                 .willReturn(Optional.of(previousPrice));
@@ -123,7 +125,7 @@ class PriceMonitorServiceTest {
         // given
         BigDecimal currentPrice = BigDecimal.valueOf(120_000);
         BigDecimal previousPrice = BigDecimal.valueOf(100_000);
-        given(flightFetcher.fetchMockFlight(1L)).willReturn(mockFlightResponse(currentPrice));
+        given(flightDataProvider.fetchMockFlight(1L)).willReturn(mockFlightResponse(currentPrice));
         given(cacheManager.getPreviousPrice(1L, SeatGrade.ECONOMY, currentPrice)).willReturn(previousPrice);
         given(flightLatestPriceInfoService.getPreviousPrice(1L, SeatGrade.ECONOMY))
                 .willReturn(Optional.of(previousPrice));
@@ -134,5 +136,13 @@ class PriceMonitorServiceTest {
         // then
         then(flightLatestPriceInfoService).should().updateLatestPriceInfo(1L, SeatGrade.ECONOMY, currentPrice);
         then(producer).shouldHaveNoInteractions();
+    }
+
+    @Test
+    void PriceMonitorService는_FlightDataProvider_인터페이스에_의존해야한다() {
+        // PriceMonitorService의 선언된 필드 중 FlightDataProvider 타입이 있는지 검사
+        boolean hasFlightDataProviderField = Arrays.stream(PriceMonitorService.class.getDeclaredFields())
+                .anyMatch(f -> f.getType().equals(FlightDataProvider.class));
+        assertThat(hasFlightDataProviderField).isTrue();
     }
 }

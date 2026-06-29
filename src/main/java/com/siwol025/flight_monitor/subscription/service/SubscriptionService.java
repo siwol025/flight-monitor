@@ -30,7 +30,7 @@ public class SubscriptionService {
 
     private final SubscriptionRepository subscriptionRepository;
     private final FlightService flightService;
-    private final FlightFetcher flightFetcher;
+    private final FlightDataProvider flightFetcher;
 
     @Transactional
     public void subscribe(User user, Long flightId, SeatGrade seatGrade) {
