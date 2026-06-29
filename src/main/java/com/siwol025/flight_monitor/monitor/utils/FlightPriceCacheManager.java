@@ -44,11 +44,12 @@ public class FlightPriceCacheManager {
     }
 
     @CircuitBreaker(name = "redisPopCircuitBreaker", fallbackMethod = "dbFallbackSaveToCache")
-    public void saveToCache(String redisKey, String value) {
-        redisTemplate.opsForValue().set(redisKey, value, Duration.ofDays(1));
+    public void saveToCache(Long flightId, SeatGrade seatGrade, BigDecimal price) {
+        String redisKey = FLIGHT_PRICE_PREFIX + flightId + ":" + seatGrade.name();
+        redisTemplate.opsForValue().set(redisKey, price.toString(), Duration.ofDays(1));
     }
 
-    public void dbFallbackSaveToCache(String redisKey, String value, Throwable t) {
-        log.warn("🚨 [CircuitBreaker] Redis가 다운되어 캐시 갱신을 포기합니다. (Key: {})", redisKey);
+    public void dbFallbackSaveToCache(Long flightId, SeatGrade seatGrade, BigDecimal price, Throwable t) {
+        log.warn("🚨 [CircuitBreaker] Redis가 다운되어 캐시 갱신을 포기합니다. (FlightId: {}, SeatGrade: {})", flightId, seatGrade);
     }
 }

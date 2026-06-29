@@ -10,6 +10,7 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.fail;
 
 class UserControllerSecurityTest {
@@ -35,10 +36,10 @@ class UserControllerSecurityTest {
         Method targetMethod = Arrays.stream(UserController.class.getDeclaredMethods())
                 .filter(m -> {
                     GetMapping mapping = m.getAnnotation(GetMapping.class);
-                    return mapping != null && Arrays.asList(mapping.value()).contains("/api/me");
+                    return mapping != null && Arrays.asList(mapping.value()).contains("/me");
                 })
                 .findFirst()
-                .orElseThrow(() -> new AssertionError("GET /api/me 매핑 메서드를 찾을 수 없습니다"));
+                .orElseThrow(() -> new AssertionError("GET /me 매핑 메서드를 찾을 수 없습니다"));
 
         String returnTypeName = targetMethod.getGenericReturnType().getTypeName();
 
@@ -47,6 +48,14 @@ class UserControllerSecurityTest {
                  "현재 반환 타입: " + returnTypeName +
                  " — User 엔티티를 직접 반환하면 민감 필드(providerId, provider, role)가 노출됩니다.");
         }
+    }
+
+    @Test
+    @DisplayName("UserController에 @RequestMapping(\"/api\") 어노테이션이 존재한다")
+    void UserController에_RequestMapping_어노테이션이_존재한다() {
+        RequestMapping mapping = UserController.class.getAnnotation(RequestMapping.class);
+        assertThat(mapping).isNotNull();
+        assertThat(mapping.value()).contains("/api");
     }
 
     private boolean mapsToLoginSuccess(Method method) {

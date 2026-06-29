@@ -2,13 +2,17 @@ package com.siwol025.flight_monitor.mock.flight.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 
 import com.siwol025.flight_monitor.global.exception.ErrorTag;
+import com.siwol025.flight_monitor.global.exception.custom.BadRequestException;
 import com.siwol025.flight_monitor.global.exception.custom.NotFoundException;
 import com.siwol025.flight_monitor.mock.flight.repository.MockFlightRepository;
 import com.siwol025.flight_monitor.mock.airline.repository.MockAirlineRepository;
 import com.siwol025.flight_monitor.mock.airport.repository.MockAirportRepository;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,5 +41,18 @@ class MockFlightServiceTest {
 
         assertThat(ex.getErrorTag()).isEqualTo(ErrorTag.FLIGHT_NOT_FOUND);
         assertThat(ex.getStatus().value()).isEqualTo(404);
+    }
+
+    @Test
+    void validateFlight_중복시_BadRequestException_DUPLICATE_FLIGHT_발생() {
+        given(mockFlightRepository.existsByFlightNumberAndDepartureTimeBetween(
+                anyString(), any(), any())).willReturn(true);
+
+        BadRequestException ex = assertThrows(
+                BadRequestException.class,
+                () -> mockFlightService.validateFlight("KE001", LocalDateTime.now())
+        );
+
+        assertThat(ex.getErrorTag()).isEqualTo(ErrorTag.DUPLICATE_FLIGHT);
     }
 }

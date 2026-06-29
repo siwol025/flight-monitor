@@ -23,7 +23,9 @@ public enum ErrorTag {
     SEAT_PRICE_NOT_FOUND("해당 좌석 등급의 가격 정보를 찾을 수 없습니다."),
 
     // 400 Bad Request
+    INVALID_INPUT("입력값이 올바르지 않습니다."),
     DUPLICATE_SUBSCRIPTION("이미 등록된 구독입니다."),
+    DUPLICATE_FLIGHT("이미 등록된 항공편입니다."),
 
     // 403 Forbidden (resource ownership)
     UNAUTHORIZED_SUBSCRIPTION("해당 구독을 취소할 권한이 없습니다.");

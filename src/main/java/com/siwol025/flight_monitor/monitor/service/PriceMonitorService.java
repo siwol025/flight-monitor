@@ -25,8 +25,6 @@ public class PriceMonitorService {
     private final FlightLatestPriceInfoService flightLatestPriceInfoService;
     private final FlightPriceCacheManager cacheManager;
 
-    private static final String FLIGHT_PRICE_PREFIX = "flight:price:";
-
     public void checkPriceAndNotify(FlightMonitorTaskDto taskDto) {
         MockFlightResponse latestInfo = flightFetcher.fetchMockFlight(taskDto.flightId());
         if (latestInfo == null) {
@@ -46,15 +44,13 @@ public class PriceMonitorService {
 
         if (isPriceUnchanged(dbPreviousPrice, currentPrice)) {
             log.info("🔄 [Self-Healing] 오래된 캐시(Stale Cache) 감지됨. 알림은 생략하고 캐시만 최신화합니다: {}", taskDto.flightId());
-            String redisKey = FLIGHT_PRICE_PREFIX + taskDto.flightId() + ":" + taskDto.seatGrade().name();
-            cacheManager.saveToCache(redisKey, currentPrice.toString());
+            cacheManager.saveToCache(taskDto.flightId(), taskDto.seatGrade(), currentPrice);
             return;
         }
 
         flightLatestPriceInfoService.updateLatestPriceInfo(taskDto.flightId(), taskDto.seatGrade(), currentPrice);
 
-        String redisKey = FLIGHT_PRICE_PREFIX + taskDto.flightId() + ":" + taskDto.seatGrade().name();
-        cacheManager.saveToCache(redisKey, currentPrice.toString());
+        cacheManager.saveToCache(taskDto.flightId(), taskDto.seatGrade(), currentPrice);
 
         publishNotifyQueue(dbPreviousPrice, currentPrice, latestInfo, taskDto.seatGrade());
     }

@@ -6,12 +6,14 @@ import com.siwol025.flight_monitor.user.dto.response.UserResponse;
 import io.swagger.v3.oas.annotations.Parameter;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@RequestMapping("/api")
 public class UserController {
 
-    @GetMapping("/api/me")
+    @GetMapping("/me")
     public ResponseEntity<UserResponse> getMyInfo(@Parameter(hidden = true) @LoginUser User user) {
         return ResponseEntity.ok(UserResponse.from(user));
     }

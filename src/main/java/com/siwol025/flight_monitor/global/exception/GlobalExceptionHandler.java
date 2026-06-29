@@ -25,7 +25,7 @@ public class GlobalExceptionHandler {
                 .map(ObjectError::getDefaultMessage)
                 .orElse("입력값이 올바르지 않습니다.");
         return ResponseEntity.badRequest()
-                .body(new ErrorResponse("INVALID_INPUT", message));
+                .body(new ErrorResponse(ErrorTag.INVALID_INPUT.name(), message));
     }
 
     @ExceptionHandler(Exception.class)

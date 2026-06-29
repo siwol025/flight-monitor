@@ -1,6 +1,7 @@
 package com.siwol025.flight_monitor.mock.flight.service;
 
 import com.siwol025.flight_monitor.global.exception.ErrorTag;
+import com.siwol025.flight_monitor.global.exception.custom.BadRequestException;
 import com.siwol025.flight_monitor.global.exception.custom.NotFoundException;
 import com.siwol025.flight_monitor.mock.airline.domain.MockAirline;
 import com.siwol025.flight_monitor.mock.airport.domain.MockAirport;
@@ -89,10 +90,7 @@ public class MockFlightService {
 
     public void validateFlight(String flightNumber, LocalDateTime departureTime) {
         if (isDuplicateFlight(flightNumber, departureTime)) {
-            throw new IllegalArgumentException(
-                    String.format("이미 해당 날짜(%s)에 등록된 항공편(%s)이 존재합니다.",
-                            departureTime, flightNumber)
-            );
+            throw new BadRequestException(ErrorTag.DUPLICATE_FLIGHT);
         }
     }
 

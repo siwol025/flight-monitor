@@ -99,7 +99,7 @@ class PriceMonitorServiceTest {
         priceMonitorService.checkPriceAndNotify(taskDto);
 
         // then
-        then(cacheManager).should().saveToCache(anyString(), eq("100000"));
+        then(cacheManager).should().saveToCache(eq(1L), eq(SeatGrade.ECONOMY), eq(BigDecimal.valueOf(100_000)));
         then(producer).shouldHaveNoInteractions();
     }
 
@@ -136,6 +136,21 @@ class PriceMonitorServiceTest {
         // then
         then(flightLatestPriceInfoService).should().updateLatestPriceInfo(1L, SeatGrade.ECONOMY, currentPrice);
         then(producer).shouldHaveNoInteractions();
+    }
+
+    @Test
+    void checkPriceAndNotify_saveToCache_도메인타입으로_호출된다() {
+        BigDecimal currentPrice = BigDecimal.valueOf(80_000);
+        BigDecimal previousPrice = BigDecimal.valueOf(100_000);
+        given(flightDataProvider.fetchMockFlight(1L)).willReturn(mockFlightResponse(currentPrice));
+        given(cacheManager.getPreviousPrice(1L, SeatGrade.ECONOMY, currentPrice)).willReturn(previousPrice);
+        given(flightLatestPriceInfoService.getPreviousPrice(1L, SeatGrade.ECONOMY))
+                .willReturn(Optional.of(previousPrice));
+
+        priceMonitorService.checkPriceAndNotify(taskDto);
+
+        // 도메인 타입 시그니처로 saveToCache가 호출되어야 함
+        then(cacheManager).should().saveToCache(eq(1L), eq(SeatGrade.ECONOMY), eq(BigDecimal.valueOf(80_000)));
     }
 
     @Test

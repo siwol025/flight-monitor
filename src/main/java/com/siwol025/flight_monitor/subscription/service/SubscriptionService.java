@@ -76,11 +76,7 @@ public class SubscriptionService {
 
         MockFlightResponse mockFlightResponse = flightFetcher.fetchMockFlight(subscription.getFlight().getId());
 
-        BigDecimal currentPrice = mockFlightResponse.seatPrices().stream()
-                .filter(sp -> sp.seatGrade() == subscription.getSeatGrade())
-                .map(MockFlightSeatPriceResponse::price)
-                .findFirst()
-                .orElseThrow(() -> new NotFoundException(ErrorTag.SEAT_PRICE_NOT_FOUND));
+        BigDecimal currentPrice = extractPriceByGrade(mockFlightResponse, subscription.getSeatGrade());
 
         return SubscriptionDetailResponse.of(subscription, currentPrice);
     }
