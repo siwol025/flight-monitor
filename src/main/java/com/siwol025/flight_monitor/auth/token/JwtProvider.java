@@ -26,7 +26,13 @@ public class JwtProvider {
             @Value("${jwt.access-token-expiration-ms}") long accessTokenExpiredMs,
             @Value("${jwt.refresh-token-expiration-ms}") long refreshTokenExpireMs
     ) {
-        this.signingKey = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
+        byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length < 32) {
+            throw new IllegalArgumentException(
+                    "JWT 서명 키는 최소 256비트(32바이트)여야 합니다. 현재 키 길이: " + keyBytes.length + "바이트"
+            );
+        }
+        this.signingKey = Keys.hmacShaKeyFor(keyBytes);
         this.accessTokenExpiredMs = accessTokenExpiredMs;
         this.refreshTokenExpireMs = refreshTokenExpireMs;
     }
