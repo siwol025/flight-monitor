@@ -46,20 +46,20 @@ public class JwtProvider {
         Date expiry = new Date(now.getTime() + expiration);
 
         return Jwts.builder()
-                .setHeaderParam("typ", "JWT")
-                .setIssuedAt(now)
-                .setExpiration(expiry)
+                .header().add("typ", "JWT").and()
+                .issuedAt(now)
+                .expiration(expiry)
                 .claim("userId", userId)
                 .signWith(signingKey)
                 .compact();
     }
 
     public Claims parseToken(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(signingKey)
+        return Jwts.parser()
+                .verifyWith(signingKey)
                 .build()
-                .parseClaimsJws(token)
-                .getBody();
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
     public LocalDateTime getIssuedAt(String token) {
