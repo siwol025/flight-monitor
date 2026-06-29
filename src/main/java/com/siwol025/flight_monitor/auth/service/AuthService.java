@@ -6,7 +6,7 @@ import com.siwol025.flight_monitor.auth.dto.request.RefreshTokenRequest;
 import com.siwol025.flight_monitor.auth.dto.response.LoginResponse;
 import com.siwol025.flight_monitor.auth.dto.response.RefreshTokenResponse;
 import com.siwol025.flight_monitor.auth.dto.response.TokenResponse;
-import com.siwol025.flight_monitor.auth.token.GoogleTokenParser;
+import com.siwol025.flight_monitor.auth.token.IdTokenParser;
 import com.siwol025.flight_monitor.auth.token.JwtProvider;
 import com.siwol025.flight_monitor.global.exception.ErrorTag;
 import com.siwol025.flight_monitor.global.exception.custom.BadRequestException;
@@ -17,25 +17,35 @@ import com.siwol025.flight_monitor.user.service.UserService;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.security.SignatureException;
 import java.time.LocalDateTime;
-import lombok.RequiredArgsConstructor;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@RequiredArgsConstructor
 public class AuthService {
-    private final GoogleTokenParser googleTokenParser;
-    private final UserService  userService;
+    private final Map<Provider, IdTokenParser> parserMap;
+    private final UserService userService;
     private final JwtProvider jwtProvider;
     private final RefreshTokenService refreshTokenService;
 
+    public AuthService(List<IdTokenParser> parsers, UserService userService,
+                       JwtProvider jwtProvider, RefreshTokenService refreshTokenService) {
+        this.parserMap = parsers.stream()
+                .collect(Collectors.toMap(IdTokenParser::getProvider, p -> p));
+        this.userService = userService;
+        this.jwtProvider = jwtProvider;
+        this.refreshTokenService = refreshTokenService;
+    }
+
     @Transactional
     public LoginResponse login(LoginRequest request, Provider provider) {
-        if (provider == Provider.GOOGLE) {
-            return loginWithGoogle(request);
+        IdTokenParser parser = parserMap.get(provider);
+        if (parser == null) {
+            throw new UnauthorizedException(ErrorTag.UNAUTHORIZED);
         }
-
-        throw new UnauthorizedException(ErrorTag.UNAUTHORIZED);
+        return loginWith(parser, request);
     }
 
     @Transactional
@@ -55,14 +65,10 @@ public class AuthService {
             saveRefreshToken(user, newToken.refreshToken());
 
             return new RefreshTokenResponse(newToken.accessToken(), newToken.refreshToken());
-        } catch (ExpiredJwtException e) {
-            throw new UnauthorizedException(ErrorTag.REFRESH_TOKEN_EXPIRED);
-        } catch (SignatureException e) {
-            throw new UnauthorizedException(ErrorTag.REFRESH_TOKEN_SIGNATURE_INVALID);
         } catch (UnauthorizedException e) {
             throw e;
         } catch (Exception e) {
-            throw new UnauthorizedException(ErrorTag.UNAUTHORIZED);
+            throw translateJwtException(e);
         }
     }
 
@@ -72,14 +78,14 @@ public class AuthService {
         refreshTokenService.deleteByUser(user);
     }
 
-    public LoginResponse loginWithGoogle(LoginRequest request) {
+    private LoginResponse loginWith(IdTokenParser parser, LoginRequest request) {
         String idToken = request.idToken();
         validateIdToken(idToken);
 
-        Provider provider = googleTokenParser.getProvider();
-        String providerId = googleTokenParser.getProviderId(idToken);
-        String email = googleTokenParser.getEmail(idToken);
-        String name = googleTokenParser.getName(idToken);
+        Provider provider = parser.getProvider();
+        String providerId = parser.getProviderId(idToken);
+        String email = parser.getEmail(idToken);
+        String name = parser.getName(idToken);
 
         boolean isNewUser = userService.isFirstLogin(provider, providerId);
 
@@ -97,13 +103,19 @@ public class AuthService {
             LocalDateTime issuedAt = jwtProvider.getIssuedAt(refreshToken);
             LocalDateTime expiration = jwtProvider.getExpiration(refreshToken);
             refreshTokenService.save(user, jwtProvider.hashToken(refreshToken), issuedAt, expiration);
-        } catch (ExpiredJwtException e) {
-            throw new UnauthorizedException(ErrorTag.REFRESH_TOKEN_EXPIRED);
-        } catch (SignatureException e) {
-            throw new UnauthorizedException(ErrorTag.REFRESH_TOKEN_SIGNATURE_INVALID);
         } catch (Exception e) {
-            throw new UnauthorizedException(ErrorTag.UNAUTHORIZED);
+            throw translateJwtException(e);
         }
+    }
+
+    private UnauthorizedException translateJwtException(Exception e) {
+        if (e instanceof ExpiredJwtException) {
+            return new UnauthorizedException(ErrorTag.REFRESH_TOKEN_EXPIRED);
+        }
+        if (e instanceof SignatureException) {
+            return new UnauthorizedException(ErrorTag.REFRESH_TOKEN_SIGNATURE_INVALID);
+        }
+        return new UnauthorizedException(ErrorTag.UNAUTHORIZED);
     }
 
     private void validateIdToken(String idToken) {
