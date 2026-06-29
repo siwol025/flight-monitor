@@ -54,35 +54,9 @@ public class TestScenarioController {
             return "실패: 유저를 찾을 수 없습니다.";
         }
 
-        // 수정: 항공사가 이미 존재하는지 확인 후 생성
-        MockAirline airline = em.createQuery("SELECT a FROM MockAirline a WHERE a.airlineCode = :code", MockAirline.class)
-                .setParameter("code", "T_AIR")
-                .getResultStream().findFirst()
-                .orElseGet(() -> {
-                    MockAirline newAirline = MockAirline.builder().airlineCode("T_AIR").airlineName("테스트항공").build();
-                    em.persist(newAirline);
-                    return newAirline;
-                });
-
-        // 수정: 출발 공항이 이미 존재하는지 확인 후 생성
-        MockAirport dep = em.createQuery("SELECT a FROM MockAirport a WHERE a.airportCode = :code", MockAirport.class)
-                .setParameter("code", "ICN")
-                .getResultStream().findFirst()
-                .orElseGet(() -> {
-                    MockAirport newDep = MockAirport.builder().airportCode("ICN").airportName("인천").build();
-                    em.persist(newDep);
-                    return newDep;
-                });
-
-        // 수정: 도착 공항이 이미 존재하는지 확인 후 생성
-        MockAirport arr = em.createQuery("SELECT a FROM MockAirport a WHERE a.airportCode = :code", MockAirport.class)
-                .setParameter("code", "JFK")
-                .getResultStream().findFirst()
-                .orElseGet(() -> {
-                    MockAirport newArr = MockAirport.builder().airportCode("JFK").airportName("뉴욕").build();
-                    em.persist(newArr);
-                    return newArr;
-                });
+        MockAirline airline = findOrCreateAirline("T_AIR", "테스트항공");
+        MockAirport dep = findOrCreateAirport("ICN", "인천");
+        MockAirport arr = findOrCreateAirport("JFK", "뉴욕");
 
         BigDecimal initialPrice = new BigDecimal("1000000.00");
         LocalDateTime departureTime = LocalDateTime.now().plusDays(30);
@@ -180,32 +154,9 @@ public class TestScenarioController {
         log.info("✅ 유저 {}명 생성 완료", userCount);
 
         // 2. 항공사 및 공항 기초 데이터 확인/생성
-        MockAirline airline = em.createQuery("SELECT a FROM MockAirline a WHERE a.airlineCode = :code", MockAirline.class)
-                .setParameter("code", "T_AIR")
-                .getResultStream().findFirst()
-                .orElseGet(() -> {
-                    MockAirline newAirline = MockAirline.builder().airlineCode("T_AIR").airlineName("테스트항공").build();
-                    em.persist(newAirline);
-                    return newAirline;
-                });
-
-        MockAirport dep = em.createQuery("SELECT a FROM MockAirport a WHERE a.airportCode = :code", MockAirport.class)
-                .setParameter("code", "ICN")
-                .getResultStream().findFirst()
-                .orElseGet(() -> {
-                    MockAirport newDep = MockAirport.builder().airportCode("ICN").airportName("인천").build();
-                    em.persist(newDep);
-                    return newDep;
-                });
-
-        MockAirport arr = em.createQuery("SELECT a FROM MockAirport a WHERE a.airportCode = :code", MockAirport.class)
-                .setParameter("code", "JFK")
-                .getResultStream().findFirst()
-                .orElseGet(() -> {
-                    MockAirport newArr = MockAirport.builder().airportCode("JFK").airportName("뉴욕").build();
-                    em.persist(newArr);
-                    return newArr;
-                });
+        MockAirline airline = findOrCreateAirline("T_AIR", "테스트항공");
+        MockAirport dep = findOrCreateAirport("ICN", "인천");
+        MockAirport arr = findOrCreateAirport("JFK", "뉴욕");
 
         // 3. 항공편 500개 생성
         List<Flight> flights = new ArrayList<>(flightCount);
@@ -282,6 +233,28 @@ public class TestScenarioController {
         long endTime = System.currentTimeMillis();
         return String.format("완료: 유저 %d명, 항공편 %d개, 구독 10000건 생성 (소요 시간: %d ms)",
                 userCount, flightCount, (endTime - startTime));
+    }
+
+    private MockAirline findOrCreateAirline(String code, String name) {
+        return em.createQuery("SELECT a FROM MockAirline a WHERE a.airlineCode = :code", MockAirline.class)
+                .setParameter("code", code)
+                .getResultStream().findFirst()
+                .orElseGet(() -> {
+                    MockAirline newAirline = MockAirline.builder().airlineCode(code).airlineName(name).build();
+                    em.persist(newAirline);
+                    return newAirline;
+                });
+    }
+
+    private MockAirport findOrCreateAirport(String code, String name) {
+        return em.createQuery("SELECT a FROM MockAirport a WHERE a.airportCode = :code", MockAirport.class)
+                .setParameter("code", code)
+                .getResultStream().findFirst()
+                .orElseGet(() -> {
+                    MockAirport newAirport = MockAirport.builder().airportCode(code).airportName(name).build();
+                    em.persist(newAirport);
+                    return newAirport;
+                });
     }
 
     private void createSubscription(EntityManager em, User user, Flight flight, BigDecimal price) {

@@ -9,6 +9,20 @@ import org.springframework.context.annotation.Profile;
 class TestScenarioControllerProfileTest {
 
     @Test
+    void findOrCreateAirline_헬퍼_메서드가_존재한다() throws NoSuchMethodException {
+        java.lang.reflect.Method method = TestScenarioController.class
+                .getDeclaredMethod("findOrCreateAirline", String.class, String.class);
+        assertThat(method.getReturnType().getSimpleName()).isEqualTo("MockAirline");
+    }
+
+    @Test
+    void findOrCreateAirport_헬퍼_메서드가_존재한다() throws NoSuchMethodException {
+        java.lang.reflect.Method method = TestScenarioController.class
+                .getDeclaredMethod("findOrCreateAirport", String.class, String.class);
+        assertThat(method.getReturnType().getSimpleName()).isEqualTo("MockAirport");
+    }
+
+    @Test
     void TestScenarioController_운영_프로파일에서_빈_등록_안됨() {
         Profile profile = TestScenarioController.class.getAnnotation(Profile.class);
 
