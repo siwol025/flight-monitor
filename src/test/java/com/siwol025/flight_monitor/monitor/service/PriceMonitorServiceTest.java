@@ -4,7 +4,7 @@ import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightResponse;
 import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightSeatPriceResponse;
 import com.siwol025.flight_monitor.monitor.dto.PriceDropNotificationDto;
 import com.siwol025.flight_monitor.monitor.producer.NotificationPublisher;
-import com.siwol025.flight_monitor.monitor.utils.FlightPriceCacheManager;
+import com.siwol025.flight_monitor.monitor.utils.CacheStrategy;
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
 import com.siwol025.flight_monitor.subscription.dto.FlightMonitorTaskDto;
 import com.siwol025.flight_monitor.subscription.service.FlightDataProvider;
@@ -38,7 +38,7 @@ class PriceMonitorServiceTest {
     private FlightLatestPriceInfoService flightLatestPriceInfoService;
 
     @Mock
-    private FlightPriceCacheManager cacheManager;
+    private CacheStrategy cacheManager;
 
     @InjectMocks
     private PriceMonitorService priceMonitorService;

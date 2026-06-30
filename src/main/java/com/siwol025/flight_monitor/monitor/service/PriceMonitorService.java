@@ -3,7 +3,7 @@ package com.siwol025.flight_monitor.monitor.service;
 import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightResponse;
 import com.siwol025.flight_monitor.monitor.dto.PriceDropNotificationDto;
 import com.siwol025.flight_monitor.monitor.producer.NotificationPublisher;
-import com.siwol025.flight_monitor.monitor.utils.FlightPriceCacheManager;
+import com.siwol025.flight_monitor.monitor.utils.CacheStrategy;
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
 import com.siwol025.flight_monitor.subscription.dto.FlightMonitorTaskDto;
 import com.siwol025.flight_monitor.subscription.service.FlightDataProvider;
@@ -23,7 +23,7 @@ public class PriceMonitorService {
     private final FlightDataProvider flightFetcher;
     private final NotificationPublisher producer;
     private final FlightLatestPriceInfoService flightLatestPriceInfoService;
-    private final FlightPriceCacheManager cacheManager;
+    private final CacheStrategy cacheManager;
 
     public void checkPriceAndNotify(FlightMonitorTaskDto taskDto) {
         MockFlightResponse latestInfo = flightFetcher.fetchMockFlight(taskDto.flightId());

@@ -13,13 +13,14 @@ import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class FlightPriceCacheManager {
+public class FlightPriceCacheManager implements CacheStrategy {
 
     private final StringRedisTemplate redisTemplate;
     private final FlightLatestPriceInfoService flightLatestPriceInfoService;
 
     private static final String FLIGHT_PRICE_PREFIX = "flight:price:";
 
+    @Override
     @CircuitBreaker(name = "redisPopCircuitBreaker", fallbackMethod = "dbFallbackPreviousPrice")
     public BigDecimal getPreviousPrice(Long flightId, SeatGrade seatGrade, BigDecimal currentPrice) {
         String redisKey = FLIGHT_PRICE_PREFIX + flightId + ":" + seatGrade.name();
@@ -43,6 +44,7 @@ public class FlightPriceCacheManager {
                 .orElseGet(() -> flightLatestPriceInfoService.createLatestPriceInfo(flightId, seatGrade, currentPrice).getPrice());
     }
 
+    @Override
     @CircuitBreaker(name = "redisPopCircuitBreaker", fallbackMethod = "dbFallbackSaveToCache")
     public void saveToCache(Long flightId, SeatGrade seatGrade, BigDecimal price) {
         String redisKey = FLIGHT_PRICE_PREFIX + flightId + ":" + seatGrade.name();
