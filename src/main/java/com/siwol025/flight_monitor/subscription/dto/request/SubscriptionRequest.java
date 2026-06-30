@@ -7,11 +7,11 @@ import jakarta.validation.constraints.NotNull;
 @Schema(description = "구독 요청 dto", name = "SubscriptionRequest")
 public record SubscriptionRequest(
         @Schema(description = "항공편 ID", example = "1")
-        @NotNull
+        @NotNull(message = "flightId는 필수입니다.")
         Long flightId,
 
         @Schema(description = "좌석 등급 (ECONOMY, BUSINESS, FIRST)", example = "ECONOMY")
-        @NotNull
+        @NotNull(message = "seatGrade는 필수입니다.")
         SeatGrade seatGrade
 ) {
 }

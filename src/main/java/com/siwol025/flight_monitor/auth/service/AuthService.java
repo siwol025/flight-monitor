@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class AuthService {
     private final Map<Provider, IdTokenParser> parserMap;
     private final UserService userService;
@@ -39,7 +40,6 @@ public class AuthService {
         this.refreshTokenService = refreshTokenService;
     }
 
-    @Transactional
     public LoginResponse login(LoginRequest request, Provider provider) {
         IdTokenParser parser = parserMap.get(provider);
         if (parser == null) {
@@ -48,7 +48,6 @@ public class AuthService {
         return loginWith(parser, request);
     }
 
-    @Transactional
     public RefreshTokenResponse refresh(RefreshTokenRequest request) {
         String refreshToken = request.refreshToken();
 
@@ -72,7 +71,6 @@ public class AuthService {
         }
     }
 
-    @Transactional
     public void logout(User user) {
         User loginUser = getUserByUserId(user.getId());
         refreshTokenService.deleteByUser(user);

@@ -51,6 +51,8 @@ spring:
 monitor:
   worker:
     count: 3
+  rate-limiter:
+    permits-per-second: 90.0
 
 notification:
   mode: kafka

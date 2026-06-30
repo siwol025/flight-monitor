@@ -2,6 +2,11 @@ package com.siwol025.flight_monitor.global.config;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class DependencyVersionTest {
@@ -19,5 +24,12 @@ class DependencyVersionTest {
         Package pkg = com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier.class.getPackage();
         String version = pkg.getImplementationVersion();
         assertThat(version).isNotEqualTo("2.2.0");
+    }
+
+    @Test
+    void guava_의존성이_명시적으로_선언되어있다() throws IOException {
+        Path buildGradle = Paths.get(System.getProperty("user.dir"), "build.gradle");
+        String content = Files.readString(buildGradle);
+        assertThat(content).contains("com.google.guava:guava");
     }
 }

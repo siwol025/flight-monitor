@@ -4,9 +4,9 @@ import com.google.common.util.concurrent.RateLimiter;
 import com.siwol025.flight_monitor.monitor.utils.TaskQueueConsumerManager;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
@@ -18,13 +18,18 @@ public class FlightMonitoringWorker {
 
     private final TaskQueueConsumerManager queueManager;
     private final MonitoringTaskProcessor taskProcessor;
-    private final RateLimiter rateLimiter = RateLimiter.create(90.0);
+
+    @Value("${monitor.rate-limiter.permits-per-second:90.0}")
+    private double permitsPerSecond = 90.0;
+
+    private RateLimiter rateLimiter;
 
     private volatile boolean isRunning = true;
     private Thread pollerThread;
 
     @PostConstruct
     public void startWorkers() {
+        rateLimiter = RateLimiter.create(permitsPerSecond);
         pollerThread = new Thread(this::pollQueue, "MonitorPoller");
         pollerThread.setDaemon(true);
         pollerThread.start();
