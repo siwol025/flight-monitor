@@ -96,8 +96,8 @@ resilience4j:
         slowCallRateThreshold: 40
         # 3초 이상 걸리면 느린 요청으로 판단
         slowCallDurationThreshold: 3s
-        # OPEN 상태가 되면 30초 동안 Redis 접근 차단
-        waitDurationInOpenState: 30s
+        # OPEN 상태가 되면 5초 동안 Redis 접근 차단
+        waitDurationInOpenState: 5s
         # HALF_OPEN 상태에서 5건만 테스트 요청 허용
         permittedNumberOfCallsInHalfOpenState: 5
 
