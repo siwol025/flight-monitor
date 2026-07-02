@@ -3,6 +3,7 @@ package com.siwol025.flight_monitor.monitor.utils;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.cache.concurrent.ConcurrentMapCache;
+import org.springframework.scheduling.annotation.Scheduled;
 
 public class MonitoringListCache extends ConcurrentMapCache {
 
@@ -44,6 +45,17 @@ public class MonitoringListCache extends ConcurrentMapCache {
     public void clear() {
         ttlCache.clear();
         super.clear();
+    }
+
+    @Scheduled(fixedDelay = 600_000)
+    public void evictExpiredEntries() {
+        ttlCache.entrySet().removeIf(entry -> {
+            if (!isCacheValid(entry.getValue())) {
+                super.evict(entry.getKey());
+                return true;
+            }
+            return false;
+        });
     }
 
     private boolean isCacheValid(Long expiredTime) {

@@ -17,11 +17,14 @@ public class CacheConfig {
     private static final long DEFAULT_TTL_MILLIS = 300_000L;
 
     @Bean
-    public CacheManager cacheManager() {
+    public MonitoringListCache monitoringListCache() {
+        return new MonitoringListCache(MONITORING_LIST_CACHE, DEFAULT_TTL_MILLIS);
+    }
+
+    @Bean
+    public CacheManager cacheManager(MonitoringListCache monitoringListCache) {
         SimpleCacheManager cacheManager = new SimpleCacheManager();
-
-        cacheManager.setCaches(List.of(new MonitoringListCache(MONITORING_LIST_CACHE, DEFAULT_TTL_MILLIS)));
-
+        cacheManager.setCaches(List.of(monitoringListCache));
         return cacheManager;
     }
 }
