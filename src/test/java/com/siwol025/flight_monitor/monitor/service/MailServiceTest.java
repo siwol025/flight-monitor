@@ -35,15 +35,4 @@ class MailServiceTest {
         assertThrows(BadRequestException.class, () -> mailService.sendPriceDropNotification(dto));
     }
 
-    @Test
-    void sendPriceDropNotification_HTML태그_포함시_제거후_발송됨() {
-        EmailSendTaskDto dto = new EmailSendTaskDto("test@example.com", "<b>할인 알림</b>", "<p>가격이 내렸습니다</p>");
-
-        mailService.sendPriceDropNotification(dto);
-
-        ArgumentCaptor<SimpleMailMessage> captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
-        verify(mailSender).send(captor.capture());
-        assertThat(captor.getValue().getSubject()).isEqualTo("할인 알림");
-        assertThat(captor.getValue().getText()).isEqualTo("가격이 내렸습니다");
-    }
 }

@@ -31,15 +31,11 @@ public class MailService implements NotificationService{
         SimpleMailMessage message = new SimpleMailMessage();
 
         message.setTo(taskDto.toEmail());
-        message.setSubject(stripHtml(taskDto.subject()));
-        message.setText(stripHtml(taskDto.content()));
+        message.setSubject(taskDto.subject());
+        message.setText(taskDto.content());
 
         log.info("📧 [MailService] 메일 발송 중: To={}", taskDto.toEmail());
         mailSender.send(message);
         log.info("📧 [MailService] 메일 발송 완료!");
-    }
-
-    private String stripHtml(String text) {
-        return text.replaceAll("<[^>]*>", "");
     }
 }
