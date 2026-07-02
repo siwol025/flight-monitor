@@ -1,6 +1,5 @@
 package com.siwol025.flight_monitor.monitor.worker;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.siwol025.flight_monitor.monitor.dto.EmailSendTaskDto;
 import com.siwol025.flight_monitor.monitor.dto.PriceDropNotificationDto;
 import com.siwol025.flight_monitor.subscription.service.SubscriptionService;
@@ -23,6 +22,7 @@ public class KafkaNotificationListener {
 
     private final SubscriptionService subscriptionService;
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final NotificationContentFormatter formatter;
 
     private static final String OUT_TOPIC = "email-send-tasks";
 
@@ -35,8 +35,8 @@ public class KafkaNotificationListener {
                 return;
             }
 
-            String subject = createSubject(eventDto.flightNumber());
-            String content = createContent(eventDto);
+            String subject = formatter.createSubject(eventDto.flightNumber());
+            String content = formatter.createContent(eventDto);
 
             for (UserEmailDto user : subscribers) {
                 EmailSendTaskDto taskDto = new EmailSendTaskDto(user.email(), subject, content);
@@ -51,14 +51,4 @@ public class KafkaNotificationListener {
         }
     }
 
-    private String createContent(PriceDropNotificationDto dto) {
-        return String.format(
-                "항공편 ID: %s\n좌석: %s\n가격 변동: %s -> %s",
-                dto.flightNumber(), dto.seatGrade(), dto.oldPrice(), dto.newPrice()
-        );
-    }
-
-    private String createSubject(String flightNumber) {
-        return String.format("✈️ 항공편 ID: %s 가격 하락 알림!", flightNumber);
-    }
 }

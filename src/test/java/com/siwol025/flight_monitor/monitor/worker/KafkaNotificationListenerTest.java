@@ -33,6 +33,9 @@ class KafkaNotificationListenerTest {
     @Mock
     private KafkaTemplate<String, Object> kafkaTemplate;
 
+    @Mock
+    private NotificationContentFormatter formatter;
+
     @InjectMocks
     private KafkaNotificationListener kafkaNotificationListener;
 
@@ -84,5 +87,31 @@ class KafkaNotificationListenerTest {
 
         // then
         then(kafkaTemplate).shouldHaveNoInteractions();
+    }
+
+    @Test
+    void processNotification_포맷터의_createSubject_와_createContent_호출됨() {
+        // given
+        Long flightId = 3L;
+        PriceDropNotificationDto dto = PriceDropNotificationDto.builder()
+                .flightId(flightId)
+                .flightNumber("KE777")
+                .seatGrade(SeatGrade.ECONOMY)
+                .oldPrice(new BigDecimal("400000"))
+                .newPrice(new BigDecimal("350000"))
+                .detectedAt(LocalDateTime.now())
+                .build();
+
+        given(subscriptionService.getSubscribers(flightId))
+                .willReturn(List.of(new UserEmailDto("subscriber@test.com")));
+        given(formatter.createSubject(any())).willReturn("테스트 제목");
+        given(formatter.createContent(any())).willReturn("테스트 본문");
+
+        // when
+        kafkaNotificationListener.processNotification(dto);
+
+        // then
+        then(formatter).should().createSubject(dto.flightNumber());
+        then(formatter).should().createContent(dto);
     }
 }
