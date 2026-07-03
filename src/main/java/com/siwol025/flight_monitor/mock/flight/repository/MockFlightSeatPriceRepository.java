@@ -12,6 +12,8 @@ import org.springframework.stereotype.Repository;
 public interface MockFlightSeatPriceRepository extends JpaRepository<FlightSeatPrice, Long> {
     Optional<FlightSeatPrice> findByFlightIdAndSeatGrade(Long flightId, SeatGrade seatGrade);
 
+    List<FlightSeatPrice> findBySeatGrade(SeatGrade seatGrade);
+
     @Query("Select distinct f FROM FlightSeatPrice f " +
             "JOIN FETCH f.flight"
     )
