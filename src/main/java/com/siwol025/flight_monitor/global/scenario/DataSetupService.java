@@ -1,17 +1,22 @@
 package com.siwol025.flight_monitor.global.scenario;
 
 import com.siwol025.flight_monitor.mock.airline.domain.MockAirline;
+import com.siwol025.flight_monitor.mock.airline.repository.MockAirlineRepository;
 import com.siwol025.flight_monitor.mock.airport.domain.MockAirport;
+import com.siwol025.flight_monitor.mock.airport.repository.MockAirportRepository;
 import com.siwol025.flight_monitor.mock.flight.domain.FlightSeatPrice;
 import com.siwol025.flight_monitor.mock.flight.domain.MockFlight;
 import com.siwol025.flight_monitor.mock.flight.repository.MockFlightRepository;
-import com.siwol025.flight_monitor.monitor.domain.FlightLatestPriceInfo;
+import com.siwol025.flight_monitor.mock.flight.repository.MockFlightSeatPriceRepository;
 import com.siwol025.flight_monitor.subscription.domain.Subscription;
 import com.siwol025.flight_monitor.subscription.domain.flight.Flight;
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
+import com.siwol025.flight_monitor.subscription.repository.FlightRepository;
+import com.siwol025.flight_monitor.subscription.repository.SubscriptionRepository;
 import com.siwol025.flight_monitor.user.domain.Provider;
 import com.siwol025.flight_monitor.user.domain.Role;
 import com.siwol025.flight_monitor.user.domain.User;
+import com.siwol025.flight_monitor.user.repository.UserRepository;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -20,6 +25,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,13 +36,18 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class DataSetupService {
 
+    // flush/clear only — bulk data memory management
     private final EntityManager em;
     private final MockFlightRepository mockFlightRepository;
+    private final MockFlightSeatPriceRepository mockFlightSeatPriceRepository;
+    private final MockAirlineRepository mockAirlineRepository;
+    private final MockAirportRepository mockAirportRepository;
+    private final FlightRepository flightRepository;
+    private final SubscriptionRepository subscriptionRepository;
+    private final UserRepository userRepository;
 
     public String seedData(int count, Long userCount) {
-        List<User> users = em.createQuery("SELECT u FROM User u LIMIT :count", User.class)
-                .setParameter("count", userCount)
-                .getResultList();
+        List<User> users = userRepository.findAll(PageRequest.of(0, userCount.intValue())).getContent();
         if (users.isEmpty()) {
             return "실패: 유저를 찾을 수 없습니다.";
         }
@@ -69,7 +80,7 @@ public class DataSetupService {
                     .price(initialPrice)
                     .build();
             mockFlight.addFlightSeatPrice(seatPrice);
-            em.persist(mockFlight);
+            mockFlightRepository.save(mockFlight);
 
             Flight flight = Flight.builder()
                     .flightId(mockFlight.getId())
@@ -80,7 +91,7 @@ public class DataSetupService {
                     .departureTime(mockFlight.getDepartureTime())
                     .arrivalTime(mockFlight.getArrivalTime())
                     .build();
-            em.persist(flight);
+            flightRepository.save(flight);
 
             Subscription subscription = Subscription.builder()
                     .user(users.get((i + 1) % users.size()))
@@ -88,7 +99,7 @@ public class DataSetupService {
                     .seatGrade(SeatGrade.ECONOMY)
                     .price(initialPrice)
                     .build();
-            em.persist(subscription);
+            subscriptionRepository.save(subscription);
         }
 
         log.info("[DataSetupService] 테스트 데이터 {}건 시딩 완료", count);
@@ -96,9 +107,7 @@ public class DataSetupService {
     }
 
     public String dropPrices() {
-        List<FlightSeatPrice> prices = em.createQuery("SELECT p FROM FlightSeatPrice p WHERE p.seatGrade = :grade", FlightSeatPrice.class)
-                .setParameter("grade", SeatGrade.ECONOMY)
-                .getResultList();
+        List<FlightSeatPrice> prices = mockFlightSeatPriceRepository.findBySeatGrade(SeatGrade.ECONOMY);
 
         BigDecimal discountRate = new BigDecimal("0.98");
 
@@ -127,7 +136,7 @@ public class DataSetupService {
                     .providerId("local_" + i)
                     .role(Role.USER)
                     .build();
-            em.persist(user);
+            userRepository.save(user);
             users.add(user);
         }
         log.info("[DataSetupService] 유저 {}명 생성 완료", userCount);
@@ -162,7 +171,7 @@ public class DataSetupService {
                     .price(initialPrice)
                     .build();
             mockFlight.addFlightSeatPrice(seatPrice);
-            em.persist(mockFlight);
+            mockFlightRepository.save(mockFlight);
 
             Flight flight = Flight.builder()
                     .flightId(mockFlight.getId())
@@ -173,7 +182,7 @@ public class DataSetupService {
                     .departureTime(mockFlight.getDepartureTime())
                     .arrivalTime(mockFlight.getArrivalTime())
                     .build();
-            em.persist(flight);
+            flightRepository.save(flight);
             flights.add(flight);
         }
         log.info("[DataSetupService] 항공편 {}개 생성 완료", flightCount);
@@ -215,24 +224,18 @@ public class DataSetupService {
     }
 
     MockAirline findOrCreateAirline(String code, String name) {
-        return em.createQuery("SELECT a FROM MockAirline a WHERE a.airlineCode = :code", MockAirline.class)
-                .setParameter("code", code)
-                .getResultStream().findFirst()
+        return mockAirlineRepository.findByAirlineCode(code)
                 .orElseGet(() -> {
                     MockAirline newAirline = MockAirline.builder().airlineCode(code).airlineName(name).build();
-                    em.persist(newAirline);
-                    return newAirline;
+                    return mockAirlineRepository.save(newAirline);
                 });
     }
 
     MockAirport findOrCreateAirport(String code, String name) {
-        return em.createQuery("SELECT a FROM MockAirport a WHERE a.airportCode = :code", MockAirport.class)
-                .setParameter("code", code)
-                .getResultStream().findFirst()
+        return mockAirportRepository.findByAirportCode(code)
                 .orElseGet(() -> {
                     MockAirport newAirport = MockAirport.builder().airportCode(code).airportName(name).build();
-                    em.persist(newAirport);
-                    return newAirport;
+                    return mockAirportRepository.save(newAirport);
                 });
     }
 
@@ -243,6 +246,6 @@ public class DataSetupService {
                 .seatGrade(SeatGrade.ECONOMY)
                 .price(price)
                 .build();
-        em.persist(subscription);
+        subscriptionRepository.save(subscription);
     }
 }
