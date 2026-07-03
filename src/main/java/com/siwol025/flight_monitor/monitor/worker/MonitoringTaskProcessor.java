@@ -27,7 +27,7 @@ public class MonitoringTaskProcessor {
             FlightMonitorTaskDto taskDto = objectMapper.readValue(jsonPayload, FlightMonitorTaskDto.class);
             priceMonitorService.checkPriceAndNotify(taskDto);
         } catch (Exception e) {
-            log.error("🚨 [Monitoring Worker] 작업 처리 실패: {}", e.getMessage());
+            log.error("[MonitoringTaskProcessor] 작업 처리 실패", e);
         }
     }
 }

@@ -32,13 +32,13 @@ public class FlightPriceCacheManager implements CacheStrategy {
 
         return flightLatestPriceInfoService.getPreviousPrice(flightId, seatGrade)
                 .orElseGet(() -> {
-                    log.info("ℹ️ [Monitor] DB에 이전 가격 정보 없음. 초기 가격을 세팅합니다.");
+                    log.info("[FlightPriceCacheManager] DB에 이전 가격 정보 없음. 초기 가격을 세팅합니다.");
                     return flightLatestPriceInfoService.createLatestPriceInfo(flightId, seatGrade, currentPrice).getPrice();
                 });
     }
 
     public BigDecimal dbFallbackPreviousPrice(Long flightId, SeatGrade seatGrade, BigDecimal currentPrice, Throwable t) {
-        log.warn("🚨 [CircuitBreaker] Redis 장애. DB에서 가격을 조회합니다.");
+        log.warn("[FlightPriceCacheManager] Redis 장애. DB에서 가격을 조회합니다.");
 
         return flightLatestPriceInfoService.getPreviousPrice(flightId, seatGrade)
                 .orElseGet(() -> flightLatestPriceInfoService.createLatestPriceInfo(flightId, seatGrade, currentPrice).getPrice());
@@ -52,6 +52,6 @@ public class FlightPriceCacheManager implements CacheStrategy {
     }
 
     public void dbFallbackSaveToCache(Long flightId, SeatGrade seatGrade, BigDecimal price, Throwable t) {
-        log.warn("🚨 [CircuitBreaker] Redis가 다운되어 캐시 갱신을 포기합니다. (FlightId: {}, SeatGrade: {})", flightId, seatGrade);
+        log.warn("[FlightPriceCacheManager] Redis가 다운되어 캐시 갱신을 포기합니다. FlightId={}, SeatGrade={}", flightId, seatGrade);
     }
 }

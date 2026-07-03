@@ -28,7 +28,7 @@ public class NotificationProducer implements NotificationPublisher{
 
             kafkaTemplate.send(TOPIC_NAME, messageKey, priceDropNotificationDto);
         } catch (Exception e) {
-            log.error("🚨 [Kafka] 카프카 알림 전송 실패 (메시지 유실): 항공편 {}", priceDropNotificationDto.flightNumber(), e);
+            log.error("[NotificationProducer] 카프카 알림 전송 실패 (메시지 유실): 항공편 {}", priceDropNotificationDto.flightNumber(), e);
         }
     }
 }

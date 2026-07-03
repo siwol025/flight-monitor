@@ -28,7 +28,7 @@ public class PriceMonitorService {
     public void checkPriceAndNotify(FlightMonitorTaskDto taskDto) {
         MockFlightResponse latestInfo = flightFetcher.fetchMockFlight(taskDto.flightId());
         if (latestInfo == null) {
-            log.warn("⚠️ [Monitor] API 응답 없음: FlightID={}, SeatGrade={}", taskDto.flightId(), taskDto.seatGrade());
+            log.warn("[PriceMonitorService] API 응답 없음: FlightID={}, SeatGrade={}", taskDto.flightId(), taskDto.seatGrade());
             return;
         }
         BigDecimal currentPrice = latestInfo.getPriceBySeatClass(taskDto.seatGrade());
@@ -43,7 +43,7 @@ public class PriceMonitorService {
                         .orElse(currentPrice);
 
         if (isPriceUnchanged(dbPreviousPrice, currentPrice)) {
-            log.info("🔄 [Self-Healing] 오래된 캐시(Stale Cache) 감지됨. 알림은 생략하고 캐시만 최신화합니다: {}", taskDto.flightId());
+            log.info("[PriceMonitorService] 오래된 캐시(Stale Cache) 감지됨. 알림은 생략하고 캐시만 최신화합니다: flightId={}", taskDto.flightId());
             cacheManager.saveToCache(taskDto.flightId(), taskDto.seatGrade(), currentPrice);
             return;
         }

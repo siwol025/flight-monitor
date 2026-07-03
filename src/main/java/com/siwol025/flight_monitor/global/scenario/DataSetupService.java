@@ -91,7 +91,7 @@ public class DataSetupService {
             em.persist(subscription);
         }
 
-        log.info("✅ 테스트 데이터 {}건 시딩 완료", count);
+        log.info("[DataSetupService] 테스트 데이터 {}건 시딩 완료", count);
         return count + "건의 테스트 데이터가 성공적으로 생성되었습니다.";
     }
 
@@ -107,7 +107,7 @@ public class DataSetupService {
             p.updatePrice(newPrice);
         }
 
-        log.info("✅ {}건의 항공권 가격이 20% 하락되었습니다.", prices.size());
+        log.info("[DataSetupService] {}건의 항공권 가격이 20% 하락되었습니다.", prices.size());
         return prices.size() + "건의 항공권 가격이 하락되었습니다.";
     }
 
@@ -130,7 +130,7 @@ public class DataSetupService {
             em.persist(user);
             users.add(user);
         }
-        log.info("✅ 유저 {}명 생성 완료", userCount);
+        log.info("[DataSetupService] 유저 {}명 생성 완료", userCount);
 
         // 2. 항공사 및 공항 기초 데이터 확인/생성
         MockAirline airline = findOrCreateAirline("T_AIR", "테스트항공");
@@ -176,7 +176,7 @@ public class DataSetupService {
             em.persist(flight);
             flights.add(flight);
         }
-        log.info("✅ 항공편 {}개 생성 완료", flightCount);
+        log.info("[DataSetupService] 항공편 {}개 생성 완료", flightCount);
 
         // 4. 구독 1만건 생성 (모든 항공편 최소 1명 할당)
         int userIndex = 0;
@@ -203,7 +203,7 @@ public class DataSetupService {
             createSubscription(users.get(userIndex++), targetFlight, initialPrice);
         }
 
-        log.info("✅ 구독 10,000건 생성 완료");
+        log.info("[DataSetupService] 구독 10,000건 생성 완료");
 
         // 영속성 컨텍스트 초기화 (메모리 확보)
         em.flush();

@@ -25,7 +25,7 @@ public class GoogleTokenParser implements IdTokenParser{
                     .setAudience(Collections.singletonList(clientId))
                     .build();
         } catch (Exception e) {
-            log.error("id token을 해석하기 위한 GoogleTokenVerifier 빌드 실패");
+            log.error("[GoogleTokenParser] ID 토큰 검증기(GoogleIdTokenVerifier) 초기화 실패");
             throw new RuntimeException("Failed to initialize Google token verifier", e);
         }
     }

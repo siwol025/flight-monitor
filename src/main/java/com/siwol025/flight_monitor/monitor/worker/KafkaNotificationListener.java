@@ -43,11 +43,11 @@ public class KafkaNotificationListener {
                 try {
                     kafkaTemplate.send(OUT_TOPIC, eventDto.flightNumber() + user.email(), taskDto);
                 } catch (Exception e) {
-                    log.error("🚨 [Kafka] 특정 유저 이메일 작업 전송 실패: {}", user.email(), e);
+                    log.error("[KafkaNotificationListener] 특정 유저 이메일 작업 전송 실패: {}", user.email(), e);
                 }
             }
         } catch (Exception e) {
-            log.error("🚨 알림 분배 처리 중 오류 발생", e);
+            log.error("[KafkaNotificationListener] 알림 분배 처리 중 오류 발생", e);
         }
     }
 

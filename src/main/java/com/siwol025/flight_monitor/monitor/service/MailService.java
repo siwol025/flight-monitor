@@ -34,8 +34,8 @@ public class MailService implements NotificationService{
         message.setSubject(taskDto.subject());
         message.setText(taskDto.content());
 
-        log.info("📧 [MailService] 메일 발송 중: To={}", taskDto.toEmail());
+        log.info("[MailService] 메일 발송 중: To={}", taskDto.toEmail());
         mailSender.send(message);
-        log.info("📧 [MailService] 메일 발송 완료!");
+        log.info("[MailService] 메일 발송 완료.");
     }
 }

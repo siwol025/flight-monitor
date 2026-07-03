@@ -23,9 +23,9 @@ public class RedisNotificationProducer implements NotificationPublisher{
         try {
             String jsonMessage = objectMapper.writeValueAsString(priceDropNotificationDto);
             redisTemplate.opsForList().leftPush(QUEUE_NAME, jsonMessage);
-            log.info("[Producer] Redis 큐에 알림 발행 완료: 항공편 {}", priceDropNotificationDto.flightNumber());
+            log.info("[RedisNotificationProducer] Redis 큐에 알림 발행 완료: 항공편 {}", priceDropNotificationDto.flightNumber());
         } catch (JsonProcessingException e) {
-            log.error("알림 메시지 JSON 변환 실패", e);
+            log.error("[RedisNotificationProducer] 알림 메시지 JSON 변환 실패", e);
         }
     }
 }
