@@ -31,6 +31,12 @@ public class KafkaConfig {
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
 
+    @Value("${kafka.topic.price-drop-events.partitions:9}")
+    private int priceDropPartitions;
+
+    @Value("${kafka.topic.email-send-tasks.partitions:150}")
+    private int emailSendTaskPartitions;
+
     @Bean
     public KafkaAdmin kafkaAdmin() {
         Map<String, Object> configs = new HashMap<>();
@@ -41,7 +47,7 @@ public class KafkaConfig {
     @Bean
     public NewTopic priceDropEventTopic() {
         return TopicBuilder.name("flight-price-drop-events")
-                .partitions(9)
+                .partitions(priceDropPartitions)
                 .replicas(1)
                 .build();
     }
@@ -49,7 +55,7 @@ public class KafkaConfig {
     @Bean
     public NewTopic emailSendTaskTopic() {
         return TopicBuilder.name("email-send-tasks")
-                .partitions(150)
+                .partitions(emailSendTaskPartitions)
                 .replicas(1)
                 .build();
     }

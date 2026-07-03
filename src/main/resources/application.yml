@@ -57,6 +57,13 @@ monitor:
 notification:
   mode: kafka
 
+kafka:
+  topic:
+    price-drop-events:
+      partitions: 9
+    email-send-tasks:
+      partitions: 150
+
 jwt:
   secret: "${JWT_SECRET}"
   access-token-expiration-ms: 3600000
