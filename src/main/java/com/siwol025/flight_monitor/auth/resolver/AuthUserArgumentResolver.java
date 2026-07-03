@@ -39,6 +39,9 @@ public class AuthUserArgumentResolver implements HandlerMethodArgumentResolver {
 
         if (bearer != null && bearer.startsWith("Bearer ")) {
             String accessToken = bearer.substring(7); // "Bearer " 길이 = 7
+            if (accessToken.length() > 2048) {
+                throw new UnauthorizedException(ErrorTag.UNAUTHORIZED);
+            }
             return getUser(accessToken);
         }
         throw new UnauthorizedException(ErrorTag.UNAUTHORIZED);
