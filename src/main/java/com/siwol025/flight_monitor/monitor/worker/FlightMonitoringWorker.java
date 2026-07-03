@@ -53,10 +53,10 @@ public class FlightMonitoringWorker {
 
             } catch (Exception e) {
                 if (Thread.currentThread().isInterrupted()) {
-                    log.info("MonitorPoller thread is interrupted. Stopping polling...");
+                    log.info("[FlightMonitoringWorker] 모니터링 폴러 스레드가 중단되었습니다. 폴링을 종료합니다.");
                     break;
                 }
-                log.error("Error occurred while polling or delegating task", e);
+                log.error("[FlightMonitoringWorker] 폴링 또는 작업 위임 중 오류 발생", e);
             }
         }
     }
@@ -67,6 +67,6 @@ public class FlightMonitoringWorker {
         if (pollerThread != null) {
             pollerThread.interrupt();
         }
-        log.info("FlightMonitoringWorker is shutting down gracefully...");
+        log.info("[FlightMonitoringWorker] 워커가 정상적으로 종료됩니다.");
     }
 }

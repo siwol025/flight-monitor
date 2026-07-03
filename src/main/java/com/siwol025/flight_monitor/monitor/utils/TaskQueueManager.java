@@ -38,7 +38,7 @@ public class TaskQueueManager {
             RLock lock = redissonClient.getLock(DISTRIBUTED_LOCK_KEY);
 
             if (lock.tryLock(WAIT_TIME, LEASE_TIME, TimeUnit.SECONDS)) {
-                log.info("✅ [Redis Lock] 락 획득 성공. 레디스 큐에 작업을 저장합니다.");
+                log.info("[TaskQueueManager] 분산 락 획득 성공. Redis 큐에 작업을 저장합니다.");
                 redisTemplate.opsForList().leftPushAll(TASK_QUEUE_KEY, jsonPayloads);
             }
         } catch (InterruptedException e) {
@@ -47,7 +47,7 @@ public class TaskQueueManager {
     }
 
     public void fallbackPublishTasks(List<String> jsonPayloads, Throwable t) {
-        log.warn("🚨 [CircuitBreaker] Redis 큐 발행 실패. DB 대기열로 전환합니다. 원인: {}", t.getMessage());
+        log.warn("[TaskQueueManager] Redis 큐 발행 실패. DB 대기열로 전환합니다. 원인: {}", t.getMessage());
 
         executeDbFallbackWithLock(jsonPayloads);
         taskQueueConsumerManager.markFallbackTaskExists();
@@ -59,7 +59,7 @@ public class TaskQueueManager {
             Integer lockResult = fallbackRepository.getLock(DB_LOCK_KEY, 0);
 
             if (lockResult != null && lockResult == 1) {
-                log.info("✅ [Fallback] DB 락 획득 성공. DB 큐에 작업을 저장합니다.");
+                log.info("[TaskQueueManager] DB 락 획득 성공. DB 큐에 작업을 저장합니다.");
                 List<FallbackMonitoringTask> fallbackTasks = jsonPayloads.stream()
                         .map(p -> FallbackMonitoringTask.builder()
                                 .payload(p)
@@ -79,7 +79,7 @@ public class TaskQueueManager {
     }
 
     private Long fallbackGetQueueSizeSafely(Throwable t) {
-        log.warn("🚨 [CircuitBreaker] 큐 사이즈 조회 실패. DB 기준 개수를 반환합니다.");
+        log.warn("[TaskQueueManager] 큐 사이즈 조회 실패. DB 기준 개수를 반환합니다.");
         return fallbackRepository.count();
     }
 }

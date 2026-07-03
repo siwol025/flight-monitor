@@ -38,7 +38,7 @@ public class RedisNotificationWorker {
             PriceDropNotificationDto eventDto = objectMapper.readValue(json,
                     PriceDropNotificationDto.class);
 
-            log.info("📩 [Worker] 알림 처리 시작: 항공편 ID: {}", eventDto.flightNumber());
+            log.info("[RedisNotificationWorker] 알림 처리 시작: 항공편 번호={}", eventDto.flightNumber());
 
             List<UserEmailDto> subscribers = subscriptionService.getSubscribers(eventDto.flightId());
 
@@ -51,9 +51,9 @@ public class RedisNotificationWorker {
                 redisTemplate.opsForList().leftPush(TASK_QUEUE, taskJson);
             }
 
-            log.info("✅항공편 {}, 생성된 발송 작업 {}건", eventDto.flightId(), subscribers.size());
+            log.info("[RedisNotificationWorker] 항공편 {}, 생성된 발송 작업 {}건", eventDto.flightId(), subscribers.size());
         } catch (Exception e) {
-            log.error("알림 Worker 처리 중 오류 발생", e);
+            log.error("[RedisNotificationWorker] 알림 처리 중 오류 발생", e);
         }
     }
 

@@ -34,7 +34,7 @@ public class FlightFetcher implements FlightDataProvider {
             }
             return response;
         } catch (RestClientException e) {
-            log.error("외부 api 조회 중 에러 발생 ", e);
+            log.error("[FlightFetcher] 외부 API 조회 중 오류 발생", e);
             throw new RuntimeException("외부 항공 시스템 상세 조회 중 오류가 발생했습니다. ID: " + flightId, e);
         }
     }

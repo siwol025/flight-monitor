@@ -30,7 +30,7 @@ public class FlightMonitoringProducer {
         Long currentQueueSize = taskQueueManager.getQueueSizeSafely();
 
         if (currentQueueSize != null && currentQueueSize > MAX_QUEUE_THRESHOLD) {
-            log.warn("⏳ [Skip] 큐 대기 작업 임계치 초과 (현재: {}건). 발행 중단", currentQueueSize);
+            log.warn("[FlightMonitoringProducer] 큐 대기 작업 임계치 초과 (현재: {}건). 발행 중단", currentQueueSize);
             return;
         }
 
@@ -55,7 +55,7 @@ public class FlightMonitoringProducer {
         try {
             return objectMapper.writeValueAsString(dto);
         } catch (JsonProcessingException e) {
-            log.error("🚨 [Producer] JSON 직렬화 실패: {}", dto, e);
+            log.error("[FlightMonitoringProducer] JSON 직렬화 실패: {}", dto, e);
             throw new RuntimeException("작업 페이로드 직렬화 오류", e);
         }
     }

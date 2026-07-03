@@ -32,7 +32,7 @@ public class RedisEmailTaskWorker {
             EmailSendTaskDto taskDto = objectMapper.readValue(json, EmailSendTaskDto.class);
             notificationService.sendPriceDropNotification(taskDto);
         } catch (Exception e) {
-            log.error("개별 이메일 발송 처리 중 예외 발생", e);
+            log.error("[RedisEmailTaskWorker] 개별 이메일 발송 처리 중 예외 발생", e);
         }
     }
 }

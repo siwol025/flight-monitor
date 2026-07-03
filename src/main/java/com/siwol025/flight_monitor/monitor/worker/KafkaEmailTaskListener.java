@@ -22,10 +22,10 @@ public class KafkaEmailTaskListener {
     public void processEmailTask(EmailSendTaskDto taskDto) {
         try {
             notificationService.sendPriceDropNotification(taskDto);
-            log.info("🚀 [Kafka] 알림 전송 완료");
+            log.info("[KafkaEmailTaskListener] 알림 전송 완료");
 
         } catch (Exception e) {
-            log.error("🚨 [Kafka Consumer] 개별 이메일 발송 처리 중 예외 발생");
+            log.error("[KafkaEmailTaskListener] 개별 이메일 발송 처리 중 예외 발생", e);
         }
     }
 }

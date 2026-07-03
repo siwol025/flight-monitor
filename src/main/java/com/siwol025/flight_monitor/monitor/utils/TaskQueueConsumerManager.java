@@ -27,7 +27,7 @@ public class TaskQueueConsumerManager {
     }
 
     public String recoverFromRedisPopFailure(long timeoutSeconds, Throwable t) {
-        log.warn("🚨 [Redis 장애] Redis Pop 실패. fallback queue 사용", t);
+        log.warn("[TaskQueueConsumerManager] Redis Pop 실패. fallback 큐를 사용합니다.", t);
         fallbackTaskExists.set(true);
         String payload = pollFallbackQueue();
 
