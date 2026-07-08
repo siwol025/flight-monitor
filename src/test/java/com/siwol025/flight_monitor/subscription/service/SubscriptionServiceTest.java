@@ -65,7 +65,7 @@ class SubscriptionServiceTest {
         given(flightDataProvider.fetchMockFlight(10L)).willReturn(response);
         given(flightService.findOrCreateFlight(response)).willReturn(flight);
 
-        subscriptionService.subscribe(testUser, 10L, SeatGrade.ECONOMY);
+        subscriptionService.subscribe(testUser, 10L, SeatGrade.ECONOMY, null, null);
 
         then(subscriptionRepository).should().save(any(Subscription.class));
     }
@@ -78,7 +78,7 @@ class SubscriptionServiceTest {
 
         BadRequestException ex = assertThrows(
                 BadRequestException.class,
-                () -> subscriptionService.subscribe(testUser, 10L, SeatGrade.ECONOMY)
+                () -> subscriptionService.subscribe(testUser, 10L, SeatGrade.ECONOMY, null, null)
         );
 
         assertThat(ex.getErrorTag()).isEqualTo(ErrorTag.DUPLICATE_SUBSCRIPTION);
@@ -102,7 +102,7 @@ class SubscriptionServiceTest {
 
         NotFoundException ex = assertThrows(
                 NotFoundException.class,
-                () -> subscriptionService.subscribe(testUser, 10L, SeatGrade.ECONOMY)
+                () -> subscriptionService.subscribe(testUser, 10L, SeatGrade.ECONOMY, null, null)
         );
 
         assertThat(ex.getErrorTag()).isEqualTo(ErrorTag.SEAT_PRICE_NOT_FOUND);

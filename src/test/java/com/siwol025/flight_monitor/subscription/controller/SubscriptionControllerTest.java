@@ -27,9 +27,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -74,7 +76,7 @@ class SubscriptionControllerTest {
 
     @Test
     void subscribe_정상흐름_204_반환() throws Exception {
-        doNothing().when(subscriptionService).subscribe(any(), any(), any());
+        doNothing().when(subscriptionService).subscribe(any(), any(), any(), any(), any());
 
         mockMvc.perform(post("/api/subscriptions")
                         .header("Authorization", "Bearer test-token")
@@ -137,7 +139,7 @@ class SubscriptionControllerTest {
 
     @Test
     void subscribe_정상흐름_응답바디_subscriptionId_포함_검증() throws Exception {
-        doNothing().when(subscriptionService).subscribe(any(), any(), any());
+        doNothing().when(subscriptionService).subscribe(any(), any(), any(), any(), any());
 
         mockMvc.perform(post("/api/subscriptions")
                         .header("Authorization", "Bearer test-token")
@@ -145,5 +147,60 @@ class SubscriptionControllerTest {
                         .content("{\"flightId\": 1, \"seatGrade\": \"ECONOMY\"}"))
                 .andExpect(status().isNoContent())
                 .andExpect(jsonPath("$").doesNotExist());
+    }
+
+    @Test
+    void request_조건없이_생성시_구독_성공() throws Exception {
+        doNothing().when(subscriptionService).subscribe(any(), any(), any(), any(), any());
+
+        mockMvc.perform(post("/api/subscriptions")
+                        .header("Authorization", "Bearer test-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"flightId\": 1, \"seatGrade\": \"ECONOMY\"}"))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void request_targetPrice_지정시_서비스에_전달된다() throws Exception {
+        doNothing().when(subscriptionService).subscribe(any(), any(), any(), any(), any());
+
+        mockMvc.perform(post("/api/subscriptions")
+                        .header("Authorization", "Bearer test-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"flightId\": 1, \"seatGrade\": \"ECONOMY\", \"targetPrice\": 120000}"))
+                .andExpect(status().isNoContent());
+
+        verify(subscriptionService).subscribe(any(), any(), any(), eq(new BigDecimal("120000")), any());
+    }
+
+    @Test
+    void request_dropThresholdPercent_지정시_서비스에_전달된다() throws Exception {
+        doNothing().when(subscriptionService).subscribe(any(), any(), any(), any(), any());
+
+        mockMvc.perform(post("/api/subscriptions")
+                        .header("Authorization", "Bearer test-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"flightId\": 1, \"seatGrade\": \"ECONOMY\", \"dropThresholdPercent\": 10.00}"))
+                .andExpect(status().isNoContent());
+
+        verify(subscriptionService).subscribe(any(), any(), any(), any(), eq(new BigDecimal("10.00")));
+    }
+
+    @Test
+    void request_targetPrice_음수이면_400_반환() throws Exception {
+        mockMvc.perform(post("/api/subscriptions")
+                        .header("Authorization", "Bearer test-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"flightId\": 1, \"seatGrade\": \"ECONOMY\", \"targetPrice\": -1}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void request_dropThresholdPercent_100초과이면_400_반환() throws Exception {
+        mockMvc.perform(post("/api/subscriptions")
+                        .header("Authorization", "Bearer test-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"flightId\": 1, \"seatGrade\": \"ECONOMY\", \"dropThresholdPercent\": 101}"))
+                .andExpect(status().isBadRequest());
     }
 }

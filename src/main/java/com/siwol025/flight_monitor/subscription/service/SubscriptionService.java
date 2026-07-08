@@ -33,7 +33,7 @@ public class SubscriptionService {
     private final FlightDataProvider flightFetcher;
 
     @Transactional
-    public void subscribe(User user, Long flightId, SeatGrade seatGrade) {
+    public void subscribe(User user, Long flightId, SeatGrade seatGrade, BigDecimal targetPrice, BigDecimal dropThresholdPercent) {
         validateDuplicateSubscription(user.getId(), flightId, seatGrade);
 
         MockFlightResponse response = flightFetcher.fetchMockFlight(flightId);
@@ -45,6 +45,8 @@ public class SubscriptionService {
                 .flight(flight)
                 .seatGrade(seatGrade)
                 .price(currentPrice)
+                .targetPrice(targetPrice)
+                .dropThresholdPercent(dropThresholdPercent)
                 .build();
 
         subscriptionRepository.save(subscription);
