@@ -4,6 +4,7 @@ import com.siwol025.flight_monitor.subscription.domain.Subscription;
 import com.siwol025.flight_monitor.subscription.domain.SubscriptionStatus;
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
 import com.siwol025.flight_monitor.subscription.dto.FlightMonitorTaskDto;
+import com.siwol025.flight_monitor.subscription.dto.SubscriberWithConditionDto;
 import com.siwol025.flight_monitor.user.dto.UserEmailDto;
 import java.util.List;
 import java.util.Optional;
@@ -51,4 +52,14 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
             "WHERE f.flightId = :flightId"
     )
     List<UserEmailDto> findSubscriberByFlightId(Long flightId);
+
+    @Query(
+            "SELECT DISTINCT " +
+                "new com.siwol025.flight_monitor.subscription.dto.SubscriberWithConditionDto(s.user.email, s.targetPrice, s.dropThresholdPercent) " +
+            "FROM Subscription s " +
+            "JOIN s.flight f " +
+            "WHERE f.flightId = :flightId " +
+            "AND s.status = com.siwol025.flight_monitor.subscription.domain.SubscriptionStatus.ACTIVE"
+    )
+    List<SubscriberWithConditionDto> findSubscribersWithConditionByFlightId(@Param("flightId") Long flightId);
 }

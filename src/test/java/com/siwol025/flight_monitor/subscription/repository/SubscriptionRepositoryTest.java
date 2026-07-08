@@ -7,6 +7,7 @@ import com.siwol025.flight_monitor.subscription.domain.SubscriptionStatus;
 import com.siwol025.flight_monitor.subscription.domain.flight.Flight;
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
 import com.siwol025.flight_monitor.subscription.dto.FlightMonitorTaskDto;
+import com.siwol025.flight_monitor.subscription.dto.SubscriberWithConditionDto;
 import com.siwol025.flight_monitor.user.domain.Provider;
 import com.siwol025.flight_monitor.user.domain.Role;
 import com.siwol025.flight_monitor.user.domain.User;
@@ -75,6 +76,79 @@ class SubscriptionRepositoryTest {
         // then
         assertThat(result).hasSize(1);
         assertThat(result.get(0).seatGrade()).isEqualTo(SeatGrade.ECONOMY);
+    }
+
+    @Test
+    void findSubscribersWithCondition_조건지정구독자_전체필드_반환됨() {
+        User user = em.persist(User.builder()
+                .email("cond@example.com").name("조건유저")
+                .provider(Provider.GOOGLE).providerId("google-cond-1").role(Role.USER).build());
+        Flight flight = em.persist(Flight.builder()
+                .flightId(3001L).flightNumber("KE301").airlineCode("KE")
+                .departureAirport("ICN").arrivalAirport("LAX")
+                .departureTime(LocalDateTime.now().plusDays(1))
+                .arrivalTime(LocalDateTime.now().plusDays(1).plusHours(11)).build());
+        em.persist(Subscription.builder()
+                .user(user).flight(flight).seatGrade(SeatGrade.ECONOMY)
+                .price(BigDecimal.valueOf(800000))
+                .targetPrice(BigDecimal.valueOf(120000))
+                .dropThresholdPercent(BigDecimal.valueOf(10.00)).build());
+        em.flush(); em.clear();
+
+        List<SubscriberWithConditionDto> result =
+                subscriptionRepository.findSubscribersWithConditionByFlightId(3001L);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).email()).isEqualTo("cond@example.com");
+        assertThat(result.get(0).targetPrice()).isEqualByComparingTo(BigDecimal.valueOf(120000));
+        assertThat(result.get(0).dropThresholdPercent()).isEqualByComparingTo(BigDecimal.valueOf(10.00));
+    }
+
+    @Test
+    void findSubscribersWithCondition_조건없는구독자_null필드_반환됨() {
+        User user = em.persist(User.builder()
+                .email("nocond@example.com").name("무조건유저")
+                .provider(Provider.GOOGLE).providerId("google-nocond-1").role(Role.USER).build());
+        Flight flight = em.persist(Flight.builder()
+                .flightId(3002L).flightNumber("KE302").airlineCode("KE")
+                .departureAirport("ICN").arrivalAirport("NRT")
+                .departureTime(LocalDateTime.now().plusDays(2))
+                .arrivalTime(LocalDateTime.now().plusDays(2).plusHours(2)).build());
+        em.persist(Subscription.builder()
+                .user(user).flight(flight).seatGrade(SeatGrade.ECONOMY)
+                .price(BigDecimal.valueOf(300000)).build());
+        em.flush(); em.clear();
+
+        List<SubscriberWithConditionDto> result =
+                subscriptionRepository.findSubscribersWithConditionByFlightId(3002L);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).email()).isEqualTo("nocond@example.com");
+        assertThat(result.get(0).targetPrice()).isNull();
+        assertThat(result.get(0).dropThresholdPercent()).isNull();
+    }
+
+    @Test
+    void findSubscribersWithCondition_ACTIVE아닌구독_제외됨() {
+        User user = em.persist(User.builder()
+                .email("inactive@example.com").name("비활성유저")
+                .provider(Provider.GOOGLE).providerId("google-inactive-1").role(Role.USER).build());
+        Flight flight = em.persist(Flight.builder()
+                .flightId(3003L).flightNumber("KE303").airlineCode("KE")
+                .departureAirport("ICN").arrivalAirport("SYD")
+                .departureTime(LocalDateTime.now().plusDays(3))
+                .arrivalTime(LocalDateTime.now().plusDays(3).plusHours(10)).build());
+        Subscription inactive = Subscription.builder()
+                .user(user).flight(flight).seatGrade(SeatGrade.ECONOMY)
+                .price(BigDecimal.valueOf(500000)).build();
+        inactive.updateStatus(SubscriptionStatus.INACTIVE);
+        em.persist(inactive);
+        em.flush(); em.clear();
+
+        List<SubscriberWithConditionDto> result =
+                subscriptionRepository.findSubscribersWithConditionByFlightId(3003L);
+
+        assertThat(result).isEmpty();
     }
 
     @Test
