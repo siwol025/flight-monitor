@@ -52,12 +52,20 @@ public class Subscription extends BaseTimeEntity{
     @Column(name = "status", nullable = false)
     private SubscriptionStatus status = SubscriptionStatus.ACTIVE;
 
+    @Column(name = "target_price", precision = 12, scale = 2)
+    private BigDecimal targetPrice;
+
+    @Column(name = "drop_threshold_percent", precision = 5, scale = 2)
+    private BigDecimal dropThresholdPercent;
+
     @Builder
-    public Subscription(User user, Flight flight, SeatGrade seatGrade, BigDecimal price) {
+    public Subscription(User user, Flight flight, SeatGrade seatGrade, BigDecimal price, BigDecimal targetPrice, BigDecimal dropThresholdPercent) {
         this.user = user;
         this.flight = flight;
         this.seatGrade = seatGrade;
         this.price = price;
+        this.targetPrice = targetPrice;
+        this.dropThresholdPercent = dropThresholdPercent;
     }
 
     public boolean isActive() {
