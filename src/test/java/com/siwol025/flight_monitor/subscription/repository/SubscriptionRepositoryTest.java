@@ -96,7 +96,7 @@ class SubscriptionRepositoryTest {
         em.flush(); em.clear();
 
         List<SubscriberWithConditionDto> result =
-                subscriptionRepository.findSubscribersWithConditionByFlightId(3001L);
+                subscriptionRepository.findSubscribersWithConditionByFlightId(3001L, SubscriptionStatus.ACTIVE);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).email()).isEqualTo("cond@example.com");
@@ -120,7 +120,7 @@ class SubscriptionRepositoryTest {
         em.flush(); em.clear();
 
         List<SubscriberWithConditionDto> result =
-                subscriptionRepository.findSubscribersWithConditionByFlightId(3002L);
+                subscriptionRepository.findSubscribersWithConditionByFlightId(3002L, SubscriptionStatus.ACTIVE);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).email()).isEqualTo("nocond@example.com");
@@ -146,8 +146,167 @@ class SubscriptionRepositoryTest {
         em.flush(); em.clear();
 
         List<SubscriberWithConditionDto> result =
-                subscriptionRepository.findSubscribersWithConditionByFlightId(3003L);
+                subscriptionRepository.findSubscribersWithConditionByFlightId(3003L, SubscriptionStatus.ACTIVE);
 
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void findExpirableSubscriptions_출발완료_ACTIVE구독_반환됨() {
+        // given
+        User user = em.persist(User.builder()
+                .email("expirable@example.com")
+                .name("만료유저")
+                .provider(Provider.GOOGLE)
+                .providerId("google-expirable-1")
+                .role(Role.USER)
+                .build());
+
+        Flight flight = em.persist(Flight.builder()
+                .flightId(9001L)
+                .flightNumber("KE901")
+                .airlineCode("KE")
+                .departureAirport("ICN")
+                .arrivalAirport("NRT")
+                .departureTime(LocalDateTime.now().minusDays(1))
+                .arrivalTime(LocalDateTime.now().minusDays(1).plusHours(3))
+                .build());
+
+        Subscription activeSub = Subscription.builder()
+                .user(user)
+                .flight(flight)
+                .seatGrade(SeatGrade.ECONOMY)
+                .price(BigDecimal.valueOf(300000))
+                .build();
+        em.persist(activeSub);
+
+        em.flush();
+        em.clear();
+
+        // when
+        List<Subscription> result = subscriptionRepository.findExpirableSubscriptions(SubscriptionStatus.ACTIVE);
+
+        // then
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getFlight()).isNotNull();
+    }
+
+    @Test
+    void findExpirableSubscriptions_출발전_ACTIVE구독_제외됨() {
+        // given
+        User user = em.persist(User.builder()
+                .email("future@example.com")
+                .name("미래유저")
+                .provider(Provider.GOOGLE)
+                .providerId("google-future-1")
+                .role(Role.USER)
+                .build());
+
+        Flight flight = em.persist(Flight.builder()
+                .flightId(9002L)
+                .flightNumber("KE902")
+                .airlineCode("KE")
+                .departureAirport("ICN")
+                .arrivalAirport("NRT")
+                .departureTime(LocalDateTime.now().plusDays(1))
+                .arrivalTime(LocalDateTime.now().plusDays(1).plusHours(3))
+                .build());
+
+        Subscription activeSub = Subscription.builder()
+                .user(user)
+                .flight(flight)
+                .seatGrade(SeatGrade.ECONOMY)
+                .price(BigDecimal.valueOf(300000))
+                .build();
+        em.persist(activeSub);
+
+        em.flush();
+        em.clear();
+
+        // when
+        List<Subscription> result = subscriptionRepository.findExpirableSubscriptions(SubscriptionStatus.ACTIVE);
+
+        // then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void findExpirableSubscriptions_INACTIVE구독_제외됨() {
+        // given
+        User user = em.persist(User.builder()
+                .email("inactive2@example.com")
+                .name("비활성유저2")
+                .provider(Provider.GOOGLE)
+                .providerId("google-inactive-2")
+                .role(Role.USER)
+                .build());
+
+        Flight flight = em.persist(Flight.builder()
+                .flightId(9003L)
+                .flightNumber("KE903")
+                .airlineCode("KE")
+                .departureAirport("ICN")
+                .arrivalAirport("NRT")
+                .departureTime(LocalDateTime.now().minusDays(1))
+                .arrivalTime(LocalDateTime.now().minusDays(1).plusHours(3))
+                .build());
+
+        Subscription inactiveSub = Subscription.builder()
+                .user(user)
+                .flight(flight)
+                .seatGrade(SeatGrade.ECONOMY)
+                .price(BigDecimal.valueOf(300000))
+                .build();
+        inactiveSub.updateStatus(SubscriptionStatus.INACTIVE);
+        em.persist(inactiveSub);
+
+        em.flush();
+        em.clear();
+
+        // when
+        List<Subscription> result = subscriptionRepository.findExpirableSubscriptions(SubscriptionStatus.ACTIVE);
+
+        // then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void findExpirableSubscriptions_이미EXPIRED구독_제외됨() {
+        // given
+        User user = em.persist(User.builder()
+                .email("expired@example.com")
+                .name("만료됨유저")
+                .provider(Provider.GOOGLE)
+                .providerId("google-expired-1")
+                .role(Role.USER)
+                .build());
+
+        Flight flight = em.persist(Flight.builder()
+                .flightId(9004L)
+                .flightNumber("KE904")
+                .airlineCode("KE")
+                .departureAirport("ICN")
+                .arrivalAirport("NRT")
+                .departureTime(LocalDateTime.now().minusDays(1))
+                .arrivalTime(LocalDateTime.now().minusDays(1).plusHours(3))
+                .build());
+
+        Subscription expiredSub = Subscription.builder()
+                .user(user)
+                .flight(flight)
+                .seatGrade(SeatGrade.ECONOMY)
+                .price(BigDecimal.valueOf(300000))
+                .build();
+        expiredSub.updateStatus(SubscriptionStatus.EXPIRED);
+        em.persist(expiredSub);
+
+        em.flush();
+        em.clear();
+
+        // when
+        List<Subscription> result = subscriptionRepository.findExpirableSubscriptions(SubscriptionStatus.ACTIVE);
+
+        // then
         assertThat(result).isEmpty();
     }
 

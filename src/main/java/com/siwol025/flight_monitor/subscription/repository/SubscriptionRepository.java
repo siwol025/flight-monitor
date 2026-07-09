@@ -59,7 +59,16 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
             "FROM Subscription s " +
             "JOIN s.flight f " +
             "WHERE f.flightId = :flightId " +
-            "AND s.status = com.siwol025.flight_monitor.subscription.domain.SubscriptionStatus.ACTIVE"
+            "AND s.status = :status"
     )
-    List<SubscriberWithConditionDto> findSubscribersWithConditionByFlightId(@Param("flightId") Long flightId);
+    List<SubscriberWithConditionDto> findSubscribersWithConditionByFlightId(@Param("flightId") Long flightId, @Param("status") SubscriptionStatus status);
+
+    @Query(
+            "SELECT s " +
+            "FROM Subscription s " +
+            "JOIN FETCH s.flight f " +
+            "WHERE s.status = :status " +
+            "AND f.departureTime < CURRENT_TIMESTAMP"
+    )
+    List<Subscription> findExpirableSubscriptions(@Param("status") SubscriptionStatus status);
 }

@@ -6,7 +6,7 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum SubscriptionStatus {
-    ACTIVE(true), INACTIVE(false);
+    ACTIVE(true), INACTIVE(false), EXPIRED(false);
 
     private final boolean isActive;
 }
