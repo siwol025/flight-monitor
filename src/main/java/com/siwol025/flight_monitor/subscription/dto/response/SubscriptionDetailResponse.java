@@ -19,6 +19,8 @@ public record SubscriptionDetailResponse(
         BigDecimal subscribedPrice, // 구독 시점 가격
         BigDecimal currentPrice,    // 현재 조회된 최신 가격
         BigDecimal priceDifference, // 변동 금액 (currentPrice - subscribedPrice)
+        BigDecimal targetPrice,
+        BigDecimal dropThresholdPercent,
         LocalDateTime createdAt
 ) {
     public static SubscriptionDetailResponse of(Subscription subscription, BigDecimal currentPrice) {
@@ -34,6 +36,8 @@ public record SubscriptionDetailResponse(
                 .subscribedPrice(subscription.getPrice())
                 .currentPrice(currentPrice)
                 .priceDifference(currentPrice.subtract(subscription.getPrice()))
+                .targetPrice(subscription.getTargetPrice())
+                .dropThresholdPercent(subscription.getDropThresholdPercent())
                 .createdAt(subscription.getCreatedAt())
                 .build();
     }

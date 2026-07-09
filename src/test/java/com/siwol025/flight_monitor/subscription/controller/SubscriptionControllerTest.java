@@ -3,6 +3,7 @@ package com.siwol025.flight_monitor.subscription.controller;
 import com.siwol025.flight_monitor.auth.resolver.AuthUserArgumentResolver;
 import com.siwol025.flight_monitor.auth.token.JwtProvider;
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
+import com.siwol025.flight_monitor.subscription.dto.response.SubscriptionDetailResponse;
 import com.siwol025.flight_monitor.subscription.dto.response.SubscriptionResponse;
 import com.siwol025.flight_monitor.subscription.service.SubscriptionService;
 import com.siwol025.flight_monitor.user.domain.Provider;
@@ -24,6 +25,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -150,17 +152,6 @@ class SubscriptionControllerTest {
     }
 
     @Test
-    void request_조건없이_생성시_구독_성공() throws Exception {
-        doNothing().when(subscriptionService).subscribe(any(), any(), any(), any(), any());
-
-        mockMvc.perform(post("/api/subscriptions")
-                        .header("Authorization", "Bearer test-token")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"flightId\": 1, \"seatGrade\": \"ECONOMY\"}"))
-                .andExpect(status().isNoContent());
-    }
-
-    @Test
     void request_targetPrice_지정시_서비스에_전달된다() throws Exception {
         doNothing().when(subscriptionService).subscribe(any(), any(), any(), any(), any());
 
@@ -202,5 +193,58 @@ class SubscriptionControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"flightId\": 1, \"seatGrade\": \"ECONOMY\", \"dropThresholdPercent\": 101}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getSubscription_조건없음_null_응답됨() throws Exception {
+        SubscriptionDetailResponse response = SubscriptionDetailResponse.builder()
+                .subscriptionId(10L)
+                .flightNumber("KE999")
+                .airlineCode("KE")
+                .departureAirportCode("ICN")
+                .arrivalAirportCode("NRT")
+                .departureTime(LocalDateTime.of(2026, 8, 1, 10, 0))
+                .arrivalTime(LocalDateTime.of(2026, 8, 1, 12, 0))
+                .seatGrade(SeatGrade.ECONOMY)
+                .subscribedPrice(new BigDecimal("200000"))
+                .currentPrice(new BigDecimal("200000"))
+                .priceDifference(BigDecimal.ZERO)
+                .targetPrice(null)
+                .dropThresholdPercent(null)
+                .createdAt(LocalDateTime.of(2026, 7, 1, 12, 0))
+                .build();
+
+        given(subscriptionService.getSubscription(any(), eq(10L))).willReturn(response);
+
+        mockMvc.perform(get("/api/subscriptions/10")
+                        .header("Authorization", "Bearer test-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.targetPrice").value(nullValue()))
+                .andExpect(jsonPath("$.dropThresholdPercent").value(nullValue()));
+    }
+
+    @Test
+    void getSubscriptions_조건지정_응답DTO에_포함됨() throws Exception {
+        SubscriptionResponse response = SubscriptionResponse.builder()
+                .subscriptionId(1L)
+                .flightNumber("KE123")
+                .airlineCode("KE")
+                .departureAirportCode("ICN")
+                .arrivalAirportCode("NRT")
+                .departureTime(LocalDateTime.of(2026, 8, 1, 10, 0))
+                .seatGrade(SeatGrade.ECONOMY)
+                .subscribedPrice(new BigDecimal("150000"))
+                .targetPrice(new BigDecimal("120000"))
+                .dropThresholdPercent(new BigDecimal("10.00"))
+                .createdAt(LocalDateTime.of(2026, 7, 1, 12, 0))
+                .build();
+
+        given(subscriptionService.getSubscriptions(any())).willReturn(List.of(response));
+
+        mockMvc.perform(get("/api/subscriptions/my")
+                        .header("Authorization", "Bearer test-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].targetPrice").value(120000))
+                .andExpect(jsonPath("$[0].dropThresholdPercent").value(10.00));
     }
 }

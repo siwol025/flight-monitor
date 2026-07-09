@@ -16,6 +16,8 @@ public record SubscriptionResponse(
         LocalDateTime departureTime,
         SeatGrade seatGrade,
         BigDecimal subscribedPrice, // 구독 시점의 가격 (기준점)
+        BigDecimal targetPrice,
+        BigDecimal dropThresholdPercent,
         LocalDateTime createdAt
 ) {
     public static SubscriptionResponse from(Subscription subscription) {
@@ -28,6 +30,8 @@ public record SubscriptionResponse(
                 .departureTime(subscription.getFlight().getDepartureTime())
                 .seatGrade(subscription.getSeatGrade())
                 .subscribedPrice(subscription.getPrice())
+                .targetPrice(subscription.getTargetPrice())
+                .dropThresholdPercent(subscription.getDropThresholdPercent())
                 .createdAt(subscription.getCreatedAt())
                 .build();
     }
