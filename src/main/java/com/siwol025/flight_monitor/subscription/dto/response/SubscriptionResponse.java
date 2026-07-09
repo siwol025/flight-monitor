@@ -1,6 +1,7 @@
 package com.siwol025.flight_monitor.subscription.dto.response;
 
 import com.siwol025.flight_monitor.subscription.domain.Subscription;
+import com.siwol025.flight_monitor.subscription.domain.SubscriptionStatus;
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -18,7 +19,8 @@ public record SubscriptionResponse(
         BigDecimal subscribedPrice, // 구독 시점의 가격 (기준점)
         BigDecimal targetPrice,
         BigDecimal dropThresholdPercent,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        SubscriptionStatus status
 ) {
     public static SubscriptionResponse from(Subscription subscription) {
         return SubscriptionResponse.builder()
@@ -33,6 +35,7 @@ public record SubscriptionResponse(
                 .targetPrice(subscription.getTargetPrice())
                 .dropThresholdPercent(subscription.getDropThresholdPercent())
                 .createdAt(subscription.getCreatedAt())
+                .status(subscription.getStatus())
                 .build();
     }
 }

@@ -74,7 +74,7 @@ public class SubscriptionService {
     }
 
     public List<SubscriberWithConditionDto> getSubscribersWithCondition(Long flightId) {
-        return subscriptionRepository.findSubscribersWithConditionByFlightId(flightId);
+        return subscriptionRepository.findSubscribersWithConditionByFlightId(flightId, SubscriptionStatus.ACTIVE);
     }
 
     public SubscriptionDetailResponse getSubscription(User user, Long subscriptionId) {

@@ -2,6 +2,7 @@ package com.siwol025.flight_monitor.subscription.controller;
 
 import com.siwol025.flight_monitor.auth.resolver.AuthUserArgumentResolver;
 import com.siwol025.flight_monitor.auth.token.JwtProvider;
+import com.siwol025.flight_monitor.subscription.domain.SubscriptionStatus;
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
 import com.siwol025.flight_monitor.subscription.dto.response.SubscriptionDetailResponse;
 import com.siwol025.flight_monitor.subscription.dto.response.SubscriptionResponse;
@@ -246,5 +247,79 @@ class SubscriptionControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].targetPrice").value(120000))
                 .andExpect(jsonPath("$[0].dropThresholdPercent").value(10.00));
+    }
+
+    @Test
+    void getSubscriptions_ACTIVE구독_status_ACTIVE_응답됨() throws Exception {
+        SubscriptionResponse response = SubscriptionResponse.builder()
+                .subscriptionId(1L)
+                .flightNumber("KE123")
+                .airlineCode("KE")
+                .departureAirportCode("ICN")
+                .arrivalAirportCode("NRT")
+                .departureTime(LocalDateTime.of(2026, 8, 1, 10, 0))
+                .seatGrade(SeatGrade.ECONOMY)
+                .subscribedPrice(new BigDecimal("150000"))
+                .createdAt(LocalDateTime.of(2026, 7, 1, 12, 0))
+                .status(SubscriptionStatus.ACTIVE)
+                .build();
+
+        given(subscriptionService.getSubscriptions(any())).willReturn(List.of(response));
+
+        mockMvc.perform(get("/api/subscriptions/my")
+                        .header("Authorization", "Bearer test-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].status").value("ACTIVE"));
+    }
+
+    @Test
+    void getSubscriptions_EXPIRED구독_status_EXPIRED_응답됨() throws Exception {
+        SubscriptionResponse response = SubscriptionResponse.builder()
+                .subscriptionId(2L)
+                .flightNumber("KE456")
+                .airlineCode("KE")
+                .departureAirportCode("ICN")
+                .arrivalAirportCode("NRT")
+                .departureTime(LocalDateTime.of(2026, 6, 1, 10, 0))
+                .seatGrade(SeatGrade.ECONOMY)
+                .subscribedPrice(new BigDecimal("150000"))
+                .createdAt(LocalDateTime.of(2026, 5, 1, 12, 0))
+                .status(SubscriptionStatus.EXPIRED)
+                .build();
+
+        given(subscriptionService.getSubscriptions(any())).willReturn(List.of(response));
+
+        mockMvc.perform(get("/api/subscriptions/my")
+                        .header("Authorization", "Bearer test-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].status").value("EXPIRED"));
+    }
+
+    @Test
+    void getSubscription_EXPIRED구독_status_EXPIRED_응답됨() throws Exception {
+        SubscriptionDetailResponse response = SubscriptionDetailResponse.builder()
+                .subscriptionId(10L)
+                .flightNumber("KE999")
+                .airlineCode("KE")
+                .departureAirportCode("ICN")
+                .arrivalAirportCode("NRT")
+                .departureTime(LocalDateTime.of(2026, 6, 1, 10, 0))
+                .arrivalTime(LocalDateTime.of(2026, 6, 1, 12, 0))
+                .seatGrade(SeatGrade.ECONOMY)
+                .subscribedPrice(new BigDecimal("200000"))
+                .currentPrice(new BigDecimal("200000"))
+                .priceDifference(BigDecimal.ZERO)
+                .targetPrice(null)
+                .dropThresholdPercent(null)
+                .createdAt(LocalDateTime.of(2026, 5, 1, 12, 0))
+                .status(SubscriptionStatus.EXPIRED)
+                .build();
+
+        given(subscriptionService.getSubscription(any(), eq(10L))).willReturn(response);
+
+        mockMvc.perform(get("/api/subscriptions/10")
+                        .header("Authorization", "Bearer test-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("EXPIRED"));
     }
 }
