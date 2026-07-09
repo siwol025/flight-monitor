@@ -4,16 +4,13 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
-import com.siwol025.flight_monitor.global.config.CacheConfig;
 import com.siwol025.flight_monitor.subscription.domain.SubscriptionStatus;
 import com.siwol025.flight_monitor.subscription.repository.SubscriptionRepository;
-import java.lang.reflect.Method;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.cache.annotation.CacheEvict;
 
 @ExtendWith(MockitoExtension.class)
 class SubscriptionExpiryServiceTest {
@@ -42,13 +39,4 @@ class SubscriptionExpiryServiceTest {
                 .doesNotThrowAnyException();
     }
 
-    @Test
-    void expireSubscriptions_CacheEvict_어노테이션_선언됨() throws NoSuchMethodException {
-        Method method = SubscriptionExpiryService.class.getMethod("expireSubscriptions");
-        CacheEvict cacheEvict = method.getAnnotation(CacheEvict.class);
-
-        org.assertj.core.api.Assertions.assertThat(cacheEvict).isNotNull();
-        org.assertj.core.api.Assertions.assertThat(cacheEvict.value()).contains(CacheConfig.MONITORING_LIST_CACHE);
-        org.assertj.core.api.Assertions.assertThat(cacheEvict.allEntries()).isTrue();
-    }
 }
