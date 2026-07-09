@@ -11,6 +11,7 @@ import com.siwol025.flight_monitor.subscription.domain.SubscriptionStatus;
 import com.siwol025.flight_monitor.subscription.domain.flight.Flight;
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
 import com.siwol025.flight_monitor.subscription.dto.FlightMonitorTaskDto;
+import com.siwol025.flight_monitor.subscription.dto.SubscriberWithConditionDto;
 import com.siwol025.flight_monitor.subscription.dto.response.SubscriptionDetailResponse;
 import com.siwol025.flight_monitor.subscription.dto.response.SubscriptionResponse;
 import com.siwol025.flight_monitor.subscription.repository.SubscriptionRepository;
@@ -70,6 +71,10 @@ public class SubscriptionService {
 
     public List<UserEmailDto> getSubscribers(Long flightId) {
         return subscriptionRepository.findSubscriberByFlightId(flightId);
+    }
+
+    public List<SubscriberWithConditionDto> getSubscribersWithCondition(Long flightId) {
+        return subscriptionRepository.findSubscribersWithConditionByFlightId(flightId);
     }
 
     public SubscriptionDetailResponse getSubscription(User user, Long subscriptionId) {
