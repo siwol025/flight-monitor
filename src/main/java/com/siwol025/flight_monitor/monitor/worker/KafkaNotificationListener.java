@@ -2,8 +2,9 @@ package com.siwol025.flight_monitor.monitor.worker;
 
 import com.siwol025.flight_monitor.monitor.dto.EmailSendTaskDto;
 import com.siwol025.flight_monitor.monitor.dto.PriceDropNotificationDto;
+import com.siwol025.flight_monitor.monitor.service.AlertConditionChecker;
+import com.siwol025.flight_monitor.subscription.dto.SubscriberWithConditionDto;
 import com.siwol025.flight_monitor.subscription.service.SubscriptionService;
-import com.siwol025.flight_monitor.user.dto.UserEmailDto;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,13 +24,14 @@ public class KafkaNotificationListener {
     private final SubscriptionService subscriptionService;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final NotificationContentFormatter formatter;
+    private final AlertConditionChecker alertConditionChecker;
 
     private static final String OUT_TOPIC = "email-send-tasks";
 
     @KafkaListener(topics = "flight-price-drop-events", groupId = "notification-fanout-group", concurrency = "3")
     public void processNotification(PriceDropNotificationDto eventDto) {
         try {
-            List<UserEmailDto> subscribers = subscriptionService.getSubscribers(eventDto.flightId());
+            List<SubscriberWithConditionDto> subscribers = subscriptionService.getSubscribersWithCondition(eventDto.flightId());
 
             if (subscribers.isEmpty()) {
                 return;
@@ -38,12 +40,15 @@ public class KafkaNotificationListener {
             String subject = formatter.createSubject(eventDto.flightNumber());
             String content = formatter.createContent(eventDto);
 
-            for (UserEmailDto user : subscribers) {
-                EmailSendTaskDto taskDto = new EmailSendTaskDto(user.email(), subject, content);
+            for (SubscriberWithConditionDto subscriber : subscribers) {
+                if (!alertConditionChecker.shouldNotify(eventDto.oldPrice(), eventDto.newPrice(), subscriber.targetPrice(), subscriber.dropThresholdPercent())) {
+                    continue;
+                }
+                EmailSendTaskDto taskDto = new EmailSendTaskDto(subscriber.email(), subject, content);
                 try {
-                    kafkaTemplate.send(OUT_TOPIC, eventDto.flightNumber() + user.email(), taskDto);
+                    kafkaTemplate.send(OUT_TOPIC, eventDto.flightNumber() + subscriber.email(), taskDto);
                 } catch (Exception e) {
-                    log.error("[KafkaNotificationListener] 특정 유저 이메일 작업 전송 실패: {}", user.email(), e);
+                    log.error("[KafkaNotificationListener] 특정 유저 이메일 작업 전송 실패: {}", subscriber.email(), e);
                 }
             }
         } catch (Exception e) {
