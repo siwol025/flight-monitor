@@ -9,9 +9,11 @@ import com.siwol025.flight_monitor.user.dto.UserEmailDto;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public interface SubscriptionRepository extends JpaRepository<Subscription, Long> {
@@ -42,7 +44,7 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
             "WHERE f.departureTime > CURRENT_TIMESTAMP " +
             "AND s.status = :status"
     )
-    List<FlightMonitorTaskDto> findActiveFlightIdsAndSeatGrade(SubscriptionStatus status);
+    List<FlightMonitorTaskDto> findActiveFlightIdsAndSeatGrade(@Param("status") SubscriptionStatus status);
 
     @Query(
             "SELECT DISTINCT " +
@@ -51,7 +53,7 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
             "JOIN s.flight f " +
             "WHERE f.flightId = :flightId"
     )
-    List<UserEmailDto> findSubscriberByFlightId(Long flightId);
+    List<UserEmailDto> findSubscriberByFlightId(@Param("flightId") Long flightId);
 
     @Query(
             "SELECT DISTINCT " +
@@ -59,7 +61,23 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
             "FROM Subscription s " +
             "JOIN s.flight f " +
             "WHERE f.flightId = :flightId " +
-            "AND s.status = com.siwol025.flight_monitor.subscription.domain.SubscriptionStatus.ACTIVE"
+            "AND s.status = :status"
     )
-    List<SubscriberWithConditionDto> findSubscribersWithConditionByFlightId(@Param("flightId") Long flightId);
+    List<SubscriberWithConditionDto> findSubscribersWithConditionByFlightId(@Param("flightId") Long flightId, @Param("status") SubscriptionStatus status);
+
+    @Deprecated
+    @Query(
+            "SELECT s " +
+            "FROM Subscription s " +
+            "JOIN FETCH s.flight f " +
+            "WHERE s.status = :status " +
+            "AND f.departureTime < CURRENT_TIMESTAMP"
+    )
+    List<Subscription> findExpirableSubscriptions(@Param("status") SubscriptionStatus status);
+
+    @Modifying(clearAutomatically = true)
+    @Transactional
+    @Query("UPDATE Subscription s SET s.status = :expired WHERE s.status = :active AND s.flight.departureTime < CURRENT_TIMESTAMP")
+    int bulkExpireSubscriptions(@Param("active") SubscriptionStatus active,
+                                @Param("expired") SubscriptionStatus expired);
 }
