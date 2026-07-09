@@ -18,9 +18,8 @@ public class SubscriptionExpiryService {
 
     @Transactional
     public void expireSubscriptions() {
-        var expirable = subscriptionRepository.findExpirableSubscriptions(SubscriptionStatus.ACTIVE);
-        expirable.forEach(subscription -> subscription.updateStatus(SubscriptionStatus.EXPIRED));
-        if (!expirable.isEmpty()) {
+        int updated = subscriptionRepository.bulkExpireSubscriptions(SubscriptionStatus.ACTIVE, SubscriptionStatus.EXPIRED);
+        if (updated > 0) {
             Cache cache = cacheManager.getCache(CacheConfig.MONITORING_LIST_CACHE);
             if (cache != null) {
                 cache.clear();

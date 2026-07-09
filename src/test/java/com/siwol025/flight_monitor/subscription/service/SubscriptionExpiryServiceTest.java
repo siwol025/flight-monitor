@@ -3,12 +3,11 @@ package com.siwol025.flight_monitor.subscription.service;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 
 import com.siwol025.flight_monitor.global.config.CacheConfig;
-import com.siwol025.flight_monitor.subscription.domain.Subscription;
 import com.siwol025.flight_monitor.subscription.domain.SubscriptionStatus;
 import com.siwol025.flight_monitor.subscription.repository.SubscriptionRepository;
-import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -27,42 +26,37 @@ class SubscriptionExpiryServiceTest {
     private SubscriptionExpiryService subscriptionExpiryService;
 
     @Test
-    void expireSubscriptions_만료대상있음_EXPIRED로_변경됨() {
-        Subscription sub1 = mock(Subscription.class);
-        Subscription sub2 = mock(Subscription.class);
-
-        given(subscriptionRepository.findExpirableSubscriptions(SubscriptionStatus.ACTIVE))
-                .willReturn(List.of(sub1, sub2));
+    void expireSubscriptions_만료대상있음_bulkExpireSubscriptions_호출됨() {
+        given(subscriptionRepository.bulkExpireSubscriptions(SubscriptionStatus.ACTIVE, SubscriptionStatus.EXPIRED))
+                .willReturn(1);
 
         subscriptionExpiryService.expireSubscriptions();
 
-        then(sub1).should().updateStatus(SubscriptionStatus.EXPIRED);
-        then(sub2).should().updateStatus(SubscriptionStatus.EXPIRED);
+        then(subscriptionRepository).should().bulkExpireSubscriptions(SubscriptionStatus.ACTIVE, SubscriptionStatus.EXPIRED);
     }
 
     @Test
-    void expireSubscriptions_만료대상없음_아무처리없음() {
-        given(subscriptionRepository.findExpirableSubscriptions(SubscriptionStatus.ACTIVE))
-                .willReturn(List.of());
+    void expireSubscriptions_만료대상없음_캐시무효화_호출없음() {
+        given(subscriptionRepository.bulkExpireSubscriptions(SubscriptionStatus.ACTIVE, SubscriptionStatus.EXPIRED))
+                .willReturn(0);
 
         subscriptionExpiryService.expireSubscriptions();
 
-        then(subscriptionRepository).should().findExpirableSubscriptions(SubscriptionStatus.ACTIVE);
-        then(cacheManager).shouldHaveNoInteractions();
+        then(cacheManager).should(never()).getCache(CacheConfig.MONITORING_LIST_CACHE);
     }
 
     @Test
     void expireSubscriptions_캐시_무효화됨() {
-        Subscription sub = mock(Subscription.class);
         Cache mockCache = mock(Cache.class);
 
-        given(subscriptionRepository.findExpirableSubscriptions(SubscriptionStatus.ACTIVE))
-                .willReturn(List.of(sub));
+        given(subscriptionRepository.bulkExpireSubscriptions(SubscriptionStatus.ACTIVE, SubscriptionStatus.EXPIRED))
+                .willReturn(1);
         given(cacheManager.getCache(CacheConfig.MONITORING_LIST_CACHE))
                 .willReturn(mockCache);
 
         subscriptionExpiryService.expireSubscriptions();
 
+        then(cacheManager).should().getCache(CacheConfig.MONITORING_LIST_CACHE);
         then(mockCache).should().clear();
     }
 }

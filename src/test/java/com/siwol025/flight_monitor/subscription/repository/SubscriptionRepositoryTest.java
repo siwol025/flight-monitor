@@ -311,6 +311,130 @@ class SubscriptionRepositoryTest {
     }
 
     @Test
+    void bulkExpireSubscriptions_출발완료_ACTIVE구독_EXPIRED로_변경되고_건수반환됨() {
+        // given
+        User user = em.persist(User.builder()
+                .email("bulk@example.com")
+                .name("벌크유저")
+                .provider(Provider.GOOGLE)
+                .providerId("google-bulk-1")
+                .role(Role.USER)
+                .build());
+
+        Flight flight = em.persist(Flight.builder()
+                .flightId(5001L)
+                .flightNumber("KE501")
+                .airlineCode("KE")
+                .departureAirport("ICN")
+                .arrivalAirport("NRT")
+                .departureTime(LocalDateTime.now().minusDays(1))
+                .arrivalTime(LocalDateTime.now().minusDays(1).plusHours(3))
+                .build());
+
+        Subscription activeSub = Subscription.builder()
+                .user(user)
+                .flight(flight)
+                .seatGrade(SeatGrade.ECONOMY)
+                .price(BigDecimal.valueOf(300000))
+                .build();
+        em.persist(activeSub);
+
+        em.flush();
+        em.clear();
+
+        // when
+        int updated = subscriptionRepository.bulkExpireSubscriptions(SubscriptionStatus.ACTIVE, SubscriptionStatus.EXPIRED);
+
+        // then
+        assertThat(updated).isEqualTo(1);
+        Subscription found = subscriptionRepository.findById(activeSub.getId()).orElseThrow();
+        assertThat(found.getStatus()).isEqualTo(SubscriptionStatus.EXPIRED);
+    }
+
+    @Test
+    void bulkExpireSubscriptions_출발전_ACTIVE구독_변경안됨() {
+        // given
+        User user = em.persist(User.builder()
+                .email("bulk2@example.com")
+                .name("벌크유저2")
+                .provider(Provider.GOOGLE)
+                .providerId("google-bulk-2")
+                .role(Role.USER)
+                .build());
+
+        Flight flight = em.persist(Flight.builder()
+                .flightId(5002L)
+                .flightNumber("KE502")
+                .airlineCode("KE")
+                .departureAirport("ICN")
+                .arrivalAirport("NRT")
+                .departureTime(LocalDateTime.now().plusDays(1))
+                .arrivalTime(LocalDateTime.now().plusDays(1).plusHours(3))
+                .build());
+
+        Subscription activeSub = Subscription.builder()
+                .user(user)
+                .flight(flight)
+                .seatGrade(SeatGrade.ECONOMY)
+                .price(BigDecimal.valueOf(300000))
+                .build();
+        em.persist(activeSub);
+
+        em.flush();
+        em.clear();
+
+        // when
+        int updated = subscriptionRepository.bulkExpireSubscriptions(SubscriptionStatus.ACTIVE, SubscriptionStatus.EXPIRED);
+
+        // then
+        assertThat(updated).isEqualTo(0);
+        Subscription found = subscriptionRepository.findById(activeSub.getId()).orElseThrow();
+        assertThat(found.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
+    }
+
+    @Test
+    void bulkExpireSubscriptions_이미EXPIRED구독_변경안됨() {
+        // given
+        User user = em.persist(User.builder()
+                .email("bulk3@example.com")
+                .name("벌크유저3")
+                .provider(Provider.GOOGLE)
+                .providerId("google-bulk-3")
+                .role(Role.USER)
+                .build());
+
+        Flight flight = em.persist(Flight.builder()
+                .flightId(5003L)
+                .flightNumber("KE503")
+                .airlineCode("KE")
+                .departureAirport("ICN")
+                .arrivalAirport("NRT")
+                .departureTime(LocalDateTime.now().minusDays(1))
+                .arrivalTime(LocalDateTime.now().minusDays(1).plusHours(3))
+                .build());
+
+        Subscription expiredSub = Subscription.builder()
+                .user(user)
+                .flight(flight)
+                .seatGrade(SeatGrade.ECONOMY)
+                .price(BigDecimal.valueOf(300000))
+                .build();
+        expiredSub.updateStatus(SubscriptionStatus.EXPIRED);
+        em.persist(expiredSub);
+
+        em.flush();
+        em.clear();
+
+        // when
+        int updated = subscriptionRepository.bulkExpireSubscriptions(SubscriptionStatus.ACTIVE, SubscriptionStatus.EXPIRED);
+
+        // then
+        assertThat(updated).isEqualTo(0);
+        Subscription found = subscriptionRepository.findById(expiredSub.getId()).orElseThrow();
+        assertThat(found.getStatus()).isEqualTo(SubscriptionStatus.EXPIRED);
+    }
+
+    @Test
     void findAllByUserId_JOIN_FETCH_정상조회() {
         // given
         User user = em.persist(User.builder()
