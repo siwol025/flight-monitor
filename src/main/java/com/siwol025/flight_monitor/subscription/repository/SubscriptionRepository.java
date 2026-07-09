@@ -65,6 +65,7 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
     )
     List<SubscriberWithConditionDto> findSubscribersWithConditionByFlightId(@Param("flightId") Long flightId, @Param("status") SubscriptionStatus status);
 
+    @Deprecated
     @Query(
             "SELECT s " +
             "FROM Subscription s " +

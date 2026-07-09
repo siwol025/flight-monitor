@@ -54,6 +54,10 @@ monitor:
   rate-limiter:
     permits-per-second: 90.0
 
+subscription:
+  expiry:
+    cron: "0 0 * * * *"
+
 notification:
   mode: kafka
 
