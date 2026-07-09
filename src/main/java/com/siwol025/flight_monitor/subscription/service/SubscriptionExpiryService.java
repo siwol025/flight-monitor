@@ -4,26 +4,22 @@ import com.siwol025.flight_monitor.global.config.CacheConfig;
 import com.siwol025.flight_monitor.subscription.domain.SubscriptionStatus;
 import com.siwol025.flight_monitor.subscription.repository.SubscriptionRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SubscriptionExpiryService {
 
     private final SubscriptionRepository subscriptionRepository;
-    private final CacheManager cacheManager;
 
     @Transactional
+    @CacheEvict(value = CacheConfig.MONITORING_LIST_CACHE, allEntries = true)
     public void expireSubscriptions() {
         int updated = subscriptionRepository.bulkExpireSubscriptions(SubscriptionStatus.ACTIVE, SubscriptionStatus.EXPIRED);
-        if (updated > 0) {
-            Cache cache = cacheManager.getCache(CacheConfig.MONITORING_LIST_CACHE);
-            if (cache != null) {
-                cache.clear();
-            }
-        }
+        log.info("만료 처리 완료: {}건", updated);
     }
 }

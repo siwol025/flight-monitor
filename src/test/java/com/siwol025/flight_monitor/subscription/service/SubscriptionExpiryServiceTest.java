@@ -1,26 +1,24 @@
 package com.siwol025.flight_monitor.subscription.service;
 
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 
 import com.siwol025.flight_monitor.global.config.CacheConfig;
 import com.siwol025.flight_monitor.subscription.domain.SubscriptionStatus;
 import com.siwol025.flight_monitor.subscription.repository.SubscriptionRepository;
+import java.lang.reflect.Method;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CacheEvict;
 
 @ExtendWith(MockitoExtension.class)
 class SubscriptionExpiryServiceTest {
 
     @Mock private SubscriptionRepository subscriptionRepository;
-    @Mock private CacheManager cacheManager;
 
     @InjectMocks
     private SubscriptionExpiryService subscriptionExpiryService;
@@ -36,27 +34,21 @@ class SubscriptionExpiryServiceTest {
     }
 
     @Test
-    void expireSubscriptions_만료대상없음_캐시무효화_호출없음() {
+    void expireSubscriptions_만료대상없음_정상완료됨() {
         given(subscriptionRepository.bulkExpireSubscriptions(SubscriptionStatus.ACTIVE, SubscriptionStatus.EXPIRED))
                 .willReturn(0);
 
-        subscriptionExpiryService.expireSubscriptions();
-
-        then(cacheManager).should(never()).getCache(CacheConfig.MONITORING_LIST_CACHE);
+        assertThatCode(() -> subscriptionExpiryService.expireSubscriptions())
+                .doesNotThrowAnyException();
     }
 
     @Test
-    void expireSubscriptions_캐시_무효화됨() {
-        Cache mockCache = mock(Cache.class);
+    void expireSubscriptions_CacheEvict_어노테이션_선언됨() throws NoSuchMethodException {
+        Method method = SubscriptionExpiryService.class.getMethod("expireSubscriptions");
+        CacheEvict cacheEvict = method.getAnnotation(CacheEvict.class);
 
-        given(subscriptionRepository.bulkExpireSubscriptions(SubscriptionStatus.ACTIVE, SubscriptionStatus.EXPIRED))
-                .willReturn(1);
-        given(cacheManager.getCache(CacheConfig.MONITORING_LIST_CACHE))
-                .willReturn(mockCache);
-
-        subscriptionExpiryService.expireSubscriptions();
-
-        then(cacheManager).should().getCache(CacheConfig.MONITORING_LIST_CACHE);
-        then(mockCache).should().clear();
+        org.assertj.core.api.Assertions.assertThat(cacheEvict).isNotNull();
+        org.assertj.core.api.Assertions.assertThat(cacheEvict.value()).contains(CacheConfig.MONITORING_LIST_CACHE);
+        org.assertj.core.api.Assertions.assertThat(cacheEvict.allEntries()).isTrue();
     }
 }
