@@ -25,6 +25,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
@@ -72,6 +73,7 @@ class KafkaNotificationListenerTest {
 
         given(subscriptionService.getSubscribersWithCondition(flightId)).willReturn(subscribers);
         given(alertConditionChecker.shouldNotify(any(), any(), any(), any())).willReturn(true);
+        given(cooldownManager.tryAcquire(any(), any(), any())).willReturn(true);
 
         // when
         kafkaNotificationListener.processNotification(eventDto);
@@ -99,6 +101,7 @@ class KafkaNotificationListenerTest {
         given(formatter.createSubject(any())).willReturn("테스트 제목");
         given(formatter.createContent(any())).willReturn("테스트 본문");
         given(alertConditionChecker.shouldNotify(any(), any(), any(), any())).willReturn(true);
+        given(cooldownManager.tryAcquire(any(), any(), any())).willReturn(true);
 
         // when
         kafkaNotificationListener.processNotification(dto);
@@ -150,6 +153,7 @@ class KafkaNotificationListenerTest {
 
         given(subscriptionService.getSubscribersWithCondition(flightId)).willReturn(subscribers);
         given(alertConditionChecker.shouldNotify(eq(OLD_PRICE), eq(NEW_PRICE), isNull(), isNull())).willReturn(true);
+        given(cooldownManager.tryAcquire(any(), any(), any())).willReturn(true);
 
         // when
         kafkaNotificationListener.processNotification(eventDto);
@@ -179,6 +183,7 @@ class KafkaNotificationListenerTest {
 
         given(subscriptionService.getSubscribersWithCondition(flightId)).willReturn(subscribers);
         given(alertConditionChecker.shouldNotify(eq(OLD_PRICE), eq(NEW_PRICE), eq(targetPrice), isNull())).willReturn(true);
+        given(cooldownManager.tryAcquire(any(), any(), any())).willReturn(true);
 
         // when
         kafkaNotificationListener.processNotification(eventDto);
@@ -236,6 +241,7 @@ class KafkaNotificationListenerTest {
 
         given(subscriptionService.getSubscribersWithCondition(flightId)).willReturn(subscribers);
         given(alertConditionChecker.shouldNotify(eq(OLD_PRICE), eq(NEW_PRICE), isNull(), eq(threshold))).willReturn(true);
+        given(cooldownManager.tryAcquire(any(), any(), any())).willReturn(true);
 
         // when
         kafkaNotificationListener.processNotification(eventDto);
@@ -264,13 +270,13 @@ class KafkaNotificationListenerTest {
 
         given(subscriptionService.getSubscribersWithCondition(flightId)).willReturn(subscribers);
         given(alertConditionChecker.shouldNotify(any(), any(), any(), any())).willReturn(true);
-        given(cooldownManager.isInCooldown("cooldown@test.com", flightId, SeatGrade.ECONOMY)).willReturn(false);
+        given(cooldownManager.tryAcquire("cooldown@test.com", flightId, SeatGrade.ECONOMY)).willReturn(true);
 
         // when
         kafkaNotificationListener.processNotification(eventDto);
 
         // then
-        then(cooldownManager).should().isInCooldown("cooldown@test.com", flightId, SeatGrade.ECONOMY);
+        then(cooldownManager).should().tryAcquire("cooldown@test.com", flightId, SeatGrade.ECONOMY);
         then(kafkaTemplate).should(times(1))
                 .send(eq("email-send-tasks"), anyString(), any(EmailSendTaskDto.class));
     }
@@ -294,13 +300,14 @@ class KafkaNotificationListenerTest {
 
         given(subscriptionService.getSubscribersWithCondition(flightId)).willReturn(subscribers);
         given(alertConditionChecker.shouldNotify(any(), any(), any(), any())).willReturn(true);
-        given(cooldownManager.isInCooldown("incooldown@test.com", flightId, SeatGrade.ECONOMY)).willReturn(true);
+        given(cooldownManager.tryAcquire("incooldown@test.com", flightId, SeatGrade.ECONOMY)).willReturn(false);
 
         // when
         kafkaNotificationListener.processNotification(eventDto);
 
-        // then
-        then(kafkaTemplate).shouldHaveNoInteractions();
+        // then — 획득 실패(쿨다운 중)이므로 발송 없음
+        then(kafkaTemplate).should(never())
+                .send(anyString(), anyString(), any(EmailSendTaskDto.class));
     }
 
     @Test
@@ -326,12 +333,12 @@ class KafkaNotificationListenerTest {
         // when
         kafkaNotificationListener.processNotification(eventDto);
 
-        // then — shouldNotify=false이므로 쿨다운 체크(Redis 조회)는 절대 발생하지 않아야 함
+        // then — shouldNotify=false이므로 쿨다운 획득(Redis 접근)은 절대 발생하지 않아야 함
         then(cooldownManager).shouldHaveNoInteractions();
     }
 
     @Test
-    void processNotification_발송후_쿨다운_기록됨() {
+    void processNotification_쿨다운_획득시_발송됨() {
         // given
         Long flightId = 13L;
         PriceDropNotificationDto eventDto = PriceDropNotificationDto.builder()
@@ -349,15 +356,77 @@ class KafkaNotificationListenerTest {
 
         given(subscriptionService.getSubscribersWithCondition(flightId)).willReturn(subscribers);
         given(alertConditionChecker.shouldNotify(any(), any(), any(), any())).willReturn(true);
-        given(cooldownManager.isInCooldown("record@test.com", flightId, SeatGrade.ECONOMY)).willReturn(false);
+        given(cooldownManager.tryAcquire("record@test.com", flightId, SeatGrade.ECONOMY)).willReturn(true);
 
         // when
         kafkaNotificationListener.processNotification(eventDto);
 
-        // then — 발송 후 쿨다운이 기록되어야 함
-        then(cooldownManager).should().recordCooldown("record@test.com", flightId, SeatGrade.ECONOMY);
+        // then — 원자적 획득 성공 시 발송, 발송 성공 시 release 없음
+        then(cooldownManager).should().tryAcquire("record@test.com", flightId, SeatGrade.ECONOMY);
+        then(cooldownManager).should(never()).release(any(), any(), any());
         then(kafkaTemplate).should(times(1))
                 .send(eq("email-send-tasks"), anyString(), any(EmailSendTaskDto.class));
+    }
+
+    @Test
+    void processNotification_다구독자_일부만_쿨다운_해당자만_발송됨() {
+        // given
+        Long flightId = 14L;
+        PriceDropNotificationDto eventDto = PriceDropNotificationDto.builder()
+                .flightId(flightId)
+                .flightNumber("KE014")
+                .seatGrade(SeatGrade.ECONOMY)
+                .oldPrice(OLD_PRICE)
+                .newPrice(NEW_PRICE)
+                .detectedAt(LocalDateTime.now())
+                .build();
+
+        List<SubscriberWithConditionDto> subscribers = List.of(
+                new SubscriberWithConditionDto("first@test.com", null, null),
+                new SubscriberWithConditionDto("second@test.com", null, null)
+        );
+
+        given(subscriptionService.getSubscribersWithCondition(flightId)).willReturn(subscribers);
+        given(alertConditionChecker.shouldNotify(any(), any(), any(), any())).willReturn(true);
+        given(cooldownManager.tryAcquire("first@test.com", flightId, SeatGrade.ECONOMY)).willReturn(true);
+        given(cooldownManager.tryAcquire("second@test.com", flightId, SeatGrade.ECONOMY)).willReturn(false);
+
+        // when
+        kafkaNotificationListener.processNotification(eventDto);
+
+        // then — 획득 성공한 first 만 발송
+        then(kafkaTemplate).should(times(1))
+                .send(eq("email-send-tasks"), anyString(), any(EmailSendTaskDto.class));
+    }
+
+    @Test
+    void processNotification_발송실패시_release_호출되어_쿨다운_해제됨() {
+        // given
+        Long flightId = 15L;
+        PriceDropNotificationDto eventDto = PriceDropNotificationDto.builder()
+                .flightId(flightId)
+                .flightNumber("KE015")
+                .seatGrade(SeatGrade.ECONOMY)
+                .oldPrice(OLD_PRICE)
+                .newPrice(NEW_PRICE)
+                .detectedAt(LocalDateTime.now())
+                .build();
+
+        List<SubscriberWithConditionDto> subscribers = List.of(
+                new SubscriberWithConditionDto("fail@test.com", null, null)
+        );
+
+        given(subscriptionService.getSubscribersWithCondition(flightId)).willReturn(subscribers);
+        given(alertConditionChecker.shouldNotify(any(), any(), any(), any())).willReturn(true);
+        given(cooldownManager.tryAcquire("fail@test.com", flightId, SeatGrade.ECONOMY)).willReturn(true);
+        given(kafkaTemplate.send(eq("email-send-tasks"), anyString(), any(EmailSendTaskDto.class)))
+                .willThrow(new RuntimeException("kafka unavailable"));
+
+        // when
+        kafkaNotificationListener.processNotification(eventDto);
+
+        // then — 발송 실패 시 획득한 쿨다운을 보상 해제
+        then(cooldownManager).should().release("fail@test.com", flightId, SeatGrade.ECONOMY);
     }
 
     @Test
