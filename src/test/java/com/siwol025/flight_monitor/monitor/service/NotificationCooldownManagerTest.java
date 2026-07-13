@@ -4,10 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.verify;
 
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,31 +34,32 @@ class NotificationCooldownManagerTest {
     NotificationCooldownManager cooldownManager;
 
     @Test
-    void isInCooldown_키_존재_true_반환됨() {
+    void tryAcquire_키_없음_true_반환_및_setIfAbsent_TTL설정됨() {
         given(redissonClient.getBucket(EXPECTED_KEY)).willReturn(rBucket);
-        given(rBucket.isExists()).willReturn(true);
+        given(rBucket.setIfAbsent(any(), eq(Duration.ofHours(24)))).willReturn(true);
 
-        boolean result = cooldownManager.isInCooldown("test@test.com", 1L, SeatGrade.ECONOMY);
+        boolean result = cooldownManager.tryAcquire("test@test.com", 1L, SeatGrade.ECONOMY);
 
         assertThat(result).isTrue();
+        verify(rBucket).setIfAbsent(any(), eq(Duration.ofHours(24)));
     }
 
     @Test
-    void isInCooldown_키_없음_false_반환됨() {
+    void tryAcquire_키_존재_false_반환됨() {
         given(redissonClient.getBucket(EXPECTED_KEY)).willReturn(rBucket);
-        given(rBucket.isExists()).willReturn(false);
+        given(rBucket.setIfAbsent(any(), eq(Duration.ofHours(24)))).willReturn(false);
 
-        boolean result = cooldownManager.isInCooldown("test@test.com", 1L, SeatGrade.ECONOMY);
+        boolean result = cooldownManager.tryAcquire("test@test.com", 1L, SeatGrade.ECONOMY);
 
         assertThat(result).isFalse();
     }
 
     @Test
-    void recordCooldown_키_저장_및_TTL_설정됨() {
+    void release_키_삭제됨() {
         given(redissonClient.getBucket(EXPECTED_KEY)).willReturn(rBucket);
 
-        cooldownManager.recordCooldown("test@test.com", 1L, SeatGrade.ECONOMY);
+        cooldownManager.release("test@test.com", 1L, SeatGrade.ECONOMY);
 
-        verify(rBucket).set(any(), eq(24L), eq(TimeUnit.HOURS));
+        then(rBucket).should().delete();
     }
 }

@@ -46,15 +46,15 @@ public class KafkaNotificationListener {
                 if (!alertConditionChecker.shouldNotify(eventDto.oldPrice(), eventDto.newPrice(), subscriber.targetPrice(), subscriber.dropThresholdPercent())) {
                     continue;
                 }
-                if (cooldownManager.isInCooldown(subscriber.email(), eventDto.flightId(), eventDto.seatGrade())) {
+                if (!cooldownManager.tryAcquire(subscriber.email(), eventDto.flightId(), eventDto.seatGrade())) {
                     log.debug("[KafkaNotificationListener] 쿨다운 중 — 발송 생략: email={}, flightId={}, seatGrade={}", subscriber.email(), eventDto.flightId(), eventDto.seatGrade());
                     continue;
                 }
-                cooldownManager.recordCooldown(subscriber.email(), eventDto.flightId(), eventDto.seatGrade());
                 EmailSendTaskDto taskDto = new EmailSendTaskDto(subscriber.email(), subject, content);
                 try {
                     kafkaTemplate.send(OUT_TOPIC, eventDto.flightNumber() + subscriber.email(), taskDto);
                 } catch (Exception e) {
+                    cooldownManager.release(subscriber.email(), eventDto.flightId(), eventDto.seatGrade());
                     log.error("[KafkaNotificationListener] 특정 유저 이메일 작업 전송 실패: {}", subscriber.email(), e);
                 }
             }
