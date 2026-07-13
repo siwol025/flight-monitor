@@ -3,6 +3,7 @@ package com.siwol025.flight_monitor.monitor.worker;
 import com.siwol025.flight_monitor.monitor.dto.EmailSendTaskDto;
 import com.siwol025.flight_monitor.monitor.dto.PriceDropNotificationDto;
 import com.siwol025.flight_monitor.monitor.service.AlertConditionChecker;
+import com.siwol025.flight_monitor.monitor.service.NotificationCooldownManager;
 import com.siwol025.flight_monitor.subscription.dto.SubscriberWithConditionDto;
 import com.siwol025.flight_monitor.subscription.service.SubscriptionService;
 import java.util.List;
@@ -25,6 +26,7 @@ public class KafkaNotificationListener {
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final NotificationContentFormatter formatter;
     private final AlertConditionChecker alertConditionChecker;
+    private final NotificationCooldownManager cooldownManager;
 
     private static final String OUT_TOPIC = "email-send-tasks";
 
@@ -44,6 +46,11 @@ public class KafkaNotificationListener {
                 if (!alertConditionChecker.shouldNotify(eventDto.oldPrice(), eventDto.newPrice(), subscriber.targetPrice(), subscriber.dropThresholdPercent())) {
                     continue;
                 }
+                if (cooldownManager.isInCooldown(subscriber.email(), eventDto.flightId(), eventDto.seatGrade())) {
+                    log.debug("[KafkaNotificationListener] 쿨다운 중 — 발송 생략: email={}, flightId={}, seatGrade={}", subscriber.email(), eventDto.flightId(), eventDto.seatGrade());
+                    continue;
+                }
+                cooldownManager.recordCooldown(subscriber.email(), eventDto.flightId(), eventDto.seatGrade());
                 EmailSendTaskDto taskDto = new EmailSendTaskDto(subscriber.email(), subject, content);
                 try {
                     kafkaTemplate.send(OUT_TOPIC, eventDto.flightNumber() + subscriber.email(), taskDto);
