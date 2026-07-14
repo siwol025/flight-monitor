@@ -6,6 +6,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 
 import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightResponse;
+import com.siwol025.flight_monitor.monitor.metrics.PipelineMetrics;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -54,7 +56,8 @@ class FlightDataProviderTest {
         given(restTemplate.getForObject(anyString(), eq(MockFlightResponse.class)))
                 .willReturn(expectedResponse);
 
-        FlightDataProvider provider = new FlightFetcher(restTemplate, "http://mock-api/flights/");
+        PipelineMetrics pipelineMetrics = new PipelineMetrics(new SimpleMeterRegistry());
+        FlightDataProvider provider = new FlightFetcher(restTemplate, "http://mock-api/flights/", pipelineMetrics);
 
         MockFlightResponse actual = provider.fetchMockFlight(1L);
 

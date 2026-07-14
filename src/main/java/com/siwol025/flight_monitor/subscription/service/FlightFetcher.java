@@ -3,6 +3,8 @@ package com.siwol025.flight_monitor.subscription.service;
 import com.siwol025.flight_monitor.global.exception.ErrorTag;
 import com.siwol025.flight_monitor.global.exception.custom.NotFoundException;
 import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightResponse;
+import com.siwol025.flight_monitor.monitor.metrics.PipelineMetrics;
+import java.time.Duration;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -15,11 +17,14 @@ public class FlightFetcher implements FlightDataProvider {
 
     private final RestTemplate restTemplate;
     private final String mockApiUrl;
+    private final PipelineMetrics pipelineMetrics;
 
     public FlightFetcher(RestTemplate restTemplate,
-                         @Value("${external.api.url}") String mockApiUrl) {
+                         @Value("${external.api.url}") String mockApiUrl,
+                         PipelineMetrics pipelineMetrics) {
         this.restTemplate = restTemplate;
         this.mockApiUrl = mockApiUrl;
+        this.pipelineMetrics = pipelineMetrics;
     }
 
     @Override
@@ -27,7 +32,9 @@ public class FlightFetcher implements FlightDataProvider {
         String url = mockApiUrl + flightId;
 
         try {
+            long startNanos = System.nanoTime();
             MockFlightResponse response = restTemplate.getForObject(url, MockFlightResponse.class);
+            pipelineMetrics.recordExternalApiLatency(Duration.ofNanos(System.nanoTime() - startNanos));
 
             if (response == null) {
                 throw new NotFoundException(ErrorTag.FLIGHT_NOT_FOUND);
