@@ -31,7 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
-@Profile({"dev", "local"})
+@Profile({"dev", "local", "loadtest"})
 @RequiredArgsConstructor
 @Transactional
 public class DataSetupService {
@@ -141,51 +141,11 @@ public class DataSetupService {
         }
         log.info("[DataSetupService] 유저 {}명 생성 완료", userCount);
 
-        // 2. 항공사 및 공항 기초 데이터 확인/생성
-        MockAirline airline = findOrCreateAirline("T_AIR", "테스트항공");
-        MockAirport dep = findOrCreateAirport("ICN", "인천");
-        MockAirport arr = findOrCreateAirport("JFK", "뉴욕");
-
-        // 3. 항공편 500개 생성
-        List<Flight> flights = new ArrayList<>(flightCount);
-        BigDecimal initialPrice = new BigDecimal("1000000.00");
-        LocalDateTime departureTime = LocalDateTime.now().plusDays(30);
-        LocalDateTime arrivalTime = departureTime.plusHours(14);
-        String shortPrefix = java.util.UUID.randomUUID().toString().substring(0, 4).toUpperCase();
-
-        for (int i = 1; i <= flightCount; i++) {
-            String uniqueFlightNumber = "T" + shortPrefix + "-" + i;
-
-            MockFlight mockFlight = MockFlight.builder()
-                    .flightNumber(uniqueFlightNumber)
-                    .airline(airline)
-                    .departureAirport(dep)
-                    .arrivalAirport(arr)
-                    .departureTime(departureTime)
-                    .arrivalTime(arrivalTime)
-                    .build();
-
-            FlightSeatPrice seatPrice = FlightSeatPrice.builder()
-                    .flight(mockFlight)
-                    .seatGrade(SeatGrade.ECONOMY)
-                    .price(initialPrice)
-                    .build();
-            mockFlight.addFlightSeatPrice(seatPrice);
-            mockFlightRepository.save(mockFlight);
-
-            Flight flight = Flight.builder()
-                    .flightId(mockFlight.getId())
-                    .flightNumber(mockFlight.getFlightNumber())
-                    .airlineCode(airline.getAirlineCode())
-                    .departureAirport(dep.getAirportCode())
-                    .arrivalAirport(arr.getAirportCode())
-                    .departureTime(mockFlight.getDepartureTime())
-                    .arrivalTime(mockFlight.getArrivalTime())
-                    .build();
-            flightRepository.save(flight);
-            flights.add(flight);
-        }
+        // 2, 3. 항공사/공항 기초 데이터 확인 후 항공편 500개 생성
+        List<Flight> flights = createFlights(flightCount);
         log.info("[DataSetupService] 항공편 {}개 생성 완료", flightCount);
+
+        BigDecimal initialPrice = new BigDecimal("1000000.00");
 
         // 4. 구독 1만건 생성 (모든 항공편 최소 1명 할당)
         int userIndex = 0;
@@ -221,6 +181,56 @@ public class DataSetupService {
         long endTime = System.currentTimeMillis();
         return String.format("완료: 유저 %d명, 항공편 %d개, 구독 10000건 생성 (소요 시간: %d ms)",
                 userCount, flightCount, (endTime - startTime));
+    }
+
+    /**
+     * 항공사/공항 기초 데이터를 확인(없으면 생성)한 뒤, 지정한 개수만큼 MockFlight + 연동된 Flight 를 생성한다.
+     * seedBulkData() 및 LoadTestService(loadtest 프로필)에서 공용으로 사용하는 헬퍼.
+     */
+    public List<Flight> createFlights(int count) {
+        MockAirline airline = findOrCreateAirline("T_AIR", "테스트항공");
+        MockAirport dep = findOrCreateAirport("ICN", "인천");
+        MockAirport arr = findOrCreateAirport("JFK", "뉴욕");
+
+        List<Flight> flights = new ArrayList<>(count);
+        BigDecimal initialPrice = new BigDecimal("1000000.00");
+        LocalDateTime departureTime = LocalDateTime.now().plusDays(30);
+        LocalDateTime arrivalTime = departureTime.plusHours(14);
+        String shortPrefix = java.util.UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+
+        for (int i = 1; i <= count; i++) {
+            String uniqueFlightNumber = "T" + shortPrefix + "-" + i;
+
+            MockFlight mockFlight = MockFlight.builder()
+                    .flightNumber(uniqueFlightNumber)
+                    .airline(airline)
+                    .departureAirport(dep)
+                    .arrivalAirport(arr)
+                    .departureTime(departureTime)
+                    .arrivalTime(arrivalTime)
+                    .build();
+
+            FlightSeatPrice seatPrice = FlightSeatPrice.builder()
+                    .flight(mockFlight)
+                    .seatGrade(SeatGrade.ECONOMY)
+                    .price(initialPrice)
+                    .build();
+            mockFlight.addFlightSeatPrice(seatPrice);
+            mockFlightRepository.save(mockFlight);
+
+            Flight flight = Flight.builder()
+                    .flightId(mockFlight.getId())
+                    .flightNumber(mockFlight.getFlightNumber())
+                    .airlineCode(airline.getAirlineCode())
+                    .departureAirport(dep.getAirportCode())
+                    .arrivalAirport(arr.getAirportCode())
+                    .departureTime(mockFlight.getDepartureTime())
+                    .arrivalTime(mockFlight.getArrivalTime())
+                    .build();
+            flightRepository.save(flight);
+            flights.add(flight);
+        }
+        return flights;
     }
 
     MockAirline findOrCreateAirline(String code, String name) {
