@@ -25,6 +25,7 @@ public class PipelineMetrics {
     private final Counter taskRejectedCounter;
     private final Timer taskLatencyTimer;
     private final AtomicInteger inFlight = new AtomicInteger(0);
+    // Micrometer 게이지는 supplier를 WeakReference로만 보유하므로, GC로 회수되어 게이지 갱신이 멈추지 않도록 강한 참조를 유지한다.
     private Supplier<Number> queueDepthSupplier;
 
     public PipelineMetrics(MeterRegistry meterRegistry) {
