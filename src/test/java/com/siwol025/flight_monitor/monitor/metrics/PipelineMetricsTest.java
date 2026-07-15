@@ -9,6 +9,8 @@ import static com.siwol025.flight_monitor.monitor.metrics.PipelineMetrics.METRIC
 import static com.siwol025.flight_monitor.monitor.metrics.PipelineMetrics.METRIC_QUEUE_DEPTH;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import io.micrometer.prometheusmetrics.PrometheusConfig;
+import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
@@ -81,5 +83,19 @@ class PipelineMetricsTest {
         queueDepthHolder.set(7);
 
         assertThat(registry.get(METRIC_QUEUE_DEPTH).gauge().value()).isEqualTo(7.0);
+    }
+
+    @Test
+    void PipelineMetrics_지연타이머_Prometheus히스토그램_버킷노출() {
+        PrometheusMeterRegistry registry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
+        PipelineMetrics pipelineMetrics = new PipelineMetrics(registry);
+
+        pipelineMetrics.recordExternalApiLatency(Duration.ofMillis(120));
+        pipelineMetrics.recordTaskLatency(Duration.ofMillis(80));
+
+        String scraped = registry.scrape();
+
+        assertThat(scraped).contains("pipeline_external_api_latency_seconds_bucket");
+        assertThat(scraped).contains("pipeline_task_latency_seconds_bucket");
     }
 }

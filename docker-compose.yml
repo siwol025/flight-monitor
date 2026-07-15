@@ -39,6 +39,8 @@ services:
       - flight-network
     volumes:
       - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/etc/grafana/dashboards
 
   redis:
     image: redis:7.0-alpine

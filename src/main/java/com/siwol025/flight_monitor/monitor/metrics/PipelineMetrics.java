@@ -31,9 +31,13 @@ public class PipelineMetrics {
     public PipelineMetrics(MeterRegistry meterRegistry) {
         this.meterRegistry = meterRegistry;
         this.taskProcessedCounter = Counter.builder(METRIC_TASK_PROCESSED).register(meterRegistry);
-        this.externalApiLatencyTimer = Timer.builder(METRIC_EXTERNAL_API_LATENCY).register(meterRegistry);
+        this.externalApiLatencyTimer = Timer.builder(METRIC_EXTERNAL_API_LATENCY)
+                .publishPercentileHistogram()
+                .register(meterRegistry);
         this.taskRejectedCounter = Counter.builder(METRIC_TASK_REJECTED).register(meterRegistry);
-        this.taskLatencyTimer = Timer.builder(METRIC_TASK_LATENCY).register(meterRegistry);
+        this.taskLatencyTimer = Timer.builder(METRIC_TASK_LATENCY)
+                .publishPercentileHistogram()
+                .register(meterRegistry);
         Gauge.builder(METRIC_TASK_INFLIGHT, inFlight, AtomicInteger::doubleValue).register(meterRegistry);
     }
 
