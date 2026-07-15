@@ -1,5 +1,6 @@
 package com.siwol025.flight_monitor.global.config;
 
+import com.siwol025.flight_monitor.monitor.metrics.PipelineMetrics;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadPoolExecutor;
 import org.springframework.context.annotation.Bean;
@@ -12,7 +13,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 public class AsyncConfig {
 
     @Bean(name = "monitoringTaskExecutor")
-    public Executor monitoringTaskExecutor() {
+    public Executor monitoringTaskExecutor(PipelineMetrics pipelineMetrics) {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(30);
         executor.setMaxPoolSize(100);
@@ -22,7 +23,7 @@ public class AsyncConfig {
         executor.setKeepAliveSeconds(60);
 
         executor.setThreadNamePrefix("MonitorWorker-Async-");
-        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+        executor.setRejectedExecutionHandler(new MetricsAwareCallerRunsPolicy(pipelineMetrics));
 
         executor.setWaitForTasksToCompleteOnShutdown(true);
         executor.setAwaitTerminationSeconds(30);

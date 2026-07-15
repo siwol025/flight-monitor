@@ -106,4 +106,18 @@ class FlightFetcherTest {
         assertThat(meterRegistry.get(PipelineMetrics.METRIC_EXTERNAL_API_LATENCY).timer().count())
                 .isEqualTo(1L);
     }
+
+    @Test
+    void fetchMockFlight_RestClientException발생해도_외부API지연타이머_1회기록() {
+        given(restTemplate.getForObject(anyString(), eq(MockFlightResponse.class)))
+                .willThrow(new RestClientException("Connection timeout"));
+
+        assertThrows(
+                RuntimeException.class,
+                () -> flightFetcher.fetchMockFlight(1L)
+        );
+
+        assertThat(meterRegistry.get(PipelineMetrics.METRIC_EXTERNAL_API_LATENCY).timer().count())
+                .isEqualTo(1L);
+    }
 }

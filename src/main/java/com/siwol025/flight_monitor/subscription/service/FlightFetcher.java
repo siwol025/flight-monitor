@@ -31,10 +31,9 @@ public class FlightFetcher implements FlightDataProvider {
     public MockFlightResponse fetchMockFlight(Long flightId) {
         String url = mockApiUrl + flightId;
 
+        long startNanos = System.nanoTime();
         try {
-            long startNanos = System.nanoTime();
             MockFlightResponse response = restTemplate.getForObject(url, MockFlightResponse.class);
-            pipelineMetrics.recordExternalApiLatency(Duration.ofNanos(System.nanoTime() - startNanos));
 
             if (response == null) {
                 throw new NotFoundException(ErrorTag.FLIGHT_NOT_FOUND);
@@ -43,6 +42,10 @@ public class FlightFetcher implements FlightDataProvider {
         } catch (RestClientException e) {
             log.error("[FlightFetcher] 외부 API 조회 중 오류 발생", e);
             throw new RuntimeException("외부 항공 시스템 상세 조회 중 오류가 발생했습니다. ID: " + flightId, e);
+        } finally {
+            // 성공/실패(RestClientException, null 응답) 모두 실제 외부 API 호출에 소요된 시간을 반영해야
+            // 타이머가 낙관적으로 편향되지 않는다.
+            pipelineMetrics.recordExternalApiLatency(Duration.ofNanos(System.nanoTime() - startNanos));
         }
     }
 }
