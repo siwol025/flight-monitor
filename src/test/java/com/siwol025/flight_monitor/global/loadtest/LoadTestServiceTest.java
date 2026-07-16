@@ -22,6 +22,7 @@ import com.siwol025.flight_monitor.subscription.repository.FlightRepository;
 import com.siwol025.flight_monitor.subscription.repository.SubscriptionRepository;
 import com.siwol025.flight_monitor.user.repository.UserRepository;
 import jakarta.persistence.EntityManager;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
@@ -50,7 +51,7 @@ class LoadTestServiceTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
-    void enqueue_count건_큐에_leftPush됨() throws Exception {
+    void enqueue_count건_큐에_leftPushAll로_배치주입됨() throws Exception {
         // given
         DataSetupService dataSetupService = mock(DataSetupService.class);
         LoadTestService loadTestService = new LoadTestService(dataSetupService, flightRepository, redisTemplate, objectMapper);
@@ -71,10 +72,16 @@ class LoadTestServiceTest {
 
         // then
         assertThat(enqueued).isEqualTo(5);
-        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
-        verify(listOperations, times(5)).leftPush(eq(TASK_QUEUE_KEY), payloadCaptor.capture());
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<String>> chunkCaptor = ArgumentCaptor.forClass(List.class);
+        verify(listOperations, times(1)).leftPushAll(eq(TASK_QUEUE_KEY), chunkCaptor.capture());
 
-        FlightMonitorTaskDto decoded = objectMapper.readValue(payloadCaptor.getAllValues().get(0), FlightMonitorTaskDto.class);
+        List<List<String>> chunks = chunkCaptor.getAllValues();
+        int totalPushed = chunks.stream().mapToInt(List::size).sum();
+        assertThat(totalPushed).isEqualTo(5);
+        assertThat(chunks).allSatisfy(chunk -> assertThat(chunk.size()).isLessThanOrEqualTo(1000));
+
+        FlightMonitorTaskDto decoded = objectMapper.readValue(chunks.get(0).get(0), FlightMonitorTaskDto.class);
         assertThat(decoded.flightId()).isIn(1L, 2L, 3L);
         assertThat(decoded.seatGrade()).isNotNull();
     }
@@ -101,7 +108,51 @@ class LoadTestServiceTest {
 
         // then: 가용 범위(9개) 내로 캡핑됨
         assertThat(enqueued).isEqualTo(9);
-        verify(listOperations, times(9)).leftPush(eq(TASK_QUEUE_KEY), anyString());
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<String>> chunkCaptor = ArgumentCaptor.forClass(List.class);
+        verify(listOperations, times(1)).leftPushAll(eq(TASK_QUEUE_KEY), chunkCaptor.capture());
+
+        List<List<String>> chunks = chunkCaptor.getAllValues();
+        int totalPushed = chunks.stream().mapToInt(List::size).sum();
+        assertThat(totalPushed).isEqualTo(9);
+        assertThat(chunks).allSatisfy(chunk -> assertThat(chunk.size()).isLessThanOrEqualTo(1000));
+    }
+
+    @Test
+    void enqueue_1000건_초과시_leftPushAll이_1000단위로_청크분할됨() throws Exception {
+        // given: 항공편 400개 * 좌석등급 3개 = 1200개 조합 가용 (1000건 초과 청크 분할 검증용)
+        DataSetupService dataSetupService = mock(DataSetupService.class);
+        LoadTestService loadTestService = new LoadTestService(dataSetupService, flightRepository, redisTemplate, objectMapper);
+
+        List<Flight> flights = new ArrayList<>();
+        for (int i = 1; i <= 400; i++) {
+            flights.add(Flight.builder().flightId((long) i).flightNumber("KE" + i).airlineCode("KE")
+                    .departureAirport("ICN").arrivalAirport("JFK").build());
+        }
+        given(flightRepository.findAll()).willReturn(flights);
+        given(redisTemplate.opsForList()).willReturn(listOperations);
+
+        // when: 가용 조합(1200개)보다 적은 1200건 요청 (전부 가용범위 내)
+        int enqueued = loadTestService.enqueueTasks(1200);
+
+        // then
+        assertThat(enqueued).isEqualTo(1200);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<String>> chunkCaptor = ArgumentCaptor.forClass(List.class);
+        verify(listOperations, times(2)).leftPushAll(eq(TASK_QUEUE_KEY), chunkCaptor.capture());
+
+        List<List<String>> chunks = chunkCaptor.getAllValues();
+        assertThat(chunks).allSatisfy(chunk -> assertThat(chunk.size()).isLessThanOrEqualTo(1000));
+        int totalPushed = chunks.stream().mapToInt(List::size).sum();
+        assertThat(totalPushed).isEqualTo(1200);
+
+        for (List<String> chunk : chunks) {
+            for (String payload : chunk) {
+                FlightMonitorTaskDto decoded = objectMapper.readValue(payload, FlightMonitorTaskDto.class);
+                assertThat(decoded.flightId()).isNotNull();
+                assertThat(decoded.seatGrade()).isNotNull();
+            }
+        }
     }
 
     @Test
