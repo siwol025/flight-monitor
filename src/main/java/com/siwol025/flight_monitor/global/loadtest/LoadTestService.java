@@ -28,6 +28,7 @@ import org.springframework.stereotype.Service;
 public class LoadTestService {
 
     private static final String TASK_QUEUE_KEY = "monitoring:task:queue";
+    private static final int CHUNK_SIZE = 1000;
 
     private final DataSetupService dataSetupService;
     private final FlightRepository flightRepository;
@@ -58,8 +59,14 @@ public class LoadTestService {
         }
 
         int actualCount = Math.min(count, combinations.size());
-        for (int i = 0; i < actualCount; i++) {
-            redisTemplate.opsForList().leftPush(TASK_QUEUE_KEY, toJson(combinations.get(i)));
+        List<FlightMonitorTaskDto> targets = combinations.subList(0, actualCount);
+
+        for (int i = 0; i < targets.size(); i += CHUNK_SIZE) {
+            int end = Math.min(i + CHUNK_SIZE, targets.size());
+            List<String> jsonPayloads = targets.subList(i, end).stream()
+                    .map(this::toJson)
+                    .toList();
+            redisTemplate.opsForList().leftPushAll(TASK_QUEUE_KEY, jsonPayloads);
         }
 
         log.info("[LoadTestService] 모니터링 태스크 {}건 큐 주입 완료 (요청: {}건, 가용 조합: {}건)",
