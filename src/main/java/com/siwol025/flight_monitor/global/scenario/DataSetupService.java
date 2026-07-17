@@ -210,12 +210,23 @@ public class DataSetupService {
                     .arrivalTime(arrivalTime)
                     .build();
 
-            FlightSeatPrice seatPrice = FlightSeatPrice.builder()
+            // 세 좌석등급 모두 가격을 시드한다. enqueue가 flightId × 3등급으로 태스크를 만들므로,
+            // 등급별 가격이 없으면 조회 시 SEAT_PRICE_NOT_FOUND로 태스크가 실패해 처리량 측정이 왜곡된다.
+            mockFlight.addFlightSeatPrice(FlightSeatPrice.builder()
                     .flight(mockFlight)
                     .seatGrade(SeatGrade.ECONOMY)
                     .price(initialPrice)
-                    .build();
-            mockFlight.addFlightSeatPrice(seatPrice);
+                    .build());
+            mockFlight.addFlightSeatPrice(FlightSeatPrice.builder()
+                    .flight(mockFlight)
+                    .seatGrade(SeatGrade.BUSINESS)
+                    .price(initialPrice.multiply(BigDecimal.valueOf(3)))
+                    .build());
+            mockFlight.addFlightSeatPrice(FlightSeatPrice.builder()
+                    .flight(mockFlight)
+                    .seatGrade(SeatGrade.FIRST)
+                    .price(initialPrice.multiply(BigDecimal.valueOf(6)))
+                    .build());
             mockFlightRepository.save(mockFlight);
 
             Flight flight = Flight.builder()
