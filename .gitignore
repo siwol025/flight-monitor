@@ -39,3 +39,7 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### baseline 측정 산출물 (로컬 전용 — 커밋 안 함) ###
+docs/superpowers/plans/results/*.png
+docker-compose.override.yml
