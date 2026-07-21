@@ -75,13 +75,6 @@ public class MockFlightService {
     }
 
     public MockFlightResponse readFlight(Long flightId) {
-        try {
-            // 실제 외부 항공사 API 호출 시 발생하는 네트워크 레이턴시 시뮬레이션
-            Thread.sleep(200);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-
         MockFlight mockFlight = mockFlightRepository.findById(flightId)
                 .orElseThrow(() -> new NotFoundException(ErrorTag.FLIGHT_NOT_FOUND));
 
