@@ -4,11 +4,8 @@ import com.siwol025.flight_monitor.global.fallback.domain.FallbackMonitoringTask
 import com.siwol025.flight_monitor.global.fallback.repository.FallbackMonitoringTaskRepository;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.redisson.api.RLock;
-import org.redisson.api.RedissonClient;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,30 +17,17 @@ public class TaskQueueManager {
 
     private final StringRedisTemplate redisTemplate;
     private final FallbackMonitoringTaskRepository fallbackRepository;
-    private final RedissonClient redissonClient;
     private final TaskQueueConsumerManager taskQueueConsumerManager;
 
     private static final String TASK_QUEUE_KEY = "monitoring:task:queue";
     private static final String DB_LOCK_KEY = "db:lock:flight";
-    private static final String DISTRIBUTED_LOCK_KEY = "lock:flight";
-    private static final long WAIT_TIME = 0L;
-    private static final long LEASE_TIME = 50L;
 
     @CircuitBreaker(name = "redisPushCircuitBreaker", fallbackMethod = "fallbackPublishTasks")
     public void publishTasks(List<String> jsonPayloads) {
         if (jsonPayloads == null || jsonPayloads.isEmpty()) {
             return;
         }
-        try {
-            RLock lock = redissonClient.getLock(DISTRIBUTED_LOCK_KEY);
-
-            if (lock.tryLock(WAIT_TIME, LEASE_TIME, TimeUnit.SECONDS)) {
-                log.info("[TaskQueueManager] 분산 락 획득 성공. Redis 큐에 작업을 저장합니다.");
-                redisTemplate.opsForList().leftPushAll(TASK_QUEUE_KEY, jsonPayloads);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        redisTemplate.opsForList().leftPushAll(TASK_QUEUE_KEY, jsonPayloads);
     }
 
     public void fallbackPublishTasks(List<String> jsonPayloads, Throwable t) {

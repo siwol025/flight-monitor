@@ -8,6 +8,7 @@ import com.siwol025.flight_monitor.subscription.service.SubscriptionService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -25,7 +26,12 @@ public class FlightMonitoringProducer {
     private static final int MAX_QUEUE_THRESHOLD = 20000;
     private static final int CHUNK_SIZE = 1000;
 
-    @Scheduled(fixedRate = 300000)
+    @Scheduled(fixedRateString = "${monitor.produce.fixed-rate-ms}")
+    @SchedulerLock(
+            name = "produceMonitoringTasks",
+            lockAtLeastFor = "${monitor.produce.lock-at-least-for}",
+            lockAtMostFor = "${monitor.produce.lock-at-most-for}"
+    )
     public void produceMonitoringTasks() {
         Long currentQueueSize = taskQueueManager.getQueueSizeSafely();
 
