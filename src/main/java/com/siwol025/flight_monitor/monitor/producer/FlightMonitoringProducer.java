@@ -23,6 +23,9 @@ public class FlightMonitoringProducer {
     private final ObjectMapper objectMapper;
     private final TaskQueueManager taskQueueManager;
 
+    // 주기 T와 독립적인 파라미터 — T=60s 전환 시에도 유지. MAX_QUEUE_THRESHOLD는 컨슈머가 밀릴 때
+    // 큐 무한 증가를 막는 부하흘림(load-shed) 상한(주기가 짧아지면 더 자주 점검될 뿐), CHUNK_SIZE는
+    // 발행 배치 크기다. 실용량 기준 정확한 값은 측정 단계에서 재확정한다.
     private static final int MAX_QUEUE_THRESHOLD = 20000;
     private static final int CHUNK_SIZE = 1000;
 
