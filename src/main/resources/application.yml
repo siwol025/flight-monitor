@@ -63,9 +63,12 @@ monitor:
     # 정확한 크기는 부하 측정 단계에서 확정(measurement-gated).
     queue-capacity: 8
   produce:
-    fixed-rate-ms: 300000
-    lock-at-least-for: PT290S
-    lock-at-most-for: PT300S
+    # 모니터링 주기 T=60s (특가 30~90분 소멸 SLA 역산). lock-at-least-for는 주기보다 약간 짧게(주기당 1회 보장),
+    # lock-at-most-for는 리더 노드 사망 시 락 자동 만료 안전망(= 주기). 정합 불변식(lock-at-least-for < fixed-rate-ms,
+    # lock-at-most-for >= lock-at-least-for)은 ProduceSchedulingConsistencyValidator가 기동 시 fail-fast로 가드.
+    fixed-rate-ms: 60000
+    lock-at-least-for: PT55S
+    lock-at-most-for: PT60S
 
 subscription:
   expiry:
