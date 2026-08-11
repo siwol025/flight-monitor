@@ -51,8 +51,17 @@ spring:
 monitor:
   worker:
     count: 3
-  rate-limiter:
-    permits-per-second: 90.0
+  backpressure:
+    # in-flight 세마포어 permit 총량이자 monitoringTaskExecutor의 max-pool-size 소스(단일 진실 공급원).
+    # 세마포어와 풀 max가 이 한 값으로 정렬됨 — MonitoringExecutorAlignmentTest가 가드.
+    max-in-flight: 100
+  executor:
+    # monitoringTaskExecutor 코어 스레드 수. 정확한 크기는 부하 측정 단계에서 확정(measurement-gated).
+    core-pool-size: 30
+    # 큐 용량: worker.count(현재 3) 이상이어야 processTask.finally의 permit 반납이 풀 스레드가 idle로 복귀하기
+    # 직전에 일어나는 레이스를 흡수한다. 동시에 부하 시 풀이 max 쪽으로 성장하도록 충분히 작게 유지한다.
+    # 정확한 크기는 부하 측정 단계에서 확정(measurement-gated).
+    queue-capacity: 8
   produce:
     fixed-rate-ms: 300000
     lock-at-least-for: PT290S

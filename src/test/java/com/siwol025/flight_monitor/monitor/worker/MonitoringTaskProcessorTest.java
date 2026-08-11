@@ -33,6 +33,9 @@ class MonitoringTaskProcessorTest {
     @Mock
     private PipelineMetrics pipelineMetrics;
 
+    @Mock
+    private InFlightBackpressure backpressure;
+
     @InjectMocks
     private MonitoringTaskProcessor processor;
 
@@ -78,7 +81,8 @@ class MonitoringTaskProcessorTest {
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
         PipelineMetrics pipelineMetrics = new PipelineMetrics(registry);
         MonitoringTaskProcessor instrumentedProcessor =
-                new MonitoringTaskProcessor(realObjectMapper, mockedPriceMonitorService, pipelineMetrics);
+                new MonitoringTaskProcessor(realObjectMapper, mockedPriceMonitorService, pipelineMetrics,
+                        mock(InFlightBackpressure.class));
 
         String json = "{\"flightId\":42,\"seatGrade\":\"ECONOMY\"}";
 
@@ -95,5 +99,36 @@ class MonitoringTaskProcessorTest {
         assertThat(registry.get(PipelineMetrics.METRIC_TASK_PROCESSED).counter().count()).isEqualTo(1.0);
         assertThat(registry.get(PipelineMetrics.METRIC_TASK_LATENCY).timer().count()).isEqualTo(1L);
         assertThat(registry.get(PipelineMetrics.METRIC_TASK_INFLIGHT).gauge().value()).isEqualTo(0.0);
+    }
+
+    @Test
+    void processTask_정상처리완료시_백프레셔_permit_반환됨() throws Exception {
+        // given
+        FlightMonitorTaskDto expectedDto = new FlightMonitorTaskDto(42L, SeatGrade.ECONOMY);
+        String json = "{\"flightId\":42,\"seatGrade\":\"ECONOMY\"}";
+
+        org.mockito.BDDMockito.given(objectMapper.readValue(json, FlightMonitorTaskDto.class))
+                .willReturn(expectedDto);
+
+        // when
+        processor.processTask(json);
+
+        // then
+        verify(backpressure).release();
+    }
+
+    @Test
+    void processTask_처리중_예외발생해도_백프레셔_permit_반환됨() throws Exception {
+        // given
+        String invalidJson = "not-valid-json";
+
+        org.mockito.BDDMockito.given(objectMapper.readValue(invalidJson, FlightMonitorTaskDto.class))
+                .willThrow(new com.fasterxml.jackson.core.JsonParseException(null, "parse error"));
+
+        // when
+        processor.processTask(invalidJson);
+
+        // then
+        verify(backpressure).release();
     }
 }
