@@ -7,7 +7,6 @@ import com.siwol025.flight_monitor.subscription.dto.FlightMonitorTaskDto;
 import java.time.Duration;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -18,15 +17,16 @@ public class MonitoringTaskProcessor {
     private final ObjectMapper objectMapper;
     private final PriceMonitorService priceMonitorService;
     private final PipelineMetrics pipelineMetrics;
+    private final InFlightBackpressure backpressure;
 
     public MonitoringTaskProcessor(ObjectMapper objectMapper, PriceMonitorService priceMonitorService,
-                                    PipelineMetrics pipelineMetrics) {
+                                    PipelineMetrics pipelineMetrics, InFlightBackpressure backpressure) {
         this.objectMapper = objectMapper;
         this.priceMonitorService = priceMonitorService;
         this.pipelineMetrics = pipelineMetrics;
+        this.backpressure = backpressure;
     }
 
-    @Async("monitoringTaskExecutor")
     public void processTask(String jsonPayload) {
         long startNanos = System.nanoTime();
         pipelineMetrics.incrementInFlight();
@@ -39,6 +39,8 @@ public class MonitoringTaskProcessor {
         } finally {
             pipelineMetrics.decrementInFlight();
             pipelineMetrics.recordTaskLatency(Duration.ofNanos(System.nanoTime() - startNanos));
+            // 워커(폴러 스레드)가 디스패치 전 획득한 permit을 비동기 처리 완료 시점에 반납한다(스레드 경계를 넘는 acquire/release 대칭).
+            backpressure.release();
         }
     }
 }
