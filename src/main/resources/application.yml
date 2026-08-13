@@ -65,6 +65,12 @@ monitor:
     # 지탱하도록 사이징해야 할 목표 동시성이기도 하다. 세마포어가 in-flight 상한의 단일 권위다.
     # 참고: monitor.worker.count=3 폴러로 이 780 permit을 채울 수 있는지는 부하 하에서 검증 필요(측정-게이팅).
     max-in-flight: 780
+  http:
+    # 외부 API 커넥션 풀 최대 커넥션 수(max-total = max-per-route). 상향된 in-flight 세마포어 permit을
+    # 실제로 받쳐주려면 max-in-flight 이상이어야 하며, 미만이면 풀이 새 병목이 된다.
+    # 정합 불변식(max-connections >= max-in-flight)은 RestTemplateConfig가 기동 시 fail-fast로 가드.
+    # 값은 max-in-flight와 함께 느린-API 재측정에서 확정(측정-게이팅).
+    max-connections: 780
   produce:
     # 모니터링 주기 T=60s (특가 30~90분 소멸 SLA 역산). lock-at-least-for는 주기보다 약간 짧게(주기당 1회 보장),
     # lock-at-most-for는 리더 노드 사망 시 락 자동 만료 안전망(= 주기). 정합 불변식(lock-at-least-for < fixed-rate-ms,
