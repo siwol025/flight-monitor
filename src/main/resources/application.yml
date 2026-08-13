@@ -51,6 +51,11 @@ spring:
 monitor:
   worker:
     count: 3
+  consumer:
+    # 블로킹 BRPOP 타임아웃(초). redisPopCircuitBreaker.slowCallDurationThreshold(5s) 보다 엄격히 작아야 한다
+    # — 그래야 큐가 비었을 때 정상적으로 타임아웃까지 블로킹된 BRPOP 이 "느린 호출"로 오분류되지 않는다.
+    # RedisPopCircuitBreakerConsistencyValidator 가 기동 시 fail-fast 로 가드.
+    block-pop-timeout-seconds: 3
   backpressure:
     # in-flight 세마포어 permit 총량이자 monitoringTaskExecutor의 max-pool-size 소스(단일 진실 공급원).
     # 세마포어와 풀 max가 이 한 값으로 정렬됨 — MonitoringExecutorAlignmentTest가 가드.
@@ -125,8 +130,10 @@ resilience4j:
         failureRateThreshold: 30
         # 느린 요청 비율이 40% 넘으면 OPEN
         slowCallRateThreshold: 40
-        # 3초 이상 걸리면 느린 요청으로 판단
-        slowCallDurationThreshold: 3s
+        # 느린 요청 판정 임계. block-pop 타임아웃(3s)보다 커야 한다 — 정상적으로 서버 타임아웃까지 블로킹된
+        # BRPOP 을 느린 호출로 세지 않도록(서버 타임아웃을 넘어선 실제 클라이언트 측 정체만 서킷을 연다).
+        # RedisPopCircuitBreakerConsistencyValidator 가 가드.
+        slowCallDurationThreshold: 5s
         # OPEN 상태가 되면 5초 동안 Redis 접근 차단
         waitDurationInOpenState: 5s
         # HALF_OPEN 상태에서 5건만 테스트 요청 허용

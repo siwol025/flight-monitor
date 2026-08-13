@@ -26,6 +26,7 @@ public class FlightMonitoringWorker {
     private final InFlightBackpressure backpressure;
     private final Executor executor;
     private final int workerCount;
+    private final long blockPopTimeoutSeconds;
 
     private volatile boolean isRunning = true;
     private final List<Thread> pollerThreads = new ArrayList<>();
@@ -33,12 +34,14 @@ public class FlightMonitoringWorker {
     public FlightMonitoringWorker(TaskQueueConsumerManager queueManager, MonitoringTaskProcessor taskProcessor,
                                   InFlightBackpressure backpressure,
                                   @Qualifier("monitoringTaskExecutor") Executor executor,
-                                  @Value("${monitor.worker.count:3}") int workerCount) {
+                                  @Value("${monitor.worker.count:3}") int workerCount,
+                                  @Value("${monitor.consumer.block-pop-timeout-seconds:3}") long blockPopTimeoutSeconds) {
         this.queueManager = queueManager;
         this.taskProcessor = taskProcessor;
         this.backpressure = backpressure;
         this.executor = executor;
         this.workerCount = workerCount;
+        this.blockPopTimeoutSeconds = blockPopTimeoutSeconds;
     }
 
     @PostConstruct
@@ -62,7 +65,7 @@ public class FlightMonitoringWorker {
             }
 
             try {
-                String payload = queueManager.blockAndPopTask(3);
+                String payload = queueManager.blockAndPopTask(blockPopTimeoutSeconds);
 
                 if (payload == null && queueManager.hasPendingFallbackTask()) {
                     payload = queueManager.pollFallbackQueue();
