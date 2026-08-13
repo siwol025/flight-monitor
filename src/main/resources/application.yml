@@ -57,16 +57,9 @@ monitor:
     # RedisPopCircuitBreakerConsistencyValidator 가 기동 시 fail-fast 로 가드.
     block-pop-timeout-seconds: 3
   backpressure:
-    # in-flight 세마포어 permit 총량이자 monitoringTaskExecutor의 max-pool-size 소스(단일 진실 공급원).
-    # 세마포어와 풀 max가 이 한 값으로 정렬됨 — MonitoringExecutorAlignmentTest가 가드.
+    # in-flight 상한의 단일 권위. monitoringTaskExecutor는 가상 스레드 per-task executor(풀 max/큐/거부 없음)이므로
+    # 동시 처리 수는 오직 이 세마포어 permit 총량이 결정한다.
     max-in-flight: 100
-  executor:
-    # monitoringTaskExecutor 코어 스레드 수. 정확한 크기는 부하 측정 단계에서 확정(measurement-gated).
-    core-pool-size: 30
-    # 큐 용량: worker.count(현재 3) 이상이어야 processTask.finally의 permit 반납이 풀 스레드가 idle로 복귀하기
-    # 직전에 일어나는 레이스를 흡수한다. 동시에 부하 시 풀이 max 쪽으로 성장하도록 충분히 작게 유지한다.
-    # 정확한 크기는 부하 측정 단계에서 확정(measurement-gated).
-    queue-capacity: 8
   produce:
     # 모니터링 주기 T=60s (특가 30~90분 소멸 SLA 역산). lock-at-least-for는 주기보다 약간 짧게(주기당 1회 보장),
     # lock-at-most-for는 리더 노드 사망 시 락 자동 만료 안전망(= 주기). 정합 불변식(lock-at-least-for < fixed-rate-ms,
