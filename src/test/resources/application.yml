@@ -12,7 +12,16 @@ spring:
     type: none
 
 monitor:
+  consumer:
+    # block-pop 타임아웃은 redisPopCircuitBreaker.slowCallDurationThreshold(5s)보다 엄격히 작아야 한다.
+    block-pop-timeout-seconds: 3
   produce:
     fixed-rate-ms: 60000
     lock-at-least-for: PT55S
     lock-at-most-for: PT60S
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      redisPopCircuitBreaker:
+        slowCallDurationThreshold: 5s

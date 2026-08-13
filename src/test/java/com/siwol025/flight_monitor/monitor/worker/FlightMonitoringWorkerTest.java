@@ -59,7 +59,7 @@ class FlightMonitoringWorkerTest {
                 .willReturn(null);
         given(queueManager.hasPendingFallbackTask()).willReturn(false);
 
-        worker = new FlightMonitoringWorker(queueManager, taskProcessor, backpressure, SYNC_EXECUTOR, 1);
+        worker = new FlightMonitoringWorker(queueManager, taskProcessor, backpressure, SYNC_EXECUTOR, 1, 3);
 
         // when
         worker.startWorkers();
@@ -76,7 +76,7 @@ class FlightMonitoringWorkerTest {
                 .willReturn(null);
         given(queueManager.hasPendingFallbackTask()).willReturn(false);
 
-        worker = new FlightMonitoringWorker(queueManager, taskProcessor, backpressure, SYNC_EXECUTOR, 1);
+        worker = new FlightMonitoringWorker(queueManager, taskProcessor, backpressure, SYNC_EXECUTOR, 1, 3);
 
         // when
         worker.startWorkers();
@@ -94,7 +94,7 @@ class FlightMonitoringWorkerTest {
 
         given(queueManager.blockAndPopTask(anyLong())).willReturn("task-payload");
 
-        worker = new FlightMonitoringWorker(queueManager, taskProcessor, realBackpressure, SYNC_EXECUTOR, 1);
+        worker = new FlightMonitoringWorker(queueManager, taskProcessor, realBackpressure, SYNC_EXECUTOR, 1, 3);
 
         // when
         worker.startWorkers();
@@ -119,7 +119,7 @@ class FlightMonitoringWorkerTest {
             throw new RejectedExecutionException("submit rejected");
         };
 
-        worker = new FlightMonitoringWorker(queueManager, taskProcessor, backpressure, rejectingExecutor, 1);
+        worker = new FlightMonitoringWorker(queueManager, taskProcessor, backpressure, rejectingExecutor, 1, 3);
 
         // when
         worker.startWorkers();
@@ -134,7 +134,7 @@ class FlightMonitoringWorkerTest {
         given(queueManager.blockAndPopTask(anyLong()))
                 .willThrow(new RuntimeException("pop failed"));
 
-        worker = new FlightMonitoringWorker(queueManager, taskProcessor, backpressure, SYNC_EXECUTOR, 1);
+        worker = new FlightMonitoringWorker(queueManager, taskProcessor, backpressure, SYNC_EXECUTOR, 1, 3);
 
         // when
         worker.startWorkers();
@@ -148,7 +148,7 @@ class FlightMonitoringWorkerTest {
         // given
         given(queueManager.blockAndPopTask(3)).willReturn(null);
 
-        worker = new FlightMonitoringWorker(queueManager, taskProcessor, backpressure, SYNC_EXECUTOR, 1);
+        worker = new FlightMonitoringWorker(queueManager, taskProcessor, backpressure, SYNC_EXECUTOR, 1, 3);
         worker.startWorkers();
 
         // when & then
@@ -183,7 +183,7 @@ class FlightMonitoringWorkerTest {
         });
         lenient().when(queueManager.hasPendingFallbackTask()).thenReturn(false);
 
-        worker = new FlightMonitoringWorker(queueManager, taskProcessor, backpressure, SYNC_EXECUTOR, workerCount);
+        worker = new FlightMonitoringWorker(queueManager, taskProcessor, backpressure, SYNC_EXECUTOR, workerCount, 3);
 
         // when
         worker.startWorkers();
@@ -204,7 +204,7 @@ class FlightMonitoringWorkerTest {
         InFlightBackpressure zeroPermitBackpressure = new InFlightBackpressure(0);
 
         // queueManager/taskProcessor는 acquire()를 넘지 못하므로 절대 호출되지 않음 → 스텁하지 않음(불필요 스텁 방지).
-        worker = new FlightMonitoringWorker(queueManager, taskProcessor, zeroPermitBackpressure, SYNC_EXECUTOR, workerCount);
+        worker = new FlightMonitoringWorker(queueManager, taskProcessor, zeroPermitBackpressure, SYNC_EXECUTOR, workerCount, 3);
 
         // 이전 테스트에서 아직 소멸 중일 수 있는 잔존 폴러 스레드를 식별(identity 기준)해 제외한다.
         Set<Thread> preExisting = new HashSet<>();
