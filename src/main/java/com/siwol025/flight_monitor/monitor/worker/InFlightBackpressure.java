@@ -19,8 +19,8 @@ public class InFlightBackpressure {
     private final Semaphore semaphore;
     private final int maxInFlight;
 
-    // 세마포어 permit 총량 — monitoringTaskExecutor의 max-pool-size와 동일 소스(단일 진실 공급원).
-    // 정렬 불변식은 MonitoringExecutorAlignmentTest가 가드하므로 한쪽 기본값만 바꾸지 말 것.
+    // 세마포어 permit 총량 — in-flight 상한의 단일 권위.
+    // monitoringTaskExecutor는 가상 스레드 per-task executor(풀 max/큐/거부 없음)라 정렬할 풀 크기가 없다.
     public InFlightBackpressure(@Value("${monitor.backpressure.max-in-flight:100}") int maxInFlight) {
         this.maxInFlight = maxInFlight;
         this.semaphore = new Semaphore(maxInFlight);
