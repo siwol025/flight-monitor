@@ -47,6 +47,19 @@ spring:
               - email
               - profile
 
+  # Redis(Lettuce) 커넥션 풀 — 블로킹 BRPOP은 전용 커넥션을 요구한다. 풀이 없으면 pop마다 커넥션을
+  # 신규 생성/폐기해 고처리량에서 TIME_WAIT 누적으로 에페메랄 포트가 고갈된다(실측: pop ~560/s에서
+  # ~50s 만에 포트 고갈 → 파이프라인 스톨). max-active는 동시 블로킹 폴러 수(monitor.worker.count)에
+  # push/shedlock/queue-size 등 비블로킹 사용분 헤드룸을 더해 사이징한다.
+  data:
+    redis:
+      lettuce:
+        pool:
+          enabled: true
+          max-active: 16
+          max-idle: 16
+          min-idle: 4
+
 # 커스텀 비즈니스 설정
 monitor:
   worker:

@@ -44,6 +44,8 @@ dependencies {
 	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
 
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+	// Lettuce 커넥션 풀 — 블로킹 BRPOP 전용 커넥션 재사용(pop마다 커넥션 신규 생성 방지).
+	implementation 'org.apache.commons:commons-pool2'
 	implementation 'com.fasterxml.jackson.core:jackson-databind'
 	implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 	implementation 'org.springframework.boot:spring-boot-starter-mail'
