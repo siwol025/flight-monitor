@@ -49,7 +49,7 @@ public class RestTemplateConfig {
      */
     @Bean
     public PoolingHttpClientConnectionManager monitoringHttpConnectionManager(
-            @Value("${monitor.http.max-connections:780}") int maxConnections,
+            @Value("${monitor.http.max-connections:100}") int maxConnections,
             @Value("${monitor.backpressure.max-in-flight:100}") int maxInFlight) {
         if (maxConnections < maxInFlight) {
             throw new IllegalStateException(
