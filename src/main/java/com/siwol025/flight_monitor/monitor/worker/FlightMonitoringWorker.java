@@ -1,5 +1,6 @@
 package com.siwol025.flight_monitor.monitor.worker;
 
+import com.siwol025.flight_monitor.global.exception.custom.AcquireInterruptedException;
 import com.siwol025.flight_monitor.monitor.utils.TaskQueueConsumerManager;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;

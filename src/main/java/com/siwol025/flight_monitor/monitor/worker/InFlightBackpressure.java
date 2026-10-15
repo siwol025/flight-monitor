@@ -1,5 +1,6 @@
 package com.siwol025.flight_monitor.monitor.worker;
 
+import com.siwol025.flight_monitor.global.exception.custom.AcquireInterruptedException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;

@@ -1,4 +1,4 @@
-package com.siwol025.flight_monitor.monitor.worker;
+package com.siwol025.flight_monitor.global.exception.custom;
 
 /**
  * permit 획득 대기 중 인터럽트가 발생했음을 알리는 언체크 예외.
