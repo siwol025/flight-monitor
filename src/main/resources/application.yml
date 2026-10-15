@@ -104,8 +104,6 @@ subscription:
 
 notification:
   mode: kafka
-  cooldown:
-    hours: 24
 
 kafka:
   topic:

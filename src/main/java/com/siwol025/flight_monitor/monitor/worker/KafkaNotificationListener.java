@@ -3,7 +3,6 @@ package com.siwol025.flight_monitor.monitor.worker;
 import com.siwol025.flight_monitor.monitor.dto.EmailSendTaskDto;
 import com.siwol025.flight_monitor.monitor.dto.PriceDropNotificationDto;
 import com.siwol025.flight_monitor.monitor.service.AlertConditionChecker;
-import com.siwol025.flight_monitor.monitor.service.NotificationCooldownManager;
 import com.siwol025.flight_monitor.subscription.dto.SubscriberWithConditionDto;
 import com.siwol025.flight_monitor.subscription.service.SubscriptionService;
 import java.util.List;
@@ -26,7 +25,6 @@ public class KafkaNotificationListener {
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final NotificationContentFormatter formatter;
     private final AlertConditionChecker alertConditionChecker;
-    private final NotificationCooldownManager cooldownManager;
 
     private static final String OUT_TOPIC = "email-send-tasks";
 
@@ -46,15 +44,16 @@ public class KafkaNotificationListener {
                 if (!alertConditionChecker.shouldNotify(eventDto.oldPrice(), eventDto.newPrice(), subscriber.targetPrice(), subscriber.dropThresholdPercent())) {
                     continue;
                 }
-                if (!cooldownManager.tryAcquire(subscriber.email(), eventDto.flightId(), eventDto.seatGrade())) {
-                    log.debug("[KafkaNotificationListener] 쿨다운 중 — 발송 생략: email={}, flightId={}, seatGrade={}", subscriber.email(), eventDto.flightId(), eventDto.seatGrade());
-                    continue;
-                }
                 EmailSendTaskDto taskDto = new EmailSendTaskDto(subscriber.email(), subject, content);
                 try {
-                    kafkaTemplate.send(OUT_TOPIC, eventDto.flightNumber() + subscriber.email(), taskDto);
+                    // send()는 비동기다. 브로커 쓰기 실패는 future로 늦게 도착하므로 그 경로의 실패도 놓치지 않고 남긴다.
+                    kafkaTemplate.send(OUT_TOPIC, eventDto.flightNumber() + subscriber.email(), taskDto)
+                            .whenComplete((result, ex) -> {
+                                if (ex != null) {
+                                    log.error("[KafkaNotificationListener] 이메일 작업 비동기 전송 실패: {}", subscriber.email(), ex);
+                                }
+                            });
                 } catch (Exception e) {
-                    cooldownManager.release(subscriber.email(), eventDto.flightId(), eventDto.seatGrade());
                     log.error("[KafkaNotificationListener] 특정 유저 이메일 작업 전송 실패: {}", subscriber.email(), e);
                 }
             }
