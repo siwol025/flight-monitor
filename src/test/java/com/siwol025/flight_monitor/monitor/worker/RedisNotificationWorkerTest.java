@@ -60,7 +60,7 @@ class RedisNotificationWorkerTest {
         given(redisTemplate.opsForList()).willReturn(listOperations);
         given(listOperations.rightPop(any())).willReturn(dtoJson);
         given(objectMapper.readValue(anyString(), any(Class.class))).willReturn(dto);
-        given(subscriptionService.getSubscribers(dto.flightId()))
+        given(subscriptionService.getSubscribers(dto.flightId(), SeatGrade.ECONOMY))
                 .willReturn(List.of(new UserEmailDto("user@test.com")));
         given(formatter.createSubject(any())).willReturn("테스트 제목");
         given(formatter.createContent(any())).willReturn("테스트 본문");

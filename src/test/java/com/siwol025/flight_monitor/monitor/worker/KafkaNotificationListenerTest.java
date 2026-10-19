@@ -77,7 +77,7 @@ class KafkaNotificationListenerTest {
                 new SubscriberWithConditionDto("user2@test.com", null, null)
         );
 
-        given(subscriptionService.getSubscribersWithCondition(flightId)).willReturn(subscribers);
+        given(subscriptionService.getSubscribersWithCondition(flightId, SeatGrade.ECONOMY)).willReturn(subscribers);
         given(alertConditionChecker.shouldNotify(any(), any(), any(), any())).willReturn(true);
 
         // when
@@ -101,7 +101,7 @@ class KafkaNotificationListenerTest {
                 .detectedAt(LocalDateTime.now())
                 .build();
 
-        given(subscriptionService.getSubscribersWithCondition(flightId))
+        given(subscriptionService.getSubscribersWithCondition(flightId, SeatGrade.ECONOMY))
                 .willReturn(List.of(new SubscriberWithConditionDto("subscriber@test.com", null, null)));
         given(formatter.createSubject(any())).willReturn("테스트 제목");
         given(formatter.createContent(any())).willReturn("테스트 본문");
@@ -128,7 +128,7 @@ class KafkaNotificationListenerTest {
                 .detectedAt(LocalDateTime.now())
                 .build();
 
-        given(subscriptionService.getSubscribersWithCondition(flightId))
+        given(subscriptionService.getSubscribersWithCondition(flightId, SeatGrade.ECONOMY))
                 .willReturn(List.of());
 
         // when
@@ -155,7 +155,7 @@ class KafkaNotificationListenerTest {
                 new SubscriberWithConditionDto("a@test.com", null, null)
         );
 
-        given(subscriptionService.getSubscribersWithCondition(flightId)).willReturn(subscribers);
+        given(subscriptionService.getSubscribersWithCondition(flightId, SeatGrade.ECONOMY)).willReturn(subscribers);
         given(alertConditionChecker.shouldNotify(eq(OLD_PRICE), eq(NEW_PRICE), isNull(), isNull())).willReturn(true);
 
         // when
@@ -184,7 +184,7 @@ class KafkaNotificationListenerTest {
                 new SubscriberWithConditionDto("b@test.com", targetPrice, null)
         );
 
-        given(subscriptionService.getSubscribersWithCondition(flightId)).willReturn(subscribers);
+        given(subscriptionService.getSubscribersWithCondition(flightId, SeatGrade.ECONOMY)).willReturn(subscribers);
         given(alertConditionChecker.shouldNotify(eq(OLD_PRICE), eq(NEW_PRICE), eq(targetPrice), isNull())).willReturn(true);
 
         // when
@@ -213,7 +213,7 @@ class KafkaNotificationListenerTest {
                 new SubscriberWithConditionDto("c@test.com", targetPrice, null)
         );
 
-        given(subscriptionService.getSubscribersWithCondition(flightId)).willReturn(subscribers);
+        given(subscriptionService.getSubscribersWithCondition(flightId, SeatGrade.ECONOMY)).willReturn(subscribers);
         given(alertConditionChecker.shouldNotify(eq(OLD_PRICE), eq(NEW_PRICE), eq(targetPrice), isNull())).willReturn(false);
 
         // when
@@ -241,7 +241,7 @@ class KafkaNotificationListenerTest {
                 new SubscriberWithConditionDto("d@test.com", null, threshold)
         );
 
-        given(subscriptionService.getSubscribersWithCondition(flightId)).willReturn(subscribers);
+        given(subscriptionService.getSubscribersWithCondition(flightId, SeatGrade.ECONOMY)).willReturn(subscribers);
         given(alertConditionChecker.shouldNotify(eq(OLD_PRICE), eq(NEW_PRICE), isNull(), eq(threshold))).willReturn(true);
 
         // when
@@ -269,7 +269,7 @@ class KafkaNotificationListenerTest {
                 new SubscriberWithConditionDto("nocondition@test.com", null, null)
         );
 
-        given(subscriptionService.getSubscribersWithCondition(flightId)).willReturn(subscribers);
+        given(subscriptionService.getSubscribersWithCondition(flightId, SeatGrade.ECONOMY)).willReturn(subscribers);
         given(alertConditionChecker.shouldNotify(any(), any(), any(), any())).willReturn(false);
 
         // when
@@ -284,7 +284,7 @@ class KafkaNotificationListenerTest {
         // given
         Long flightId = 15L;
         PriceDropNotificationDto eventDto = priceDropEvent(flightId, "KE015");
-        given(subscriptionService.getSubscribersWithCondition(flightId)).willReturn(List.of(
+        given(subscriptionService.getSubscribersWithCondition(flightId, SeatGrade.ECONOMY)).willReturn(List.of(
                 new SubscriberWithConditionDto("fail@test.com", null, null),
                 new SubscriberWithConditionDto("ok@test.com", null, null)));
         given(alertConditionChecker.shouldNotify(any(), any(), any(), any())).willReturn(true);
@@ -317,7 +317,7 @@ class KafkaNotificationListenerTest {
                 new SubscriberWithConditionDto("e@test.com", null, threshold)
         );
 
-        given(subscriptionService.getSubscribersWithCondition(flightId)).willReturn(subscribers);
+        given(subscriptionService.getSubscribersWithCondition(flightId, SeatGrade.ECONOMY)).willReturn(subscribers);
         given(alertConditionChecker.shouldNotify(eq(OLD_PRICE), eq(NEW_PRICE), isNull(), eq(threshold))).willReturn(false);
 
         // when
@@ -332,7 +332,7 @@ class KafkaNotificationListenerTest {
         // given: 시간 기반 쿨다운 없이, 조건을 만족하는 하락 이벤트는 매번 알린다
         Long flightId = 30L;
         PriceDropNotificationDto eventDto = priceDropEvent(flightId, "KE030");
-        given(subscriptionService.getSubscribersWithCondition(flightId))
+        given(subscriptionService.getSubscribersWithCondition(flightId, SeatGrade.ECONOMY))
                 .willReturn(List.of(new SubscriberWithConditionDto("repeat@test.com", null, null)));
         given(alertConditionChecker.shouldNotify(any(), any(), any(), any())).willReturn(true);
 
@@ -343,6 +343,30 @@ class KafkaNotificationListenerTest {
         // then
         then(kafkaTemplate).should(times(2))
                 .send(eq("email-send-tasks"), eq("KE030repeat@test.com"), any(EmailSendTaskDto.class));
+    }
+
+    @Test
+    void processNotification_이벤트좌석등급으로_구독자조회됨() {
+        // given: 비즈니스 좌석 가격 하락 이벤트
+        Long flightId = 40L;
+        PriceDropNotificationDto eventDto = PriceDropNotificationDto.builder()
+                .flightId(flightId)
+                .flightNumber("KE040")
+                .seatGrade(SeatGrade.BUSINESS)
+                .oldPrice(OLD_PRICE)
+                .newPrice(NEW_PRICE)
+                .detectedAt(LocalDateTime.now())
+                .build();
+        given(subscriptionService.getSubscribersWithCondition(flightId, SeatGrade.BUSINESS))
+                .willReturn(List.of(new SubscriberWithConditionDto("business@test.com", null, null)));
+        given(alertConditionChecker.shouldNotify(any(), any(), any(), any())).willReturn(true);
+
+        // when
+        kafkaNotificationListener.processNotification(eventDto);
+
+        // then: 비즈니스 구독자에게만 발송된다
+        then(kafkaTemplate).should()
+                .send(eq("email-send-tasks"), eq("KE040business@test.com"), any(EmailSendTaskDto.class));
     }
 
     private PriceDropNotificationDto priceDropEvent(Long flightId, String flightNumber) {

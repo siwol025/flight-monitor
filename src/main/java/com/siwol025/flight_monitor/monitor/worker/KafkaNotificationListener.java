@@ -31,7 +31,7 @@ public class KafkaNotificationListener {
     @KafkaListener(topics = "flight-price-drop-events", groupId = "notification-fanout-group", concurrency = "3")
     public void processNotification(PriceDropNotificationDto eventDto) {
         try {
-            List<SubscriberWithConditionDto> subscribers = subscriptionService.getSubscribersWithCondition(eventDto.flightId());
+            List<SubscriberWithConditionDto> subscribers = subscriptionService.getSubscribersWithCondition(eventDto.flightId(), eventDto.seatGrade());
 
             if (subscribers.isEmpty()) {
                 return;

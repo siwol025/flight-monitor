@@ -11,6 +11,7 @@ import com.siwol025.flight_monitor.subscription.dto.SubscriberWithConditionDto;
 import com.siwol025.flight_monitor.user.domain.Provider;
 import com.siwol025.flight_monitor.user.domain.Role;
 import com.siwol025.flight_monitor.user.domain.User;
+import com.siwol025.flight_monitor.user.dto.UserEmailDto;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -96,7 +97,7 @@ class SubscriptionRepositoryTest {
         em.flush(); em.clear();
 
         List<SubscriberWithConditionDto> result =
-                subscriptionRepository.findSubscribersWithConditionByFlightId(3001L, SubscriptionStatus.ACTIVE);
+                subscriptionRepository.findSubscribersWithCondition(3001L, SeatGrade.ECONOMY, SubscriptionStatus.ACTIVE);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).email()).isEqualTo("cond@example.com");
@@ -120,7 +121,7 @@ class SubscriptionRepositoryTest {
         em.flush(); em.clear();
 
         List<SubscriberWithConditionDto> result =
-                subscriptionRepository.findSubscribersWithConditionByFlightId(3002L, SubscriptionStatus.ACTIVE);
+                subscriptionRepository.findSubscribersWithCondition(3002L, SeatGrade.ECONOMY, SubscriptionStatus.ACTIVE);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).email()).isEqualTo("nocond@example.com");
@@ -146,9 +147,80 @@ class SubscriptionRepositoryTest {
         em.flush(); em.clear();
 
         List<SubscriberWithConditionDto> result =
-                subscriptionRepository.findSubscribersWithConditionByFlightId(3003L, SubscriptionStatus.ACTIVE);
+                subscriptionRepository.findSubscribersWithCondition(3003L, SeatGrade.ECONOMY, SubscriptionStatus.ACTIVE);
 
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void findSubscribersWithCondition_다른좌석등급_구독자_제외됨() {
+        // given: 같은 항공편에 이코노미 구독자와 비즈니스 구독자가 있다
+        User economyUser = em.persist(User.builder()
+                .email("economy@example.com").name("이코노미유저")
+                .provider(Provider.GOOGLE).providerId("google-eco-1").role(Role.USER).build());
+        User businessUser = em.persist(User.builder()
+                .email("business@example.com").name("비즈니스유저")
+                .provider(Provider.GOOGLE).providerId("google-biz-1").role(Role.USER).build());
+        Flight flight = em.persist(Flight.builder()
+                .flightId(3004L).flightNumber("KE304").airlineCode("KE")
+                .departureAirport("ICN").arrivalAirport("CDG")
+                .departureTime(LocalDateTime.now().plusDays(4))
+                .arrivalTime(LocalDateTime.now().plusDays(4).plusHours(13)).build());
+        em.persist(Subscription.builder()
+                .user(economyUser).flight(flight).seatGrade(SeatGrade.ECONOMY)
+                .price(BigDecimal.valueOf(300000)).build());
+        em.persist(Subscription.builder()
+                .user(businessUser).flight(flight).seatGrade(SeatGrade.BUSINESS)
+                .price(BigDecimal.valueOf(1500000))
+                .targetPrice(BigDecimal.valueOf(1000000)).build());
+        em.flush(); em.clear();
+
+        // when: 이코노미 가격 하락 이벤트의 구독자 조회
+        List<SubscriberWithConditionDto> result =
+                subscriptionRepository.findSubscribersWithCondition(3004L, SeatGrade.ECONOMY, SubscriptionStatus.ACTIVE);
+
+        // then: 비즈니스 구독자는 포함되지 않는다
+        assertThat(result).extracting(SubscriberWithConditionDto::email)
+                .containsExactly("economy@example.com");
+    }
+
+    @Test
+    void findSubscriberEmails_같은좌석등급_ACTIVE구독자만_반환됨() {
+        // given: 같은 항공편에 이코노미 ACTIVE, 비즈니스 ACTIVE, 이코노미 INACTIVE 구독자
+        User economyUser = em.persist(User.builder()
+                .email("eco-active@example.com").name("이코노미")
+                .provider(Provider.GOOGLE).providerId("google-eco-2").role(Role.USER).build());
+        User businessUser = em.persist(User.builder()
+                .email("biz-active@example.com").name("비즈니스")
+                .provider(Provider.GOOGLE).providerId("google-biz-2").role(Role.USER).build());
+        User inactiveUser = em.persist(User.builder()
+                .email("eco-inactive@example.com").name("비활성")
+                .provider(Provider.GOOGLE).providerId("google-eco-3").role(Role.USER).build());
+        Flight flight = em.persist(Flight.builder()
+                .flightId(3005L).flightNumber("KE305").airlineCode("KE")
+                .departureAirport("ICN").arrivalAirport("FRA")
+                .departureTime(LocalDateTime.now().plusDays(5))
+                .arrivalTime(LocalDateTime.now().plusDays(5).plusHours(12)).build());
+        em.persist(Subscription.builder()
+                .user(economyUser).flight(flight).seatGrade(SeatGrade.ECONOMY)
+                .price(BigDecimal.valueOf(300000)).build());
+        em.persist(Subscription.builder()
+                .user(businessUser).flight(flight).seatGrade(SeatGrade.BUSINESS)
+                .price(BigDecimal.valueOf(1500000)).build());
+        Subscription inactive = Subscription.builder()
+                .user(inactiveUser).flight(flight).seatGrade(SeatGrade.ECONOMY)
+                .price(BigDecimal.valueOf(300000)).build();
+        inactive.updateStatus(SubscriptionStatus.INACTIVE);
+        em.persist(inactive);
+        em.flush(); em.clear();
+
+        // when
+        List<UserEmailDto> result =
+                subscriptionRepository.findSubscriberEmails(3005L, SeatGrade.ECONOMY, SubscriptionStatus.ACTIVE);
+
+        // then
+        assertThat(result).extracting(UserEmailDto::email)
+                .containsExactly("eco-active@example.com");
     }
 
     @Test

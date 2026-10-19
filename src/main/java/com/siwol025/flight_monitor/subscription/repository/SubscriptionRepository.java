@@ -51,9 +51,13 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
                 "new com.siwol025.flight_monitor.user.dto.UserEmailDto(s.user.email) " +
             "FROM Subscription s " +
             "JOIN s.flight f " +
-            "WHERE f.flightId = :flightId"
+            "WHERE f.flightId = :flightId " +
+            "AND s.seatGrade = :seatGrade " +
+            "AND s.status = :status"
     )
-    List<UserEmailDto> findSubscriberByFlightId(@Param("flightId") Long flightId);
+    List<UserEmailDto> findSubscriberEmails(@Param("flightId") Long flightId,
+                                            @Param("seatGrade") SeatGrade seatGrade,
+                                            @Param("status") SubscriptionStatus status);
 
     @Query(
             "SELECT DISTINCT " +
@@ -61,9 +65,12 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
             "FROM Subscription s " +
             "JOIN s.flight f " +
             "WHERE f.flightId = :flightId " +
+            "AND s.seatGrade = :seatGrade " +
             "AND s.status = :status"
     )
-    List<SubscriberWithConditionDto> findSubscribersWithConditionByFlightId(@Param("flightId") Long flightId, @Param("status") SubscriptionStatus status);
+    List<SubscriberWithConditionDto> findSubscribersWithCondition(@Param("flightId") Long flightId,
+                                                                  @Param("seatGrade") SeatGrade seatGrade,
+                                                                  @Param("status") SubscriptionStatus status);
 
     @Deprecated
     @Query(

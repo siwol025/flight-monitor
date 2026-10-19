@@ -40,7 +40,7 @@ public class RedisNotificationWorker {
 
             log.info("[RedisNotificationWorker] 알림 처리 시작: 항공편 번호={}", eventDto.flightNumber());
 
-            List<UserEmailDto> subscribers = subscriptionService.getSubscribers(eventDto.flightId());
+            List<UserEmailDto> subscribers = subscriptionService.getSubscribers(eventDto.flightId(), eventDto.seatGrade());
 
             String subject = formatter.createSubject(eventDto.flightNumber());
             String content = formatter.createContent(eventDto);

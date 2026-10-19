@@ -69,12 +69,12 @@ public class SubscriptionService {
                 .toList();
     }
 
-    public List<UserEmailDto> getSubscribers(Long flightId) {
-        return subscriptionRepository.findSubscriberByFlightId(flightId);
+    public List<UserEmailDto> getSubscribers(Long flightId, SeatGrade seatGrade) {
+        return subscriptionRepository.findSubscriberEmails(flightId, seatGrade, SubscriptionStatus.ACTIVE);
     }
 
-    public List<SubscriberWithConditionDto> getSubscribersWithCondition(Long flightId) {
-        return subscriptionRepository.findSubscribersWithConditionByFlightId(flightId, SubscriptionStatus.ACTIVE);
+    public List<SubscriberWithConditionDto> getSubscribersWithCondition(Long flightId, SeatGrade seatGrade) {
+        return subscriptionRepository.findSubscribersWithCondition(flightId, seatGrade, SubscriptionStatus.ACTIVE);
     }
 
     public SubscriptionDetailResponse getSubscription(User user, Long subscriptionId) {
