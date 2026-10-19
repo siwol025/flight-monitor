@@ -105,6 +105,13 @@ subscription:
 notification:
   mode: kafka
 
+# MockMailService(dev, docker) 장애 주입 — 메일 유실 재현·측정용. 기본값은 주입 없음
+mock:
+  mail:
+    failure-rate: ${MOCK_MAIL_FAILURE_RATE:0}
+    permanent-failure-ratio: ${MOCK_MAIL_PERMANENT_FAILURE_RATIO:0}
+    latency-ms: ${MOCK_MAIL_LATENCY_MS:0}
+
 kafka:
   topic:
     price-drop-events:

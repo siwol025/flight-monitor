@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/test")
 @RequiredArgsConstructor
 @Tag(name = "Test Scenario", description = "장애 및 스케일 아웃 부하 테스트용 API")
-@Profile({"dev", "local"})
+@Profile({"dev", "local", "loadtest"})
 public class TestScenarioController {
 
     private final DataSetupService dataSetupService;
