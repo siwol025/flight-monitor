@@ -49,7 +49,7 @@ public class AuthUserArgumentResolver implements HandlerMethodArgumentResolver {
 
     public User getUser(String accessToken) {
         try {
-            Long userId = jwtProvider.parseToken(accessToken).get("userId", Long.class);
+            Long userId = jwtProvider.getUserIdFromAccessToken(accessToken);
             return userService.getByUserId(userId);
         } catch (ExpiredJwtException e) {
             throw new UnauthorizedException(ErrorTag.ACCESS_TOKEN_EXPIRED);

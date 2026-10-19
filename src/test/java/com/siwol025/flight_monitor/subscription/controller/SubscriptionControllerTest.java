@@ -11,7 +11,6 @@ import com.siwol025.flight_monitor.user.domain.Provider;
 import com.siwol025.flight_monitor.user.domain.Role;
 import com.siwol025.flight_monitor.user.domain.User;
 import com.siwol025.flight_monitor.user.service.UserService;
-import io.jsonwebtoken.Claims;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -28,12 +27,10 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -70,11 +67,8 @@ class SubscriptionControllerTest {
                 .role(Role.USER)
                 .build();
 
-        Claims claims = mock(Claims.class);
-        given(claims.get("userId", Long.class)).willReturn(1L);
-
-        given(jwtProvider.parseToken(anyString())).willReturn(claims);
-        given(userService.getByUserId(anyLong())).willReturn(mockUser);
+        given(jwtProvider.getUserIdFromAccessToken(anyString())).willReturn(1L);
+        given(userService.getByUserId(1L)).willReturn(mockUser);
     }
 
     @Test

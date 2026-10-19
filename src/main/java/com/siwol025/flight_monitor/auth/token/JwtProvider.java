@@ -17,6 +17,11 @@ import org.springframework.stereotype.Component;
 @Component
 public class JwtProvider {
 
+    // access/refresh 토큰은 같은 키로 서명되므로 type 클레임으로 용도를 구분한다(refresh 토큰의 access 오용 방지).
+    private static final String TOKEN_TYPE_CLAIM = "type";
+    private static final String ACCESS_TOKEN_TYPE = "access";
+    private static final String REFRESH_TOKEN_TYPE = "refresh";
+
     private final SecretKey signingKey;
     private final long accessTokenExpiredMs;
     private final long refreshTokenExpireMs;
@@ -38,8 +43,8 @@ public class JwtProvider {
     }
 
     public TokenResponse createToken(Long userId) {
-        String accessToken = createToken(userId, accessTokenExpiredMs);
-        String refreshToken = createToken(userId, refreshTokenExpireMs);
+        String accessToken = createToken(userId, accessTokenExpiredMs, ACCESS_TOKEN_TYPE);
+        String refreshToken = createToken(userId, refreshTokenExpireMs, REFRESH_TOKEN_TYPE);
 
         return TokenResponse.builder()
                 .accessToken(accessToken)
@@ -47,7 +52,7 @@ public class JwtProvider {
                 .build();
     }
 
-    private String createToken(Long userId, long expiration) {
+    private String createToken(Long userId, long expiration, String tokenType) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expiration);
 
@@ -56,6 +61,7 @@ public class JwtProvider {
                 .issuedAt(now)
                 .expiration(expiry)
                 .claim("userId", userId)
+                .claim(TOKEN_TYPE_CLAIM, tokenType)
                 .signWith(signingKey)
                 .compact();
     }
@@ -63,6 +69,23 @@ public class JwtProvider {
     public Claims parseToken(String token) {
         return Jwts.parser()
                 .verifyWith(signingKey)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+    }
+
+    public Long getUserIdFromAccessToken(String token) {
+        return parseTokenOfType(token, ACCESS_TOKEN_TYPE).get("userId", Long.class);
+    }
+
+    public Long getUserIdFromRefreshToken(String token) {
+        return parseTokenOfType(token, REFRESH_TOKEN_TYPE).get("userId", Long.class);
+    }
+
+    private Claims parseTokenOfType(String token, String tokenType) {
+        return Jwts.parser()
+                .verifyWith(signingKey)
+                .require(TOKEN_TYPE_CLAIM, tokenType)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();

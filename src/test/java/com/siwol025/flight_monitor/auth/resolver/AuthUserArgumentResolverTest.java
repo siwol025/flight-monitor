@@ -7,7 +7,7 @@ import com.siwol025.flight_monitor.user.domain.Provider;
 import com.siwol025.flight_monitor.user.domain.Role;
 import com.siwol025.flight_monitor.user.domain.User;
 import com.siwol025.flight_monitor.user.service.UserService;
-import io.jsonwebtoken.Claims;
+import com.siwol025.flight_monitor.auth.dto.response.TokenResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.MethodParameter;
@@ -49,9 +49,7 @@ class AuthUserArgumentResolverTest {
         String validToken = "valid-token";
         when(webRequest.getHeader("Authorization")).thenReturn("Bearer " + validToken);
 
-        Claims claims = mock(Claims.class);
-        when(claims.get("userId", Long.class)).thenReturn(1L);
-        when(jwtProvider.parseToken(validToken)).thenReturn(claims);
+        when(jwtProvider.getUserIdFromAccessToken(validToken)).thenReturn(1L);
 
         User mockUser = User.builder()
                 .email("test@example.com")
@@ -65,5 +63,19 @@ class AuthUserArgumentResolverTest {
         Object result = resolver.resolveArgument(parameter, null, webRequest, null);
 
         assertThat(result).isSameAs(mockUser);
+    }
+
+    @Test
+    void resolveArgument_refresh토큰으로_인증시_UnauthorizedException_발생() {
+        // given: 실제 JwtProvider가 발급한 refresh 토큰을 Authorization 헤더에 넣는다
+        JwtProvider realJwtProvider =
+                new JwtProvider("test-secret-key-must-be-at-least-32-bytes!!", 3_600_000L, 1_209_600_000L);
+        AuthUserArgumentResolver realResolver = new AuthUserArgumentResolver(realJwtProvider, userService);
+        TokenResponse tokens = realJwtProvider.createToken(1L);
+        when(webRequest.getHeader("Authorization")).thenReturn("Bearer " + tokens.refreshToken());
+
+        // when & then: refresh 토큰은 access 토큰으로 쓸 수 없다
+        assertThatThrownBy(() -> realResolver.resolveArgument(parameter, null, webRequest, null))
+                .isInstanceOf(UnauthorizedException.class);
     }
 }

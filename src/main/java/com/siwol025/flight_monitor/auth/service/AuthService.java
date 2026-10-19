@@ -52,7 +52,7 @@ public class AuthService {
         String refreshToken = request.refreshToken();
 
         try {
-            Long userId = jwtProvider.parseToken(refreshToken).get("userId", Long.class);
+            Long userId = jwtProvider.getUserIdFromRefreshToken(refreshToken);
             User user = getUserByUserId(userId);
             RefreshToken storedRefreshToken = refreshTokenService.getByUser(user);
 
