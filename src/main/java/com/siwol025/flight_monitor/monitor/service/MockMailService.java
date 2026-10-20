@@ -7,6 +7,7 @@ import com.siwol025.flight_monitor.monitor.domain.NotificationHistory;
 import com.siwol025.flight_monitor.monitor.dto.EmailSendTaskDto;
 import com.siwol025.flight_monitor.monitor.repository.NotificationHistoryRepository;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
@@ -22,8 +23,13 @@ public class MockMailService implements NotificationService{
     private final NotificationHistoryRepository historyRepository;
     private final MockMailProperties properties;
 
+    // 첫 발송 시각. 장애 구간을 실행 시각과 무관하게 재현하기 위한 기준점 (컨테이너 재생성 시 초기화)
+    private final AtomicLong firstSendAt = new AtomicLong();
+
     public void sendPriceDropNotification(EmailSendTaskDto taskDto) {
+        firstSendAt.compareAndSet(0, System.currentTimeMillis());
         simulateLatency();
+        simulateOutage();
         simulateFailure();
 
         NotificationHistory history = NotificationHistory.builder()
@@ -42,6 +48,18 @@ public class MockMailService implements NotificationService{
             Thread.sleep(properties.getLatencyMs());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+        }
+    }
+
+    // SMTP 서버 다운처럼 일정 시간 동안 모든 발송이 실패하는 상황
+    private void simulateOutage() {
+        if (properties.getOutageDurationMs() <= 0) {
+            return;
+        }
+        long elapsed = System.currentTimeMillis() - firstSendAt.get();
+        long start = properties.getOutageStartAfterMs();
+        if (elapsed >= start && elapsed < start + properties.getOutageDurationMs()) {
+            throw new MailSendException("[MockMailService] 주입된 장애 구간 오류");
         }
     }
 

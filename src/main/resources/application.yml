@@ -111,6 +111,8 @@ mock:
     failure-rate: ${MOCK_MAIL_FAILURE_RATE:0}
     permanent-failure-ratio: ${MOCK_MAIL_PERMANENT_FAILURE_RATIO:0}
     latency-ms: ${MOCK_MAIL_LATENCY_MS:0}
+    outage-start-after-ms: ${MOCK_MAIL_OUTAGE_START_AFTER_MS:0}
+    outage-duration-ms: ${MOCK_MAIL_OUTAGE_DURATION_MS:0}
 
 kafka:
   topic:
@@ -118,6 +120,12 @@ kafka:
       partitions: 9
     email-send-tasks:
       partitions: 150
+  # 메일 발송 블로킹 재시도 (1s → 2s → 4s → 8s → 16s 기본, 총 31초). 30초 이하 SMTP 장애를 DLT 없이 흡수.
+  # 재시도 소진 시 email-send-tasks.DLT
+  email-task:
+    retry:
+      max-retries: ${EMAIL_TASK_MAX_RETRIES:5}
+      initial-interval-ms: ${EMAIL_TASK_RETRY_INITIAL_INTERVAL_MS:1000}
 
 jwt:
   secret: "${JWT_SECRET}"

@@ -61,6 +61,37 @@ class MockMailServiceTest {
     }
 
     @Test
+    void sendPriceDropNotification_장애구간중_일시오류발생하고_저장안됨() {
+        properties.setOutageStartAfterMs(0);
+        properties.setOutageDurationMs(60_000);
+
+        assertThrows(MailSendException.class, () -> mockMailService.sendPriceDropNotification(dto));
+        verify(historyRepository, never()).save(any());
+    }
+
+    @Test
+    void sendPriceDropNotification_장애구간시작전_저장됨() {
+        properties.setOutageStartAfterMs(60_000);
+        properties.setOutageDurationMs(1_000);
+
+        mockMailService.sendPriceDropNotification(dto);
+
+        verify(historyRepository).save(any(NotificationHistory.class));
+    }
+
+    @Test
+    void sendPriceDropNotification_장애구간종료후_저장됨() throws InterruptedException {
+        properties.setOutageStartAfterMs(0);
+        properties.setOutageDurationMs(50);
+        assertThrows(MailSendException.class, () -> mockMailService.sendPriceDropNotification(dto));
+
+        Thread.sleep(100);
+        mockMailService.sendPriceDropNotification(dto);
+
+        verify(historyRepository).save(any(NotificationHistory.class));
+    }
+
+    @Test
     void sendPriceDropNotification_지연설정_지연시간만큼대기후저장됨() {
         properties.setLatencyMs(50);
 

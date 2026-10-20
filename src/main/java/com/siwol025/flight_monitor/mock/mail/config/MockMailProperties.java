@@ -22,4 +22,10 @@ public class MockMailProperties {
 
     /** 발송 1건당 지연 (SMTP 왕복 시간 모사) */
     private long latencyMs = 0;
+
+    /** 몰아치는 장애 시작 시점: 프로세스의 첫 발송 시각 기준 */
+    private long outageStartAfterMs = 0;
+
+    /** 몰아치는 장애 지속 시간. 이 구간의 발송은 전부 일시 오류. 0이면 장애 없음 */
+    private long outageDurationMs = 0;
 }

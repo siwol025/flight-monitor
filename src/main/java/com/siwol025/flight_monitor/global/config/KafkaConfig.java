@@ -41,7 +41,6 @@ import org.springframework.util.backoff.BackOff;
 public class KafkaConfig {
 
     private static final String EMAIL_SEND_TASK_DLT_TOPIC = "email-send-tasks.DLT";
-    private static final int EMAIL_TASK_MAX_RETRIES = 3;
 
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
@@ -54,6 +53,15 @@ public class KafkaConfig {
 
     @Value("${kafka.topic.email-send-tasks-dlt.partitions:3}")
     private int emailSendTaskDltPartitions;
+
+    // 블로킹 재시도: 재시도 총 대기 = initial × (2^maxRetries − 1). 그동안 같은 파티션의 뒤 메시지가 기다린다.
+    // 기본 5회(31초): 재시도 1주기가 장애 시간보다 짧으면 장애 중 컨슈머마다 메일을 DLT로 소진시킨다.
+    // 30초 SMTP 장애 측정에서 3회(7초)는 DLT 150건, 5회는 0건
+    @Value("${kafka.email-task.retry.max-retries:5}")
+    private int emailTaskMaxRetries;
+
+    @Value("${kafka.email-task.retry.initial-interval-ms:1000}")
+    private long emailTaskInitialIntervalMs;
 
     @Bean
     public KafkaAdmin kafkaAdmin() {
@@ -139,7 +147,8 @@ public class KafkaConfig {
             KafkaTemplate<String, Object> kafkaTemplate) {
         ConcurrentKafkaListenerContainerFactory<String, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
-        factory.setCommonErrorHandler(emailTaskErrorHandler(kafkaTemplate, emailTaskBackOff()));
+        factory.setCommonErrorHandler(emailTaskErrorHandler(kafkaTemplate,
+                emailTaskBackOff(emailTaskMaxRetries, emailTaskInitialIntervalMs)));
 
         return factory;
     }
@@ -172,9 +181,9 @@ public class KafkaConfig {
         return errorHandler;
     }
 
-    static BackOff emailTaskBackOff() {
-        ExponentialBackOffWithMaxRetries backOff = new ExponentialBackOffWithMaxRetries(EMAIL_TASK_MAX_RETRIES);
-        backOff.setInitialInterval(1_000L);
+    static BackOff emailTaskBackOff(int maxRetries, long initialIntervalMs) {
+        ExponentialBackOffWithMaxRetries backOff = new ExponentialBackOffWithMaxRetries(maxRetries);
+        backOff.setInitialInterval(initialIntervalMs);
         backOff.setMultiplier(2.0);
         return backOff;
     }

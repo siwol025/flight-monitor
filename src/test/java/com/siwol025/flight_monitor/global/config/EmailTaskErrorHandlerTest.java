@@ -21,7 +21,6 @@ import org.springframework.kafka.listener.MessageListenerContainer;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.core.NestedRuntimeException;
 import org.springframework.mail.MailSendException;
-import org.springframework.util.backoff.BackOff;
 import org.springframework.util.backoff.BackOffExecution;
 import org.springframework.util.backoff.FixedBackOff;
 
@@ -103,11 +102,20 @@ class EmailTaskErrorHandlerTest {
 
     @Test
     void emailTaskBackOff_1초부터_2배씩_3회후_중단() {
-        BackOff backOff = KafkaConfig.emailTaskBackOff();
-        BackOffExecution execution = backOff.start();
+        BackOffExecution execution = KafkaConfig.emailTaskBackOff(3, 1_000L).start();
 
         assertThat(List.of(execution.nextBackOff(), execution.nextBackOff(), execution.nextBackOff()))
                 .containsExactly(1000L, 2000L, 4000L);
+        assertThat(execution.nextBackOff()).isEqualTo(BackOffExecution.STOP);
+    }
+
+    @Test
+    void emailTaskBackOff_재시도5회면_16초까지_2배씩_증가후_중단() {
+        BackOffExecution execution = KafkaConfig.emailTaskBackOff(5, 1_000L).start();
+
+        assertThat(List.of(execution.nextBackOff(), execution.nextBackOff(), execution.nextBackOff(),
+                execution.nextBackOff(), execution.nextBackOff()))
+                .containsExactly(1000L, 2000L, 4000L, 8000L, 16000L);
         assertThat(execution.nextBackOff()).isEqualTo(BackOffExecution.STOP);
     }
 
