@@ -18,14 +18,11 @@ public class KafkaEmailTaskListener {
 
     private final NotificationService notificationService;
 
-    @KafkaListener(topics = "email-send-tasks", groupId = "email-sender-group", concurrency = "50")
+    // 발송 예외는 삼키지 않는다. emailTaskListenerContainerFactory의 에러 핸들러가 재시도·DLT로 처리한다.
+    @KafkaListener(topics = "email-send-tasks", groupId = "email-sender-group", concurrency = "50",
+            containerFactory = "emailTaskListenerContainerFactory")
     public void processEmailTask(EmailSendTaskDto taskDto) {
-        try {
-            notificationService.sendPriceDropNotification(taskDto);
-            log.info("[KafkaEmailTaskListener] 알림 전송 완료");
-
-        } catch (Exception e) {
-            log.error("[KafkaEmailTaskListener] 개별 이메일 발송 처리 중 예외 발생", e);
-        }
+        notificationService.sendPriceDropNotification(taskDto);
+        log.info("[KafkaEmailTaskListener] 알림 전송 완료");
     }
 }
