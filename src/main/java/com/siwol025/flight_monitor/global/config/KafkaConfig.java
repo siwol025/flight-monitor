@@ -26,6 +26,7 @@ import org.springframework.kafka.core.KafkaAdmin;
 import org.springframework.kafka.core.KafkaOperations;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
+import org.springframework.kafka.listener.ContainerProperties.AckMode;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.listener.RetryListener;
@@ -149,6 +150,9 @@ public class KafkaConfig {
         factory.setConsumerFactory(consumerFactory());
         factory.setCommonErrorHandler(emailTaskErrorHandler(kafkaTemplate,
                 emailTaskBackOff(emailTaskMaxRetries, emailTaskInitialIntervalMs)));
+        // 메일 1건이 수백 ms라 배치 커밋이면 poll 한 번 분량(수십 초)이 커밋 없이 처리된다.
+        // 그 사이 재시작(배포 포함)하면 이미 보낸 메일이 재전달되므로 레코드마다 커밋한다.
+        factory.getContainerProperties().setAckMode(AckMode.RECORD);
 
         return factory;
     }
