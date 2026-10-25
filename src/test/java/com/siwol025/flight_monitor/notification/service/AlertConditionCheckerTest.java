@@ -1,4 +1,4 @@
-package com.siwol025.flight_monitor.monitor.service;
+package com.siwol025.flight_monitor.notification.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

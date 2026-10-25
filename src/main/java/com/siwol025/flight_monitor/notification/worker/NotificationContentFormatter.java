@@ -1,6 +1,6 @@
-package com.siwol025.flight_monitor.monitor.worker;
+package com.siwol025.flight_monitor.notification.worker;
 
-import com.siwol025.flight_monitor.monitor.dto.PriceDropNotificationDto;
+import com.siwol025.flight_monitor.notification.dto.PriceDropNotificationDto;
 import org.springframework.stereotype.Component;
 
 @Component

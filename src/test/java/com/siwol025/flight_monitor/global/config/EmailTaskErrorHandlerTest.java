@@ -2,7 +2,7 @@ package com.siwol025.flight_monitor.global.config;
 
 import com.siwol025.flight_monitor.global.exception.ErrorTag;
 import com.siwol025.flight_monitor.global.exception.custom.BadRequestException;
-import com.siwol025.flight_monitor.monitor.dto.EmailSendTaskDto;
+import com.siwol025.flight_monitor.notification.dto.EmailSendTaskDto;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.apache.kafka.clients.consumer.Consumer;

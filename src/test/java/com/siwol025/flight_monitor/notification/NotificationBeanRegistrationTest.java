@@ -1,14 +1,14 @@
-package com.siwol025.flight_monitor.monitor;
+package com.siwol025.flight_monitor.notification;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
-import com.siwol025.flight_monitor.monitor.producer.NotificationProducer;
-import com.siwol025.flight_monitor.monitor.service.AlertConditionChecker;
-import com.siwol025.flight_monitor.monitor.service.NotificationService;
-import com.siwol025.flight_monitor.monitor.worker.KafkaEmailTaskListener;
-import com.siwol025.flight_monitor.monitor.worker.KafkaNotificationListener;
-import com.siwol025.flight_monitor.monitor.worker.NotificationContentFormatter;
+import com.siwol025.flight_monitor.notification.producer.NotificationProducer;
+import com.siwol025.flight_monitor.notification.service.AlertConditionChecker;
+import com.siwol025.flight_monitor.notification.mail.NotificationService;
+import com.siwol025.flight_monitor.notification.worker.KafkaEmailTaskListener;
+import com.siwol025.flight_monitor.notification.worker.KafkaNotificationListener;
+import com.siwol025.flight_monitor.notification.worker.NotificationContentFormatter;
 import com.siwol025.flight_monitor.subscription.service.SubscriptionService;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;

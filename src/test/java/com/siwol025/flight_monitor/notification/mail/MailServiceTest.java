@@ -1,7 +1,7 @@
-package com.siwol025.flight_monitor.monitor.service;
+package com.siwol025.flight_monitor.notification.mail;
 
 import com.siwol025.flight_monitor.global.exception.custom.BadRequestException;
-import com.siwol025.flight_monitor.monitor.dto.EmailSendTaskDto;
+import com.siwol025.flight_monitor.notification.dto.EmailSendTaskDto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

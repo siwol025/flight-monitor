@@ -1,4 +1,4 @@
-package com.siwol025.flight_monitor.mock.mail.config;
+package com.siwol025.flight_monitor.notification.mail;
 
 import lombok.Getter;
 import lombok.Setter;

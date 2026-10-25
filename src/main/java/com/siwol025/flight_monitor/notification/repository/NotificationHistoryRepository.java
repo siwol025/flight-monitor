@@ -1,6 +1,6 @@
-package com.siwol025.flight_monitor.monitor.repository;
+package com.siwol025.flight_monitor.notification.repository;
 
-import com.siwol025.flight_monitor.monitor.domain.NotificationHistory;
+import com.siwol025.flight_monitor.notification.domain.NotificationHistory;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

@@ -125,7 +125,7 @@ public class KafkaConfig {
         props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JacksonJsonDeserializer.class);
 
         props.put(JacksonJsonDeserializer.TRUSTED_PACKAGES,
-            "com.siwol025.flight_monitor.monitor.dto," +
+            "com.siwol025.flight_monitor.notification.dto," +
             "com.siwol025.flight_monitor.subscription.dto");
 
         return new DefaultKafkaConsumerFactory<>(props);

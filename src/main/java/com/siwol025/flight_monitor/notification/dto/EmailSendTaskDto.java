@@ -1,4 +1,4 @@
-package com.siwol025.flight_monitor.monitor.dto;
+package com.siwol025.flight_monitor.notification.dto;
 
 public record EmailSendTaskDto(
         String toEmail,

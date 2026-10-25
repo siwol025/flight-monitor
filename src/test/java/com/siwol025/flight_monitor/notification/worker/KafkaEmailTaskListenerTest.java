@@ -1,7 +1,7 @@
-package com.siwol025.flight_monitor.monitor.worker;
+package com.siwol025.flight_monitor.notification.worker;
 
-import com.siwol025.flight_monitor.monitor.dto.EmailSendTaskDto;
-import com.siwol025.flight_monitor.monitor.service.NotificationService;
+import com.siwol025.flight_monitor.notification.dto.EmailSendTaskDto;
+import com.siwol025.flight_monitor.notification.mail.NotificationService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

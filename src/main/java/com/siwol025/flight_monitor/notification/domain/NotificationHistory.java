@@ -1,4 +1,4 @@
-package com.siwol025.flight_monitor.monitor.domain;
+package com.siwol025.flight_monitor.notification.domain;
 
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
 import jakarta.persistence.Entity;

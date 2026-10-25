@@ -1,6 +1,6 @@
-package com.siwol025.flight_monitor.monitor.producer;
+package com.siwol025.flight_monitor.notification.producer;
 
-import com.siwol025.flight_monitor.monitor.dto.PriceDropNotificationDto;
+import com.siwol025.flight_monitor.notification.dto.PriceDropNotificationDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;

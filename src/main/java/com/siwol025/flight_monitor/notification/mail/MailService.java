@@ -1,8 +1,8 @@
-package com.siwol025.flight_monitor.monitor.service;
+package com.siwol025.flight_monitor.notification.mail;
 
 import com.siwol025.flight_monitor.global.exception.ErrorTag;
 import com.siwol025.flight_monitor.global.exception.custom.BadRequestException;
-import com.siwol025.flight_monitor.monitor.dto.EmailSendTaskDto;
+import com.siwol025.flight_monitor.notification.dto.EmailSendTaskDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;

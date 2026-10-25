@@ -1,7 +1,7 @@
-package com.siwol025.flight_monitor.monitor.worker;
+package com.siwol025.flight_monitor.notification.worker;
 
-import com.siwol025.flight_monitor.monitor.dto.EmailSendTaskDto;
-import com.siwol025.flight_monitor.monitor.service.NotificationService;
+import com.siwol025.flight_monitor.notification.dto.EmailSendTaskDto;
+import com.siwol025.flight_monitor.notification.mail.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;

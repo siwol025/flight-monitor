@@ -1,4 +1,4 @@
-package com.siwol025.flight_monitor.monitor.dto;
+package com.siwol025.flight_monitor.notification.dto;
 
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
 import java.math.BigDecimal;

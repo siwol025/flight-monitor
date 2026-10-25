@@ -1,8 +1,8 @@
-package com.siwol025.flight_monitor.monitor.worker;
+package com.siwol025.flight_monitor.notification.worker;
 
-import com.siwol025.flight_monitor.monitor.dto.EmailSendTaskDto;
-import com.siwol025.flight_monitor.monitor.dto.PriceDropNotificationDto;
-import com.siwol025.flight_monitor.monitor.service.AlertConditionChecker;
+import com.siwol025.flight_monitor.notification.dto.EmailSendTaskDto;
+import com.siwol025.flight_monitor.notification.dto.PriceDropNotificationDto;
+import com.siwol025.flight_monitor.notification.service.AlertConditionChecker;
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
 import com.siwol025.flight_monitor.subscription.dto.SubscriberWithConditionDto;
 import com.siwol025.flight_monitor.subscription.service.SubscriptionService;
