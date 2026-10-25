@@ -69,15 +69,9 @@ monitor:
     # — 그래야 큐가 비었을 때 정상적으로 타임아웃까지 블로킹된 BRPOP 이 "느린 호출"로 오분류되지 않는다.
     # RedisPopCircuitBreakerConsistencyValidator 가 기동 시 fail-fast 로 가드.
     block-pop-timeout-seconds: 3
-  executor:
-    # monitoringTaskExecutor 플랫폼 스레드풀. 동시 처리 수 상한은 backpressure.max-in-flight 세마포어가
-    # 결정하고, 풀은 그 상한만큼의 스레드로 처리한다(pool-size = max-in-flight). 큐는 permit 반납/스레드
-    # 반환 타이밍 race 흡수용 소량이며 버퍼링 목적이 아니다(미처리 백로그는 durable Redis 큐가 짊어진다).
-    pool-size: 100
-    queue-capacity: 10
   backpressure:
     # in-flight 상한의 단일 권위(세마포어 permit 총량). 외부 API 응답 지연이 커져도 동시 처리 수를 이 값으로
-    # 상한해 스레드풀 큐 오버플로우를 방지하고, 초과 백로그는 durable Redis 큐에 남긴다.
+    # 상한하고, 초과 백로그는 durable Redis 큐에 남긴다.
     # 값 = 외부 API rate 한도에 정합(Little's Law: rate × 응답시간). 산출·측정 근거는 docs/test-environment.md.
     max-in-flight: 100
   ratelimiter:
