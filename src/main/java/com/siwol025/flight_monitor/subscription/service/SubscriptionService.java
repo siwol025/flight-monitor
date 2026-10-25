@@ -16,7 +16,6 @@ import com.siwol025.flight_monitor.subscription.dto.response.SubscriptionDetailR
 import com.siwol025.flight_monitor.subscription.dto.response.SubscriptionResponse;
 import com.siwol025.flight_monitor.subscription.repository.SubscriptionRepository;
 import com.siwol025.flight_monitor.user.domain.User;
-import com.siwol025.flight_monitor.user.dto.UserEmailDto;
 import java.math.BigDecimal;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -67,10 +66,6 @@ public class SubscriptionService {
         return subscriptions.stream()
                 .map(SubscriptionResponse::from)
                 .toList();
-    }
-
-    public List<UserEmailDto> getSubscribers(Long flightId, SeatGrade seatGrade) {
-        return subscriptionRepository.findSubscriberEmails(flightId, seatGrade, SubscriptionStatus.ACTIVE);
     }
 
     public List<SubscriberWithConditionDto> getSubscribersWithCondition(Long flightId, SeatGrade seatGrade) {

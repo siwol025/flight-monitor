@@ -3,7 +3,6 @@ package com.siwol025.flight_monitor.monitor.producer;
 import com.siwol025.flight_monitor.monitor.dto.PriceDropNotificationDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Async;
@@ -12,7 +11,6 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = "notification.mode", havingValue = "kafka", matchIfMissing = true)
 @Profile("!mock")
 public class NotificationProducer implements NotificationPublisher{
 

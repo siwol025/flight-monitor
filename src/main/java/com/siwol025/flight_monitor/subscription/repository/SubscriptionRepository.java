@@ -5,7 +5,6 @@ import com.siwol025.flight_monitor.subscription.domain.SubscriptionStatus;
 import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
 import com.siwol025.flight_monitor.subscription.dto.FlightMonitorTaskDto;
 import com.siwol025.flight_monitor.subscription.dto.SubscriberWithConditionDto;
-import com.siwol025.flight_monitor.user.dto.UserEmailDto;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -45,19 +44,6 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
             "AND s.status = :status"
     )
     List<FlightMonitorTaskDto> findActiveFlightIdsAndSeatGrade(@Param("status") SubscriptionStatus status);
-
-    @Query(
-            "SELECT DISTINCT " +
-                "new com.siwol025.flight_monitor.user.dto.UserEmailDto(s.user.email) " +
-            "FROM Subscription s " +
-            "JOIN s.flight f " +
-            "WHERE f.flightId = :flightId " +
-            "AND s.seatGrade = :seatGrade " +
-            "AND s.status = :status"
-    )
-    List<UserEmailDto> findSubscriberEmails(@Param("flightId") Long flightId,
-                                            @Param("seatGrade") SeatGrade seatGrade,
-                                            @Param("status") SubscriptionStatus status);
 
     @Query(
             "SELECT DISTINCT " +

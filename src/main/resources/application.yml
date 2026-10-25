@@ -102,9 +102,6 @@ subscription:
   expiry:
     cron: "0 0 * * * *"
 
-notification:
-  mode: kafka
-
 # MockMailService(dev, docker) 장애 주입 — 메일 유실 재현·측정용. 기본값은 주입 없음
 mock:
   mail:
