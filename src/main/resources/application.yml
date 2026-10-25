@@ -123,6 +123,13 @@ mock:
     latency-ms: ${MOCK_MAIL_LATENCY_MS:0}
     outage-start-after-ms: ${MOCK_MAIL_OUTAGE_START_AFTER_MS:0}
     outage-duration-ms: ${MOCK_MAIL_OUTAGE_DURATION_MS:0}
+  # Duffel 호환 엔드포인트(/air/offer_requests)가 강제하는 업체 한도. 기본값은 실제 Duffel 테스트 모드와 같은
+  # 60초당 30건(실측 ratelimit-limit 30, 분 경계 고정 창)이라 어댑터 expected-rate-limit(30)과 맞는다.
+  # 여러 대·고한도 실험은 환경변수(MOCK_DUFFEL_RATE_LIMIT_LIMIT 등)로만 올린다.
+  duffel:
+    rate-limit:
+      limit: 30
+      period: 60s
 
 kafka:
   topic:
