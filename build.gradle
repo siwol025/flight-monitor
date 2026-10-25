@@ -51,6 +51,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-mail'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	// 패키지 경계 규칙(ArchUnit). JUnit 5 전용 엔진(archunit-junit5) 대신 코어만 쓰고 일반 @Test에서 check한다
+	testImplementation 'com.tngtech.archunit:archunit:1.4.1'
 	testCompileOnly 'org.projectlombok:lombok'
 	testAnnotationProcessor 'org.projectlombok:lombok'
 

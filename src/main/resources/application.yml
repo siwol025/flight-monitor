@@ -82,7 +82,7 @@ monitor:
   http:
     # 외부 API 커넥션 풀 최대 커넥션 수(max-total = max-per-route). in-flight 세마포어 permit(max-in-flight)
     # 이상이어야 풀이 새 병목이 되지 않는다. 정합 불변식(max-connections >= max-in-flight)은
-    # RestTemplateConfig가 기동 시 fail-fast로 가드.
+    # RestTemplateConfig와 DuffelHttpClientConfig(Duffel 전용 풀도 이 값을 쓴다)가 기동 시 fail-fast로 가드.
     max-connections: 100
   produce:
     # 모니터링 주기 T=60s (특가 30~90분 소멸 SLA 역산). lock-at-least-for는 주기보다 약간 짧게(주기당 1회 보장),
@@ -91,6 +91,25 @@ monitor:
     fixed-rate-ms: 60000
     lock-at-least-for: PT55S
     lock-at-most-for: PT60S
+
+# 외부 운임 업체(Duffel) 어댑터. mock ↔ 실제 전환은 환경변수 두 개(FARE_PROVIDER_DUFFEL_BASE_URL, DUFFEL_API_TOKEN)로 한다.
+fare-provider:
+  duffel:
+    # 기본값은 실제 업체다. mock 컨트롤러는 프로필과 상관없이 항상 등록되므로 기본값이 mock(자기 자신)이면
+    # base-url을 빠뜨렸을 때 가짜 가격으로 실제 사용자에게 알림이 나가고 오류도 나지 않는다. 실제 업체가 기본값이면
+    # 토큰 누락이 401(설정 오류)로 드러난다. compose(mock 환경)는 application-docker.yml에서 덮어쓴다.
+    base-url: https://api.duffel.com
+    # 비어 있으면 호출이 401 → 설정 오류 예외로 드러난다(기동 시 검사 없음)
+    api-key: ${DUFFEL_API_TOKEN:}
+    version: v2
+    # 업체가 항공사 응답을 기다리는 최대 시간(요청 쿼리 supplier_timeout, 허용 2~60초).
+    # response-timeout은 이보다 길어야 업체가 정상적으로 마무리한 응답을 우리가 먼저 끊지 않는다.
+    supplier-timeout: 10s
+    connect-timeout: 3s
+    response-timeout: 15s
+    # 업체 한도(실측 ratelimit-limit 30, 60초 고정 창). 응답 헤더가 이 값과 다르면 경고 로그를 남긴다.
+    # 앱 호출 한도(업체 한도의 90%)와 비교하면 경고가 매번 뜨므로 업체 한도를 따로 둔다.
+    expected-rate-limit: 30
 
 subscription:
   expiry:

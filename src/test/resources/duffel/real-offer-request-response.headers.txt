@@ -1,0 +1,39 @@
+# Duffel 테스트 모드 실제 응답 기록 (2026-10-25T16:07:44Z 수집, live_mode=false)
+# 짝 파일: real-offer-request-response.json = 아래 요청의 응답 본문 원본(gzip 해제). data.client_key 값만 "REDACTED"로 가림.
+
+[요청]
+POST https://api.duffel.com/air/offer_requests?return_offers=true&supplier_timeout=10000
+Accept-Encoding: gzip
+Accept: application/json
+Content-Type: application/json
+Duffel-Version: v2
+Authorization: Bearer <DUFFEL_API_TOKEN — 기록하지 않음>
+
+{"data":{"slices":[{"origin":"ICN","destination":"NRT","departure_date":"2026-11-26"}],"passengers":[{"type":"adult"}],"cabin_class":"economy"}}
+
+[응답]
+HTTP 201
+content-type: application/json; charset=utf-8
+content-encoding: gzip
+ratelimit-limit: 30
+ratelimit-remaining: 29
+ratelimit-reset: Sun, 25 Oct 2026 16:08:00 GMT
+x-request-id: GOHRfaiFAMRJvLwAHC0R
+응답 시간 0.48s, 본문 326,507바이트(gzip 해제 후), 운임 51건, 통화 {'USD': 51}
+
+[같은 분에 검색한 다른 노선 — 본문은 저장하지 않음, 출발일 2026-11-26, economy, 성인 1]
+ICN-JFK: HTTP 201, 2.92s, 운임 84건, 통화 {'USD': 84}, ratelimit-remaining 28, ratelimit-reset Sun, 25 Oct 2026 16:08:00 GMT
+LHR-JFK: HTTP 201, 2.18s, 운임 56건, 통화 {'USD': 56}, ratelimit-remaining 27, ratelimit-reset Sun, 25 Oct 2026 16:08:00 GMT
+GMP-CJU: HTTP 201, 1.13s, 운임 24건, 통화 {'USD': 24}, ratelimit-remaining 26, ratelimit-reset Sun, 25 Oct 2026 16:08:00 GMT
+
+[관측으로 확인한 사실]
+- ratelimit-limit = 30. 요청 4건이 remaining 29→26으로 하나씩 줄었고, 16:07:44~55에 보낸 4건 모두 reset = 16:08:00 GMT → 분 경계에 맞춘 60초 고정 창으로 보인다.
+- ratelimit-reset은 초나 epoch가 아니라 HTTP 날짜(RFC 1123/2616) 형식이다.
+- 통화는 노선과 무관하게 전부 USD(한국 국내선, 한국 출발 국제선, 영국 출발 국제선, 총 215건).
+- 금액(total_amount)은 항상 소수점 두 자리 문자열("72.40").
+- 테스트 모드 운임의 owner는 ZZ(Duffel Airways)만이 아니라 실제 항공사 코드(OZ, JL, NH, MU, BA, LH 등)로도 나온다. 스케줄과 가격은 가짜다.
+
+[문서로 확인한 사실 — https://duffel.com/docs/api/overview/errors]
+- 429: type rate_limit_error, code rate_limit_exceeded. ratelimit-reset 헤더가 가리키는 시각 이후에 재시도한다.
+- ratelimit-limit은 기간당 건수. 기간은 현재 60초이며 예고 없이 바뀔 수 있다. ratelimit-reset은 RFC 2616 날짜 형식.
+- 오류 본문: {"errors":[{"code","documentation_url","message","title","type"(검증 오류는 "source" 추가)}],"meta":{"request_id","status"}}

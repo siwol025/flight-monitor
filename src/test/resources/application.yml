@@ -20,6 +20,11 @@ monitor:
     lock-at-least-for: PT55S
     lock-at-most-for: PT60S
 
+fare-provider:
+  duffel:
+    # 테스트가 실제 업체로 나가지 않게 한다(.invalid는 절대 해석되지 않는 예약 도메인)
+    base-url: http://duffel.invalid
+
 resilience4j:
   circuitbreaker:
     instances:
