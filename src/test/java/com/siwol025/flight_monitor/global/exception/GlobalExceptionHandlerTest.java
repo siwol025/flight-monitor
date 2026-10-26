@@ -8,7 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.siwol025.flight_monitor.global.exception.custom.BadRequestException;
 import com.siwol025.flight_monitor.global.exception.custom.NotFoundException;
 import com.siwol025.flight_monitor.global.exception.custom.UnauthorizedException;
-import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
+import com.siwol025.flight_monitor.route.domain.SeatGrade;
 import com.siwol025.flight_monitor.subscription.dto.request.SubscriptionRequest;
 import jakarta.validation.Valid;
 import org.junit.jupiter.api.BeforeEach;

@@ -17,7 +17,7 @@ import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightResponse;
 import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightSeatPriceResponse;
 import com.siwol025.flight_monitor.subscription.domain.Subscription;
 import com.siwol025.flight_monitor.subscription.domain.flight.Flight;
-import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
+import com.siwol025.flight_monitor.route.domain.SeatGrade;
 import com.siwol025.flight_monitor.subscription.dto.response.SubscriptionDetailResponse;
 import com.siwol025.flight_monitor.subscription.repository.SubscriptionRepository;
 import com.siwol025.flight_monitor.user.domain.User;

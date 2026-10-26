@@ -1,6 +1,6 @@
 package com.siwol025.flight_monitor.mock.flight.controller;
 
-import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
+import com.siwol025.flight_monitor.route.domain.SeatGrade;
 import com.siwol025.flight_monitor.mock.flight.dto.request.MockSeatBulkRequest;
 import com.siwol025.flight_monitor.mock.flight.dto.response.MockSeatResponse;
 import com.siwol025.flight_monitor.mock.flight.service.MockSeatService;

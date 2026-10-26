@@ -1,7 +1,7 @@
 package com.siwol025.flight_monitor.monitor.domain;
 
 import com.siwol025.flight_monitor.subscription.domain.flight.Flight;
-import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
+import com.siwol025.flight_monitor.route.domain.SeatGrade;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

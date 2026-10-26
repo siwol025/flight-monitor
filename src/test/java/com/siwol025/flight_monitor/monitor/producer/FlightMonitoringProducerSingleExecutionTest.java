@@ -10,7 +10,7 @@ import static org.mockito.Mockito.verify;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.siwol025.flight_monitor.monitor.utils.TaskQueueManager;
 import com.siwol025.flight_monitor.subscription.dto.FlightMonitorTaskDto;
-import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
+import com.siwol025.flight_monitor.route.domain.SeatGrade;
 import com.siwol025.flight_monitor.subscription.service.SubscriptionService;
 import java.time.Duration;
 import java.util.List;

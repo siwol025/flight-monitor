@@ -1,7 +1,7 @@
 package com.siwol025.flight_monitor.monitor.utils;
 
 import com.siwol025.flight_monitor.monitor.service.FlightLatestPriceInfoService;
-import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
+import com.siwol025.flight_monitor.route.domain.SeatGrade;
 import java.math.BigDecimal;
 import java.time.Duration;
 import lombok.RequiredArgsConstructor;

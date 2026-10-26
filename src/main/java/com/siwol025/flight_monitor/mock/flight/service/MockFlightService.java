@@ -5,7 +5,7 @@ import com.siwol025.flight_monitor.global.exception.custom.BadRequestException;
 import com.siwol025.flight_monitor.global.exception.custom.NotFoundException;
 import com.siwol025.flight_monitor.mock.airline.domain.MockAirline;
 import com.siwol025.flight_monitor.mock.airport.domain.MockAirport;
-import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
+import com.siwol025.flight_monitor.route.domain.SeatGrade;
 import com.siwol025.flight_monitor.mock.airline.repository.MockAirlineRepository;
 import com.siwol025.flight_monitor.mock.airport.repository.MockAirportRepository;
 import com.siwol025.flight_monitor.mock.flight.domain.MockFlight;

@@ -10,7 +10,7 @@ import com.siwol025.flight_monitor.fare.InvalidRouteException;
 import com.siwol025.flight_monitor.fare.LowestFare;
 import com.siwol025.flight_monitor.fare.LowestFareFinder;
 import com.siwol025.flight_monitor.route.domain.RouteKey;
-import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
+import com.siwol025.flight_monitor.route.domain.SeatGrade;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;

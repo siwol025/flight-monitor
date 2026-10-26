@@ -2,7 +2,7 @@ package com.siwol025.flight_monitor.subscription.dto.response;
 
 import com.siwol025.flight_monitor.subscription.domain.Subscription;
 import com.siwol025.flight_monitor.subscription.domain.SubscriptionStatus;
-import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
+import com.siwol025.flight_monitor.route.domain.SeatGrade;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.Builder;

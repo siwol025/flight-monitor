@@ -3,7 +3,7 @@ package com.siwol025.flight_monitor.subscription.controller;
 import com.siwol025.flight_monitor.auth.resolver.AuthUserArgumentResolver;
 import com.siwol025.flight_monitor.auth.token.JwtProvider;
 import com.siwol025.flight_monitor.subscription.domain.SubscriptionStatus;
-import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
+import com.siwol025.flight_monitor.route.domain.SeatGrade;
 import com.siwol025.flight_monitor.subscription.dto.response.SubscriptionDetailResponse;
 import com.siwol025.flight_monitor.subscription.dto.response.SubscriptionResponse;
 import com.siwol025.flight_monitor.subscription.service.SubscriptionService;

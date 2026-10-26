@@ -5,7 +5,7 @@ import com.siwol025.flight_monitor.mock.flight.dto.response.MockFlightSeatPriceR
 import com.siwol025.flight_monitor.notification.dto.PriceDropNotificationDto;
 import com.siwol025.flight_monitor.notification.producer.NotificationPublisher;
 import com.siwol025.flight_monitor.monitor.utils.CacheStrategy;
-import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
+import com.siwol025.flight_monitor.route.domain.SeatGrade;
 import com.siwol025.flight_monitor.subscription.dto.FlightMonitorTaskDto;
 import com.siwol025.flight_monitor.subscription.service.FlightDataProvider;
 

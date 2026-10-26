@@ -1,7 +1,7 @@
 package com.siwol025.flight_monitor.mock.flight.repository;
 
 import com.siwol025.flight_monitor.mock.flight.domain.FlightSeatPrice;
-import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
+import com.siwol025.flight_monitor.route.domain.SeatGrade;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;

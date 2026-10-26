@@ -9,7 +9,7 @@ import com.siwol025.flight_monitor.global.exception.custom.NotFoundException;
 import com.siwol025.flight_monitor.mock.flight.dto.request.MockSeatBulkRequest;
 import com.siwol025.flight_monitor.mock.flight.repository.MockFlightRepository;
 import com.siwol025.flight_monitor.mock.flight.repository.MockSeatRepository;
-import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
+import com.siwol025.flight_monitor.route.domain.SeatGrade;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

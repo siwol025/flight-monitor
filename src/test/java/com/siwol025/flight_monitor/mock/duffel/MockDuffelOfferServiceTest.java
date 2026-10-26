@@ -7,7 +7,7 @@ import com.siwol025.flight_monitor.mock.airline.domain.MockAirline;
 import com.siwol025.flight_monitor.mock.airport.domain.MockAirport;
 import com.siwol025.flight_monitor.mock.flight.domain.FlightSeatPrice;
 import com.siwol025.flight_monitor.mock.flight.domain.MockFlight;
-import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
+import com.siwol025.flight_monitor.route.domain.SeatGrade;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;

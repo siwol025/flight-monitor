@@ -8,7 +8,7 @@ import static org.mockito.Mockito.mock;
 import com.siwol025.flight_monitor.global.exception.ErrorTag;
 import com.siwol025.flight_monitor.global.exception.custom.UnauthorizedException;
 import com.siwol025.flight_monitor.subscription.domain.flight.Flight;
-import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
+import com.siwol025.flight_monitor.route.domain.SeatGrade;
 import com.siwol025.flight_monitor.user.domain.User;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.BeforeEach;

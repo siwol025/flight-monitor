@@ -1,7 +1,7 @@
 package com.siwol025.flight_monitor.notification.worker;
 
 import com.siwol025.flight_monitor.notification.dto.PriceDropNotificationDto;
-import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
+import com.siwol025.flight_monitor.route.domain.SeatGrade;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;

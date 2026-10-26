@@ -3,7 +3,7 @@ package com.siwol025.flight_monitor.monitor.worker;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.siwol025.flight_monitor.monitor.metrics.PipelineMetrics;
 import com.siwol025.flight_monitor.monitor.service.PriceMonitorService;
-import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
+import com.siwol025.flight_monitor.route.domain.SeatGrade;
 import com.siwol025.flight_monitor.subscription.dto.FlightMonitorTaskDto;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;

@@ -1,6 +1,5 @@
 package com.siwol025.flight_monitor.route.domain;
 
-import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
 import java.time.LocalDate;
 
 /**
