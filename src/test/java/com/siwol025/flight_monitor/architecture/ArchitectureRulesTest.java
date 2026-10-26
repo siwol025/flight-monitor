@@ -32,4 +32,19 @@ class ArchitectureRulesTest {
                 .should().dependOnClassesThat().resideInAPackage("com.siwol025.flight_monitor.mock..")
                 .check(PRODUCTION_CLASSES);
     }
+
+    @Test
+    void route는_다른도메인패키지에_의존하지않음() {
+        // route는 노선 어휘의 단일 위치라 다른 도메인이 route에 의존한다(반대는 순환). global(예외·ErrorTag·설정)은 허용
+        noClasses().that().resideInAPackage("com.siwol025.flight_monitor.route..")
+                .should().dependOnClassesThat().resideInAnyPackage(
+                        "com.siwol025.flight_monitor.subscription..",
+                        "com.siwol025.flight_monitor.monitor..",
+                        "com.siwol025.flight_monitor.notification..",
+                        "com.siwol025.flight_monitor.fare..",
+                        "com.siwol025.flight_monitor.mock..",
+                        "com.siwol025.flight_monitor.user..",
+                        "com.siwol025.flight_monitor.auth..")
+                .check(PRODUCTION_CLASSES);
+    }
 }

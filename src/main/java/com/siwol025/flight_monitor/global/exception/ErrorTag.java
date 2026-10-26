@@ -26,6 +26,9 @@ public enum ErrorTag {
     INVALID_INPUT("입력값이 올바르지 않습니다."),
     DUPLICATE_SUBSCRIPTION("이미 등록된 구독입니다."),
     DUPLICATE_FLIGHT("이미 등록된 항공편입니다."),
+    SAME_DEPARTURE_ARRIVAL_AIRPORT("출발 공항과 도착 공항이 같습니다."),
+    INVALID_AIRPORT_CODE("공항 코드는 영문 3자여야 합니다."),
+    PAST_DEPARTURE_DATE("출발일이 이미 지났습니다."),
 
     // 403 Forbidden (resource ownership)
     UNAUTHORIZED_SUBSCRIPTION("해당 구독을 취소할 권한이 없습니다.");
