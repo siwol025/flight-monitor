@@ -14,6 +14,7 @@ import com.siwol025.flight_monitor.fare.InvalidRouteException;
 import com.siwol025.flight_monitor.fare.LowestFare;
 import com.siwol025.flight_monitor.fare.LowestFareFinder;
 import com.siwol025.flight_monitor.monitor.metrics.PipelineMetrics;
+import com.siwol025.flight_monitor.monitor.worker.RedisRateLimiter;
 import com.siwol025.flight_monitor.notification.dto.PriceDropNotificationDto;
 import com.siwol025.flight_monitor.notification.producer.NotificationPublisher;
 import com.siwol025.flight_monitor.route.domain.Route;
@@ -90,6 +91,10 @@ class PriceMonitorServiceIntegrationTest {
     // Kafka 경계
     @MockitoBean
     private NotificationPublisher notificationPublisher;
+
+    // Redis 경계(공유 레이트 리미터)
+    @MockitoBean
+    private RedisRateLimiter rateLimiter;
 
     @Autowired
     private PriceMonitorService priceMonitorService;
@@ -342,6 +347,17 @@ class PriceMonitorServiceIntegrationTest {
         priceMonitorService.checkPriceAndNotify(route.getId());
 
         assertThat(externalApiLatency.count() - before).isEqualTo(2);
+    }
+
+    @Test
+    void 한도초과예외_처리기가_재개시각을_레이트리미터에기록() {
+        // 업체 한도는 API 키 단위라, 429의 재개 시각까지 모든 인스턴스가 멈춰야 한다
+        fakeLowestFareFinder.fail(new FareRateLimitedException(Instant.parse("2026-10-26T00:02:00Z"), "호출 한도 초과(429)"));
+
+        priceMonitorService.checkPriceAndNotify(route.getId());
+
+        verify(rateLimiter).pauseUntil(Instant.parse("2026-10-26T00:02:00Z"));
+        assertThat(routeLatestFareRepository.findByRouteId(route.getId())).isEmpty();
     }
 
     static Stream<FareProviderException> providerFailures() {

@@ -14,6 +14,7 @@ import com.siwol025.flight_monitor.monitor.utils.TaskQueueConsumerManager;
 import com.siwol025.flight_monitor.monitor.worker.FlightMonitoringWorker;
 import com.siwol025.flight_monitor.monitor.worker.InFlightBackpressure;
 import com.siwol025.flight_monitor.monitor.worker.MonitoringTaskProcessor;
+import com.siwol025.flight_monitor.monitor.worker.RedisRateLimiter;
 import com.siwol025.flight_monitor.notification.producer.NotificationPublisher;
 import com.siwol025.flight_monitor.route.domain.Route;
 import com.siwol025.flight_monitor.route.domain.RouteKey;
@@ -32,6 +33,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
@@ -115,7 +117,7 @@ class AsyncConfigMonitoringExecutorTest {
         PipelineMetrics metrics = new PipelineMetrics(new SimpleMeterRegistry());
         PriceMonitorService priceMonitorService = new PriceMonitorService(routeRepository, mock(RouteService.class),
                 slowApi, mock(RouteLatestFareService.class), mock(NotificationPublisher.class), metrics,
-                Clock.systemUTC());
+                Clock.systemUTC(), new StaticListableBeanFactory().getBeanProvider(RedisRateLimiter.class));
         MonitoringTaskProcessor processor = new MonitoringTaskProcessor(priceMonitorService, metrics, backpressure);
         FlightMonitoringWorker worker = new FlightMonitoringWorker(queue, processor, backpressure,
                 monitoringTaskExecutor, pollerCount, 3);

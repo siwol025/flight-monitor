@@ -53,6 +53,8 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	// 패키지 경계 규칙(ArchUnit). JUnit 5 전용 엔진(archunit-junit5) 대신 코어만 쓰고 일반 @Test에서 check한다
 	testImplementation 'com.tngtech.archunit:archunit:1.4.1'
+	// 공유 레이트 리미터(Lua)를 실제 Redis(compose와 같은 redis:7.0-alpine)로 검사한다. 버전은 Spring Boot BOM이 관리
+	testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
 	testCompileOnly 'org.projectlombok:lombok'
 	testAnnotationProcessor 'org.projectlombok:lombok'
 

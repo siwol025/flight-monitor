@@ -2,10 +2,12 @@ package com.siwol025.flight_monitor.monitor.service;
 
 import com.siwol025.flight_monitor.fare.FareProviderConfigurationException;
 import com.siwol025.flight_monitor.fare.FareProviderException;
+import com.siwol025.flight_monitor.fare.FareRateLimitedException;
 import com.siwol025.flight_monitor.fare.InvalidRouteException;
 import com.siwol025.flight_monitor.fare.LowestFare;
 import com.siwol025.flight_monitor.fare.LowestFareFinder;
 import com.siwol025.flight_monitor.monitor.metrics.PipelineMetrics;
+import com.siwol025.flight_monitor.monitor.worker.RedisRateLimiter;
 import com.siwol025.flight_monitor.notification.dto.PriceDropNotificationDto;
 import com.siwol025.flight_monitor.notification.producer.NotificationPublisher;
 import com.siwol025.flight_monitor.route.domain.Route;
@@ -19,6 +21,7 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
@@ -35,6 +38,8 @@ public class PriceMonitorService {
     private final NotificationPublisher producer;
     private final PipelineMetrics pipelineMetrics;
     private final Clock clock;
+    // 공유 레이트 리미터. monitor.ratelimiter.enabled=false면 없다
+    private final ObjectProvider<RedisRateLimiter> rateLimiter;
 
     public void checkPriceAndNotify(Long routeId) {
         // 큐에 남아 있던 무효(또는 사라진) 노선 작업이 업체 호출 예산을 쓰지 않게 한다
@@ -51,6 +56,11 @@ public class PriceMonitorService {
         } catch (InvalidRouteException e) {
             log.warn("[PriceMonitorService] 업체가 노선을 거부해 무효 처리합니다: routeId={}, 원인={}", routeId, e.getMessage());
             routeService.markInvalid(routeId);
+            return;
+        } catch (FareRateLimitedException e) {
+            // 업체 한도는 API 키 단위라 재개 시각까지 모든 인스턴스의 호출을 멈춘다. 이번 노선은 저장하지 않는다
+            log.warn("[PriceMonitorService] 운임 업체 호출 한도 초과, {}까지 전체 정지합니다: routeId={}", e.getResetAt(), routeId);
+            rateLimiter.ifAvailable(limiter -> limiter.pauseUntil(e.getResetAt()));
             return;
         } catch (FareProviderConfigurationException e) {
             log.error("[PriceMonitorService] 운임 업체 설정 오류(인증 등), 저장하지 않습니다: routeId={}", routeId, e);

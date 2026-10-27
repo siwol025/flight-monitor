@@ -72,18 +72,22 @@ monitor:
   backpressure:
     # in-flight 상한의 단일 권위(세마포어 permit 총량). 외부 API 응답 지연이 커져도 동시 처리 수를 이 값으로
     # 상한하고, 초과 백로그는 durable Redis 큐에 남긴다.
-    # 값 = 외부 API rate 한도에 정합(Little's Law: rate × 응답시간). 산출·측정 근거는 docs/test-environment.md.
-    max-in-flight: 100
+    # 값 = 전역 한도 × 응답 시간 p99 ÷ (서버 수 − 1)(서버 1대면 ÷ 1, 스펙 §6-1). Duffel 기본값:
+    # 0.45건/초(60초당 27건) × 응답 상한 15초 = 6.75 → 7. p99를 재기 전 초기값은 타임아웃으로 잡는다.
+    # 빠른 실험은 환경변수(MONITOR_BACKPRESSURE_MAX_IN_FLIGHT)로만 올리고 monitor.http.max-connections와 함께 올린다.
+    max-in-flight: 7
   ratelimiter:
-    # 외부 API 전역 rate 한도(초당 요청 수) 준수용 Redis 분산 rate limiter(공유 토큰 버킷, Lua 원자 실행).
-    # 멀티 인스턴스에서 각 서버가 로컬로 걸면 합산이 한도를 초과하므로, 토큰을 Redis에 두고 모든 인스턴스·워커가 공유.
+    # 외부 API 전역 호출 한도(기간당 N건) 준수용 Redis 공유 레이트 리미터(Lua 원자 실행). 서버마다 로컬로 걸면 합산이
+    # 한도를 넘으므로 토큰과 429 전체 정지를 Redis에 두고 모든 인스턴스·워커가 공유한다.
+    # 기본값은 실제 Duffel 한도(60초당 30건)의 90%. 빠른 실험은 MONITOR_RATELIMITER_LIMIT·_PERIOD 환경변수로만 올린다.
     enabled: true
-    rate-per-sec: 100
+    limit: 27
+    period: 60s
   http:
-    # 외부 API 커넥션 풀 최대 커넥션 수(max-total = max-per-route). in-flight 세마포어 permit(max-in-flight)
-    # 이상이어야 풀이 새 병목이 되지 않는다. 정합 불변식(max-connections >= max-in-flight)은
-    # DuffelHttpClientConfig(Duffel 전용 풀이 이 값을 쓴다)가 기동 시 fail-fast로 가드.
-    max-connections: 100
+    # Duffel 전용 커넥션 풀 최대 커넥션 수(max-total = max-per-route). max-in-flight와 함께 움직인다: 진행 중인 요청마다
+    # 커넥션을 하나씩 붙잡으므로 이 값이 max-in-flight보다 작으면 풀이 새 병목이 된다. 환경변수로 max-in-flight만 올리고
+    # 이 값(MONITOR_HTTP_MAX_CONNECTIONS)을 빠뜨리면 DuffelHttpClientConfig가 기동 시 fail-fast로 알린다.
+    max-connections: 7
   produce:
     # 모니터링 주기 T=60s (특가 30~90분 소멸 SLA 역산). lock-at-least-for는 주기보다 약간 짧게(주기당 1회 보장),
     # lock-at-most-for는 리더 노드 사망 시 락 자동 만료 안전망(= 주기). 정합 불변식(lock-at-least-for < fixed-rate-ms,
