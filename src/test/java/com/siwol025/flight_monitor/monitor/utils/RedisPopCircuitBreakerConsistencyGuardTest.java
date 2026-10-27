@@ -9,10 +9,10 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 /**
  * Redis Pop 서킷브레이커 일관성 불변식 가드:
  * {@code monitor.consumer.block-pop-timeout-seconds >= slowCallDurationThreshold} 이면
- * (블로킹 BRPOP 타임아웃이 느린 호출 임계 이상이면) 스프링 컨텍스트가 기동 단계에서
+ * (블로킹 BZPOPMIN 타임아웃이 느린 호출 임계 이상이면) 스프링 컨텍스트가 기동 단계에서
  * fail-fast 로 실패해야 한다.
  *
- * <p>타임아웃이 임계와 같거나 크면, 큐가 비어 있을 때 정상적으로 임계까지 블로킹된 BRPOP 이
+ * <p>타임아웃이 임계와 같거나 크면, 큐가 비어 있을 때 정상적으로 임계까지 블로킹된 BZPOPMIN 이
  * "느린 호출"로 오분류되어 {@code redisPopCircuitBreaker} 가 헛되이 OPEN 된다.
  * 현재는 검증이 없어 충돌하는(3s >= 3s) 설정으로도 컨텍스트가 정상 기동한다.
  * 이 테스트는 그 공백을 드러낸다.

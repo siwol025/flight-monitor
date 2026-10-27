@@ -47,7 +47,7 @@ spring:
               - email
               - profile
 
-  # Redis(Lettuce) 커넥션 풀 — 블로킹 BRPOP은 전용 커넥션을 요구한다. 풀이 없으면 pop마다 커넥션을
+  # Redis(Lettuce) 커넥션 풀 — 블로킹 BZPOPMIN은 전용 커넥션을 요구한다. 풀이 없으면 pop마다 커넥션을
   # 신규 생성/폐기해 고처리량에서 TIME_WAIT 누적으로 에페메랄 포트가 고갈된다(실측: pop ~560/s에서
   # ~50s 만에 포트 고갈 → 파이프라인 스톨). max-active는 동시 블로킹 폴러 수(monitor.worker.count)에
   # push/shedlock/queue-size 등 비블로킹 사용분 헤드룸을 더해 사이징한다.
@@ -65,8 +65,8 @@ monitor:
   worker:
     count: 3
   consumer:
-    # 블로킹 BRPOP 타임아웃(초). redisPopCircuitBreaker.slowCallDurationThreshold(5s) 보다 엄격히 작아야 한다
-    # — 그래야 큐가 비었을 때 정상적으로 타임아웃까지 블로킹된 BRPOP 이 "느린 호출"로 오분류되지 않는다.
+    # 블로킹 BZPOPMIN 타임아웃(초). redisPopCircuitBreaker.slowCallDurationThreshold(5s) 보다 엄격히 작아야 한다
+    # — 그래야 큐가 비었을 때 정상적으로 타임아웃까지 블로킹된 BZPOPMIN 이 "느린 호출"로 오분류되지 않는다.
     # RedisPopCircuitBreakerConsistencyValidator 가 기동 시 fail-fast 로 가드.
     block-pop-timeout-seconds: 3
   backpressure:
@@ -188,7 +188,7 @@ resilience4j:
         # 느린 요청 비율이 40% 넘으면 OPEN
         slowCallRateThreshold: 40
         # 느린 요청 판정 임계. block-pop 타임아웃(3s)보다 커야 한다 — 정상적으로 서버 타임아웃까지 블로킹된
-        # BRPOP 을 느린 호출로 세지 않도록(서버 타임아웃을 넘어선 실제 클라이언트 측 정체만 서킷을 연다).
+        # BZPOPMIN 을 느린 호출로 세지 않도록(서버 타임아웃을 넘어선 실제 클라이언트 측 정체만 서킷을 연다).
         # RedisPopCircuitBreakerConsistencyValidator 가 가드.
         slowCallDurationThreshold: 5s
         # OPEN 상태가 되면 5초 동안 Redis 접근 차단

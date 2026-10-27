@@ -98,7 +98,7 @@ class AsyncConfigMonitoringExecutorTest {
         RouteRepository routeRepository = mock(RouteRepository.class);
         given(routeRepository.findById(1L)).willReturn(Optional.of(
                 new Route(new RouteKey("ICN", "NRT", LocalDate.of(2026, 11, 26), SeatGrade.ECONOMY))));
-        // Redis 큐 경계: 작업을 totalTasks건 공급한 뒤에는 실제 BRPOP처럼 잠시 블로킹하다 타임아웃(null)한다.
+        // Redis 큐 경계: 작업을 totalTasks건 공급한 뒤에는 실제 BZPOPMIN처럼 잠시 블로킹하다 타임아웃(null)한다.
         // 공급이 유한해야 상한이 깨지는 회귀에서 테스트가 멈추지 않고 바로 실패한다
         TaskQueueConsumerManager queue = mock(TaskQueueConsumerManager.class);
         given(queue.blockAndPopTask(anyLong())).willAnswer(invocation -> {

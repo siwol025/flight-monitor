@@ -7,6 +7,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations.TypedTuple;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -17,13 +18,16 @@ public class TaskQueueConsumerManager {
     private final StringRedisTemplate redisTemplate;
     private final FallbackTaskService fallbackTaskService;
 
-    private static final String TASK_QUEUE_KEY = "monitoring:task:queue";
-
     private final AtomicBoolean fallbackTaskExists = new AtomicBoolean(false);
 
+    /**
+     * BZPOPMIN으로 가장 오래 기다린 노선을 꺼낸다. 시간 안에 없으면 null.
+     */
     @CircuitBreaker(name = "redisPopCircuitBreaker", fallbackMethod = "recoverFromRedisPopFailure")
     public String blockAndPopTask(long timeoutSeconds) {
-        return redisTemplate.opsForList().rightPop(TASK_QUEUE_KEY, Duration.ofSeconds(timeoutSeconds));
+        TypedTuple<String> route = redisTemplate.opsForZSet()
+                .popMin(TaskQueueManager.ROUTE_QUEUE_KEY, Duration.ofSeconds(timeoutSeconds));
+        return route == null ? null : route.getValue();
     }
 
     public String recoverFromRedisPopFailure(long timeoutSeconds, Throwable t) {

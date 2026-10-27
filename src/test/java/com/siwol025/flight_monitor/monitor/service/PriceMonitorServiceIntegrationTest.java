@@ -1,6 +1,7 @@
 package com.siwol025.flight_monitor.monitor.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.Mockito.verify;
@@ -39,7 +40,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -347,6 +350,38 @@ class PriceMonitorServiceIntegrationTest {
         priceMonitorService.checkPriceAndNotify(route.getId());
 
         assertThat(externalApiLatency.count() - before).isEqualTo(2);
+    }
+
+    @Test
+    void 갱신간격지표_관측시각기준으로기록() {
+        // 같은 컨텍스트의 다른 테스트도 기록하므로 증분으로 잰다
+        Timer refreshInterval = meterRegistry.get(PipelineMetrics.METRIC_ROUTE_REFRESH_INTERVAL).timer();
+        long countBefore = refreshInterval.count();
+        double secondsBefore = refreshInterval.totalTime(TimeUnit.SECONDS);
+        // 첫 관측은 직전 관측이 없어 기록하지 않는다
+        fakeLowestFareFinder.respond(fare("50.00", "USD"));
+        priceMonitorService.checkPriceAndNotify(route.getId());
+        clock.advance(Duration.ofSeconds(90));
+        priceMonitorService.checkPriceAndNotify(route.getId());
+        // 운임 없음·업체 장애는 관측 시각이 그대로라 기록하지 않는다
+        clock.advance(Duration.ofSeconds(60));
+        fakeLowestFareFinder.respondEmpty();
+        priceMonitorService.checkPriceAndNotify(route.getId());
+        clock.advance(Duration.ofSeconds(60));
+        fakeLowestFareFinder.fail(new FareProviderUnavailableException("업체 장애"));
+        priceMonitorService.checkPriceAndNotify(route.getId());
+        clock.advance(Duration.ofSeconds(90));
+        fakeLowestFareFinder.respond(fare("45.67", "USD"));
+
+        priceMonitorService.checkPriceAndNotify(route.getId());
+
+        // 같은 가격 90초 + 하락 210초(실패한 시도가 아니라 마지막 관측부터)
+        assertThat(refreshInterval.count() - countBefore).isEqualTo(2);
+        assertThat(refreshInterval.totalTime(TimeUnit.SECONDS) - secondsBefore).isCloseTo(300.0, within(0.001));
+        // 노선 ID 태그를 달면 노선 수만큼 시계열이 생긴다
+        assertThat(meterRegistry.find(PipelineMetrics.METRIC_ROUTE_REFRESH_INTERVAL).timers())
+                .extracting(timer -> timer.getId().getTags())
+                .containsExactly(List.of());
     }
 
     @Test

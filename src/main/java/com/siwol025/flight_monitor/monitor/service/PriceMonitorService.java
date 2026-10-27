@@ -78,9 +78,10 @@ public class PriceMonitorService {
             return;
         }
 
-        // 최신 최저가 갱신 트랜잭션이 커밋된 뒤에 발행한다
-        routeLatestFareService.record(routeId, lowestFare.get())
-                .ifPresent(oldPrice -> publishPriceDrop(route, oldPrice, lowestFare.get()));
+        // 최신 최저가 갱신 트랜잭션이 커밋된 뒤에 갱신 간격을 기록하고 발행한다(롤백된 관측은 세지 않는다)
+        FareObservationResult result = routeLatestFareService.record(routeId, lowestFare.get());
+        result.refreshInterval().ifPresent(pipelineMetrics::recordRouteRefreshInterval);
+        result.droppedFrom().ifPresent(oldPrice -> publishPriceDrop(route, oldPrice, lowestFare.get()));
     }
 
     private void publishPriceDrop(Route route, BigDecimal oldPrice, LowestFare fare) {

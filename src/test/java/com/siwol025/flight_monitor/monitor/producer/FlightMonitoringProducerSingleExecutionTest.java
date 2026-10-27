@@ -75,8 +75,7 @@ class FlightMonitoringProducerSingleExecutionTest {
 
     @Test
     void 프로듀서_다중노드_동시발화_주기당_1회만_발행() {
-        // GIVEN: 본문이 실행되면 발행하도록 큐 크기는 임계치 미만, 활성 노선은 비어있지 않게
-        given(taskQueueManager.getQueueSizeSafely()).willReturn(0L);
+        // GIVEN: 본문이 실행되면 발행하도록 활성 노선은 비어있지 않게
         given(subscriptionService.getActiveRouteIds())
                 .willReturn(List.of(1L));
 
@@ -97,7 +96,6 @@ class FlightMonitoringProducerSingleExecutionTest {
 
     @Test
     void 프로듀서_리더선출_락설정_전달됨() {
-        given(taskQueueManager.getQueueSizeSafely()).willReturn(0L);
         given(subscriptionService.getActiveRouteIds()).willReturn(List.of());
 
         given(lockProvider.lock(any(LockConfiguration.class)))
