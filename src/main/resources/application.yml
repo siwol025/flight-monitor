@@ -78,12 +78,12 @@ monitor:
     # 상한하고, 초과 백로그는 durable Redis 큐에 남긴다.
     # 값 = 전역 한도 × 응답 시간 p99 ÷ (서버 수 − 1)(서버 1대면 ÷ 1, 스펙 §6-1). Duffel 기본값:
     # 0.45건/초(60초당 27건) × 응답 상한 15초 = 6.75 → 7. p99를 재기 전 초기값은 타임아웃으로 잡는다.
-    # 빠른 실험은 환경변수(MONITOR_BACKPRESSURE_MAX_IN_FLIGHT)로만 올리고 monitor.http.max-connections와 함께 올린다.
+    # 조정은 이 값을 yml에서(또는 같은 키의 환경변수 MONITOR_BACKPRESSURE_MAX_IN_FLIGHT로) 바꾸고, monitor.http.max-connections와 함께 올린다.
     max-in-flight: 7
   ratelimiter:
     # 외부 API 전역 호출 한도(기간당 N건) 준수용 Redis 공유 레이트 리미터(Lua 원자 실행). 서버마다 로컬로 걸면 합산이
     # 한도를 넘으므로 토큰과 429 전체 정지를 Redis에 두고 모든 인스턴스·워커가 공유한다.
-    # 기본값은 실제 Duffel 한도(60초당 30건)의 90%. 빠른 실험은 MONITOR_RATELIMITER_LIMIT·_PERIOD 환경변수로만 올린다.
+    # 기본값은 실제 Duffel 한도(60초당 30건)의 90%. 한도는 yml에서(또는 같은 키의 환경변수 MONITOR_RATELIMITER_LIMIT·_PERIOD로) 바꾼다.
     enabled: true
     limit: 27
     period: 60s
@@ -135,7 +135,8 @@ mock:
     outage-duration-ms: ${MOCK_MAIL_OUTAGE_DURATION_MS:0}
   # Duffel 호환 엔드포인트(/air/offer_requests)가 강제하는 업체 한도. 기본값은 실제 Duffel 테스트 모드와 같은
   # 60초당 30건(실측 ratelimit-limit 30, 분 경계 고정 창)이라 어댑터 expected-rate-limit(30)과 맞는다.
-  # 여러 대·고한도 실험은 환경변수(MOCK_DUFFEL_RATE_LIMIT_LIMIT 등)로만 올린다.
+  # 여러 대·엔터프라이즈 등급(높은 한도) 실험은 이 값을 yml에서 올린다(같은 키의 환경변수 MOCK_DUFFEL_RATE_LIMIT_LIMIT 등으로
+  # 덮어써도 된다).
   duffel:
     rate-limit:
       limit: 30
@@ -207,7 +208,8 @@ resilience4j:
         # 리미터 호출은 분당 수십 건이라 최근 호출 횟수로 판단
         slidingWindowType: COUNT_BASED
         slidingWindowSize: 4
-        # 연속 2회 실패면 OPEN. 그동안은 서버마다 로컬 버킷(전역 한도 ÷ monitor.ratelimiter.instances)으로 획득한다
+        # 최근 최대 4건 중 절반 이상 실패하면(최소 2건) OPEN — 성공 1건 뒤 시간 초과 1건으로도 열릴 수 있고, 그때는
+        # OPEN 동안(아래 10초) 서버마다 로컬 버킷(전역 한도 ÷ monitor.ratelimiter.instances)으로 센다
         minimumNumberOfCalls: 2
         failureRateThreshold: 50
         # OPEN 10초 뒤 1건으로 복구를 확인하고, 성공하면 공유 버킷으로 돌아간다

@@ -4,8 +4,8 @@ import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * 공유 레이트 리미터 설정: 기간당 N건과 서버 대수. 빠른 실험은 환경변수(MONITOR_RATELIMITER_LIMIT,
- * MONITOR_RATELIMITER_PERIOD, MONITOR_RATELIMITER_INSTANCES)로만 바꾼다.
+ * 공유 레이트 리미터 설정: 기간당 N건과 서버 대수. 값은 yml({@code monitor.ratelimiter.*})에서 바꾸고, 같은 키의
+ * 환경변수(MONITOR_RATELIMITER_LIMIT, MONITOR_RATELIMITER_PERIOD, MONITOR_RATELIMITER_INSTANCES)로 덮어쓸 수도 있다.
  *
  * @param instances 서버 대수. Redis 장애 중에는 서버마다 전역 한도 ÷ 대수로 따로 센다(로컬 폴백)
  */

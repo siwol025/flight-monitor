@@ -67,7 +67,7 @@ class RateLimiterSettingsTest {
 
     @Test
     void 환경변수로_한도와maxInFlight_재정의됨() {
-        // 빠른 실험은 환경변수로만 올린다(새 프로필 파일 없음). 환경변수가 메인 yml 기본값을 이겨야 한다
+        // 값은 yml에서 바꾸고 같은 키의 환경변수로 덮어쓸 수도 있다(새 프로필 파일 없음). 환경변수가 메인 yml 기본값을 이겨야 한다
         deployedSettingsWithEnvironment(Map.of(
                 "MONITOR_RATELIMITER_LIMIT", "100",
                 "MONITOR_RATELIMITER_PERIOD", "1s",
