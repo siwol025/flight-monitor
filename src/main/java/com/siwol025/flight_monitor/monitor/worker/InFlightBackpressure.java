@@ -1,7 +1,7 @@
 package com.siwol025.flight_monitor.monitor.worker;
 
 import com.siwol025.flight_monitor.global.exception.custom.AcquireInterruptedException;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
@@ -21,13 +21,14 @@ public class InFlightBackpressure {
 
     private final Semaphore semaphore;
     private final int maxInFlight;
-    // 외부 API 전역 rate 한도 준수용 분산 rate limiter. 비활성 시 null → rate 게이팅을 건너뛴다.
-    @Autowired(required = false)
-    private RedisRateLimiter rateLimiter;
+    // 외부 API 전역 rate 한도 준수용 분산 rate limiter. monitor.ratelimiter.enabled=false면 없다 → rate 게이팅을 건너뛴다.
+    private final ObjectProvider<RedisRateLimiter> rateLimiter;
 
-    public InFlightBackpressure(@Value("${monitor.backpressure.max-in-flight:100}") int maxInFlight) {
+    public InFlightBackpressure(@Value("${monitor.backpressure.max-in-flight:100}") int maxInFlight,
+                                ObjectProvider<RedisRateLimiter> rateLimiter) {
         this.maxInFlight = maxInFlight;
         this.semaphore = new Semaphore(maxInFlight);
+        this.rateLimiter = rateLimiter;
     }
 
     /**
@@ -41,8 +42,8 @@ public class InFlightBackpressure {
      * 디스패치 전 in-flight permit을 획득하고(획득 가능할 때까지 블로킹), 이어서 rate 토큰을 획득한다.
      *
      * <p>대기 중 인터럽트가 발생하면 인터럽트 플래그를 복원하고 {@link AcquireInterruptedException}을 던진다.
-     * 이때는 permit을 보유하지 않은 상태이므로(rate 대기 중 인터럽트면 이미 획득한 permit을 반납한다)
-     * 호출자는 {@code release()}를 호출하면 안 된다.</p>
+     * 예외로 끝나면(인터럽트든 rate 단계의 다른 예외든) permit을 보유하지 않은 상태이므로(rate 단계에서 실패하면
+     * 이미 획득한 permit을 반납한다) 호출자는 {@code release()}를 호출하면 안 된다.</p>
      */
     public void acquire() {
         try {
@@ -51,11 +52,13 @@ public class InFlightBackpressure {
             Thread.currentThread().interrupt();
             throw new AcquireInterruptedException(e);
         }
-        if (rateLimiter != null) {
+        RedisRateLimiter limiter = rateLimiter.getIfAvailable();
+        if (limiter != null) {
             try {
-                rateLimiter.acquire();
-            } catch (AcquireInterruptedException e) {
-                // rate 토큰 대기 중 인터럽트: 이미 permit을 보유 중이므로 반납 후 전파(permit 누수 방지).
+                limiter.acquire();
+            } catch (RuntimeException e) {
+                // rate 단계 실패(대기 중 인터럽트, 로컬 폴백이 받지 않는 Redis 오류 등): 이미 permit을 보유 중이므로
+                // 반납 후 전파(permit 누수 방지).
                 semaphore.release();
                 throw e;
             }

@@ -113,7 +113,8 @@ class AsyncConfigMonitoringExecutorTest {
             return null;
         });
 
-        InFlightBackpressure backpressure = new InFlightBackpressure(maxInFlight);
+        InFlightBackpressure backpressure = new InFlightBackpressure(maxInFlight,
+                new StaticListableBeanFactory().getBeanProvider(RedisRateLimiter.class));
         PipelineMetrics metrics = new PipelineMetrics(new SimpleMeterRegistry());
         PriceMonitorService priceMonitorService = new PriceMonitorService(routeRepository, mock(RouteService.class),
                 slowApi, mock(RouteLatestFareService.class), mock(NotificationPublisher.class), metrics,

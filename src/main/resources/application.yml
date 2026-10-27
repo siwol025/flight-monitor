@@ -53,6 +53,10 @@ spring:
   # push/shedlock/queue-size 등 비블로킹 사용분 헤드룸을 더해 사이징한다.
   data:
     redis:
+      # 명령 타임아웃(설정하지 않으면 Lettuce 기본 60초). Redis가 응답하지 않을 때 레이트 리미터 호출이 이 시간만큼 매달린 뒤
+      # 로컬 폴백으로 넘어간다. 블로킹 BZPOPMIN에도 걸리므로 monitor.consumer.block-pop-timeout-seconds(3초)보다 커야 한다
+      # (RedisPopCircuitBreakerConsistencyValidator가 기동 시 가드)
+      timeout: 4s
       lettuce:
         pool:
           enabled: true
@@ -83,6 +87,8 @@ monitor:
     enabled: true
     limit: 27
     period: 60s
+    # 서버 대수. 서버를 늘리거나 줄이면 이 값만 바꾼다. Redis 장애 중 서버마다 전역 한도 ÷ 대수로 따로 센다.
+    instances: 1
   http:
     # Duffel 전용 커넥션 풀 최대 커넥션 수(max-total = max-per-route). max-in-flight와 함께 움직인다: 진행 중인 요청마다
     # 커넥션을 하나씩 붙잡으므로 이 값이 max-in-flight보다 작으면 풀이 새 병목이 된다. 환경변수로 max-in-flight만 올리고
@@ -195,6 +201,23 @@ resilience4j:
         waitDurationInOpenState: 5s
         # HALF_OPEN 상태에서 5건만 테스트 요청 허용
         permittedNumberOfCallsInHalfOpenState: 5
+
+      # 공유 레이트 리미터(RedisRateLimiter) 전용. Redis 호출(eval·SET)만 감싼다(대기 수면은 밖)
+      redisRateLimiterCircuitBreaker:
+        # 리미터 호출은 분당 수십 건이라 최근 호출 횟수로 판단
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 4
+        # 연속 2회 실패면 OPEN. 그동안은 서버마다 로컬 버킷(전역 한도 ÷ monitor.ratelimiter.instances)으로 획득한다
+        minimumNumberOfCalls: 2
+        failureRateThreshold: 50
+        # OPEN 10초 뒤 1건으로 복구를 확인하고, 성공하면 공유 버킷으로 돌아간다
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 1
+        # Redis가 응답하지 않거나(명령 시간 초과) 연결이 안 될 때만 실패로 센다. 그 밖의 Redis 오류(WRONGTYPE 등)는
+        # 로컬 폴백 뒤로 숨기지 않고 그대로 드러낸다
+        recordExceptions:
+          - org.springframework.dao.QueryTimeoutException
+          - org.springframework.data.redis.RedisConnectionFailureException
 
 server:
   tomcat:

@@ -39,4 +39,22 @@ class RedisPopCircuitBreakerConsistencyGuardTest {
                         .hasMessageContaining("block-pop-timeout")
                         .hasMessageContaining("slowCallDurationThreshold"));
     }
+
+    @Test
+    void 설정_블로킹pop타임아웃이Redis명령타임아웃이상_기동실패() {
+        // Redis 명령 타임아웃은 블로킹 BZPOPMIN에도 걸린다(실측: 둘 다 3초면 3.03초에 시간 초과). 같거나 짧으면
+        // 빈 큐 pop이 모두 시간 초과 오류가 되어 pop 서킷이 열리고 폴러가 DB 폴백으로 넘어간다
+        contextRunner
+                .withPropertyValues(
+                        "monitor.consumer.block-pop-timeout-seconds=3",
+                        "resilience4j.circuitbreaker.instances.redisPopCircuitBreaker.slowCallDurationThreshold=5s",
+                        "spring.data.redis.timeout=3s")
+                .run(context -> assertThat(context)
+                        .hasFailed()
+                        .getFailure()
+                        .rootCause()
+                        .isInstanceOf(IllegalStateException.class)
+                        .hasMessageContaining("block-pop-timeout")
+                        .hasMessageContaining("spring.data.redis.timeout"));
+    }
 }

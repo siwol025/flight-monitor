@@ -4,8 +4,12 @@ import com.siwol025.flight_monitor.monitor.utils.TaskQueueConsumerManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.support.StaticListableBeanFactory;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -23,8 +27,12 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.after;
+import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.atMost;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
 
 @ExtendWith(MockitoExtension.class)
@@ -43,6 +51,10 @@ class FlightMonitoringWorkerTest {
 
     /** 동기 실행 executor: hand-off 즉시 processTask 실행 → 기존 위임 검증 유지 */
     private static final Executor SYNC_EXECUTOR = Runnable::run;
+
+    /** 레이트 리미터가 꺼진 상태(실제 백프레셔를 쓰는 테스트용) */
+    private static final ObjectProvider<RedisRateLimiter> NO_RATE_LIMITER =
+            new StaticListableBeanFactory().getBeanProvider(RedisRateLimiter.class);
 
     @AfterEach
     void tearDown() {
@@ -89,7 +101,7 @@ class FlightMonitoringWorkerTest {
     @Test
     void 백프레셔_in_flight상한_도달시_추가pop_보류됨() {
         // given: capacity 1 실제 백프레셔에서 유일한 permit을 테스트 스레드가 선점 (가용 permit 0)
-        InFlightBackpressure realBackpressure = new InFlightBackpressure(1);
+        InFlightBackpressure realBackpressure = new InFlightBackpressure(1, NO_RATE_LIMITER);
         realBackpressure.acquire();
 
         given(queueManager.blockAndPopTask(anyLong())).willReturn("task-payload");
@@ -141,6 +153,64 @@ class FlightMonitoringWorkerTest {
 
         // then: acquire한 permit은 예외 경로에서도 반환되어야 한다
         then(backpressure).should(timeout(2000).atLeastOnce()).release();
+    }
+
+    enum FailingStage { ACQUIRE, POP }
+
+    @ParameterizedTest
+    @EnumSource(FailingStage.class)
+    void 폴러_일반예외발생_백오프후_계속폴링_스레드생존(FailingStage stage) throws InterruptedException {
+        // given: Redis 장애처럼 매번 같은 단계가 실패한다
+        if (stage == FailingStage.ACQUIRE) {
+            // rate 단계 실패: acquire가 permit을 스스로 반납한 뒤 던진다
+            willThrow(new RuntimeException("redis down")).given(backpressure).acquire();
+        } else {
+            given(queueManager.blockAndPopTask(anyLong())).willThrow(new RuntimeException("redis down"));
+        }
+        worker = new FlightMonitoringWorker(queueManager, taskProcessor, backpressure, SYNC_EXECUTOR, 1, 3);
+
+        // when
+        worker.startWorkers();
+        Thread.sleep(2500);
+
+        // then: 폴러는 죽지 않고 계속 시도하되(2회 이상), 실패마다 쉬어 빈 루프로 CPU·로그가 폭주하지 않는다(1초 백오프면 약 3회)
+        then(backpressure).should(atLeast(2)).acquire();
+        then(backpressure).should(atMost(4)).acquire();
+        if (stage == FailingStage.ACQUIRE) {
+            // 실패한 acquire는 permit을 쥐고 있지 않으므로 반납하면 permit이 늘어난다
+            then(backpressure).should(never()).release();
+        }
+    }
+
+    @Test
+    void 폴러_인터럽트_정상종료() throws InterruptedException {
+        // given: acquire가 계속 실패해 폴러가 오류 뒤 백오프(1초)로 쉬고 있다
+        willThrow(new RuntimeException("redis down")).given(backpressure).acquire();
+        worker = new FlightMonitoringWorker(queueManager, taskProcessor, backpressure, SYNC_EXECUTOR, 1, 3);
+        Set<Thread> preExisting = pollerThreads();
+        worker.startWorkers();
+        then(backpressure).should(timeout(1000)).acquire();
+        Set<Thread> pollers = pollerThreads();
+        pollers.removeAll(preExisting);
+        assertEquals(1, pollers.size(), "오류 뒤에도 폴러 스레드가 살아 있어야 함");
+
+        // when: 종료 신호
+        worker.stopWorkers();
+
+        // then: 백오프 수면이 인터럽트를 삼키지 않고 바로 끝난다(백오프 1초를 다 채우지 않음)
+        Thread poller = pollers.iterator().next();
+        poller.join(300);
+        assertFalse(poller.isAlive(), "백오프 중 종료 신호를 받으면 폴러가 바로 끝나야 함");
+    }
+
+    private static Set<Thread> pollerThreads() {
+        Set<Thread> pollers = new HashSet<>();
+        for (Thread t : Thread.getAllStackTraces().keySet()) {
+            if (t.isAlive() && t.getName().startsWith("MonitorPoller-")) {
+                pollers.add(t);
+            }
+        }
+        return pollers;
     }
 
     @Test
@@ -201,7 +271,7 @@ class FlightMonitoringWorkerTest {
     void 경쟁컨슈머_종료신호시_모든워커_정상종료() throws InterruptedException {
         // given: permit 0인 실제 백프레셔 → 모든 폴러는 acquire() 안에서 영구 블로킹된다.
         int workerCount = 3;
-        InFlightBackpressure zeroPermitBackpressure = new InFlightBackpressure(0);
+        InFlightBackpressure zeroPermitBackpressure = new InFlightBackpressure(0, NO_RATE_LIMITER);
 
         // queueManager/taskProcessor는 acquire()를 넘지 못하므로 절대 호출되지 않음 → 스텁하지 않음(불필요 스텁 방지).
         worker = new FlightMonitoringWorker(queueManager, taskProcessor, zeroPermitBackpressure, SYNC_EXECUTOR, workerCount, 3);
