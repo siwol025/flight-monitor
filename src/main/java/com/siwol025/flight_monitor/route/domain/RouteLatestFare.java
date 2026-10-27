@@ -1,6 +1,5 @@
-package com.siwol025.flight_monitor.monitor.domain;
+package com.siwol025.flight_monitor.route.domain;
 
-import com.siwol025.flight_monitor.route.domain.Route;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -68,6 +67,24 @@ public class RouteLatestFare {
                            String flightNumber, LocalDateTime departingAt, LocalDateTime arrivingAt,
                            Instant observedAt) {
         this.route = route;
+        this.amount = amount;
+        this.currency = currency;
+        this.carrierCode = carrierCode;
+        this.carrierName = carrierName;
+        this.flightNumber = flightNumber;
+        this.departingAt = departingAt;
+        this.arrivingAt = arrivingAt;
+        this.observedAt = observedAt;
+    }
+
+    // 가격이 같아도 확인한 시각은 남긴다(노선당 갱신 간격 지표의 기준)
+    public void markObserved(Instant observedAt) {
+        this.observedAt = observedAt;
+    }
+
+    // route는 fare에 의존하지 않으므로 최저가 값 객체 대신 값을 하나씩 받는다
+    public void update(BigDecimal amount, String currency, String carrierCode, String carrierName, String flightNumber,
+                       LocalDateTime departingAt, LocalDateTime arrivingAt, Instant observedAt) {
         this.amount = amount;
         this.currency = currency;
         this.carrierCode = carrierCode;

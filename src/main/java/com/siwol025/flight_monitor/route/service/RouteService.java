@@ -9,6 +9,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
@@ -47,6 +48,14 @@ public class RouteService {
             log.info("[RouteService] 같은 노선이 동시에 생성되어 기존 노선을 재사용합니다: {}", key);
             return newTransaction.execute(status -> find(key).orElseThrow());
         }
+    }
+
+    /**
+     * 업체가 노선 자체를 거부하면(422) 무효로 돌려 감시와 새 구독에서 뺀다.
+     */
+    @Transactional
+    public void markInvalid(Long routeId) {
+        routeRepository.findById(routeId).ifPresent(Route::markInvalid);
     }
 
     private Optional<Route> find(RouteKey key) {

@@ -99,7 +99,6 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - JAVA_TOOL_OPTIONS=-Xms3072m -Xmx3072m -XX:+UseG1GC
-      - EXTERNAL_API_URL=http://flight-mock-api:8080/external/api/flights/
     deploy:
       resources:
         limits:

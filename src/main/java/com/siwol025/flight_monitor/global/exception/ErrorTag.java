@@ -18,7 +18,6 @@ public enum ErrorTag {
     AIRLINE_NOT_FOUND("해당 항공사를 찾을 수 없습니다."),
     AIRPORT_NOT_FOUND("해당 공항을 찾을 수 없습니다."),
     SUBSCRIPTION_NOT_FOUND("구독내역을 찾을 수 없습니다."),
-    FLIGHT_PRICE_INFO_NOT_FOUND("해당 항공권의 이전 가격 정보를 찾을 수 없습니다."),
     SEAT_NOT_FOUND("해당 좌석을 찾을 수 없습니다."),
     SEAT_PRICE_NOT_FOUND("해당 좌석 등급의 가격 정보를 찾을 수 없습니다."),
 
@@ -29,6 +28,7 @@ public enum ErrorTag {
     SAME_DEPARTURE_ARRIVAL_AIRPORT("출발 공항과 도착 공항이 같습니다."),
     INVALID_AIRPORT_CODE("공항 코드는 영문 3자여야 합니다."),
     PAST_DEPARTURE_DATE("출발일이 이미 지났습니다."),
+    INVALID_ROUTE_SUBSCRIPTION("운임 업체가 조회할 수 없는 노선이라 구독할 수 없습니다."),
 
     // 403 Forbidden (resource ownership)
     UNAUTHORIZED_SUBSCRIPTION("해당 구독을 취소할 권한이 없습니다.");

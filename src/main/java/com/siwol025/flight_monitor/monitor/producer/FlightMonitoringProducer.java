@@ -1,9 +1,6 @@
 package com.siwol025.flight_monitor.monitor.producer;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.siwol025.flight_monitor.monitor.utils.TaskQueueManager;
-import com.siwol025.flight_monitor.subscription.dto.FlightMonitorTaskDto;
 import com.siwol025.flight_monitor.subscription.service.SubscriptionService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +17,6 @@ import org.springframework.stereotype.Component;
 public class FlightMonitoringProducer {
 
     private final SubscriptionService subscriptionService;
-    private final ObjectMapper objectMapper;
     private final TaskQueueManager taskQueueManager;
 
     // 주기 T와 독립적인 파라미터 — T=60s 전환 시에도 유지. MAX_QUEUE_THRESHOLD는 컨슈머가 밀릴 때
@@ -43,29 +39,21 @@ public class FlightMonitoringProducer {
             return;
         }
 
-        List<FlightMonitorTaskDto> targets = subscriptionService.getActiveFlights();
+        List<Long> targets = subscriptionService.getActiveRouteIds();
         if (targets.isEmpty()) {
             return;
         }
 
         for (int i = 0; i < targets.size(); i += CHUNK_SIZE) {
             int end = Math.min(i+CHUNK_SIZE, targets.size());
-            List<FlightMonitorTaskDto> chunk = targets.subList(i, end);
+            List<Long> chunk = targets.subList(i, end);
 
-            List<String> jsonPayloads = chunk.stream()
-                    .map(this::toJson)
+            // 큐 페이로드는 노선 ID 숫자 문자열이다
+            List<String> payloads = chunk.stream()
+                    .map(String::valueOf)
                     .toList();
 
-            taskQueueManager.publishTasks(jsonPayloads);
-        }
-    }
-
-    private String toJson(FlightMonitorTaskDto dto) {
-        try {
-            return objectMapper.writeValueAsString(dto);
-        } catch (JsonProcessingException e) {
-            log.error("[FlightMonitoringProducer] JSON 직렬화 실패: {}", dto, e);
-            throw new RuntimeException("작업 페이로드 직렬화 오류", e);
+            taskQueueManager.publishTasks(payloads);
         }
     }
 }

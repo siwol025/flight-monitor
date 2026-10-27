@@ -5,7 +5,6 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -26,7 +25,6 @@ class ArchitectureRulesTest {
     }
 
     @Test
-    @Disabled("노선 전환으로 도메인의 mock DTO(MockFlightResponse) 의존이 사라지면 활성화")
     void mock밖에서_mock패키지를_import하지않음() {
         noClasses().that().resideOutsideOfPackage("com.siwol025.flight_monitor.mock..")
                 .should().dependOnClassesThat().resideInAPackage("com.siwol025.flight_monitor.mock..")

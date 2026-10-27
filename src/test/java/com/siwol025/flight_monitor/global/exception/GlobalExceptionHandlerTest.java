@@ -96,7 +96,7 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void Valid실패이면_400과_INVALID_INPUT반환() throws Exception {
-        // flightId, seatGrade 둘 다 @NotNull인데 빈 JSON 전송
+        // 출발·도착 공항, 출발일, 좌석등급 모두 @NotNull인데 빈 JSON 전송
         mockMvc.perform(post("/test/valid")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))

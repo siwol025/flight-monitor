@@ -2,8 +2,7 @@ package com.siwol025.flight_monitor.subscription.domain;
 
 import com.siwol025.flight_monitor.global.exception.ErrorTag;
 import com.siwol025.flight_monitor.global.exception.custom.UnauthorizedException;
-import com.siwol025.flight_monitor.subscription.domain.flight.Flight;
-import com.siwol025.flight_monitor.route.domain.SeatGrade;
+import com.siwol025.flight_monitor.route.domain.Route;
 import com.siwol025.flight_monitor.user.domain.User;
 import com.siwol025.flight_monitor.global.entity.BaseTimeEntity;
 import jakarta.persistence.Column;
@@ -38,15 +37,11 @@ public class Subscription extends BaseTimeEntity{
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "flight_id")
-    private Flight flight;
+    @JoinColumn(name = "route_id", nullable = false)
+    private Route route;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "seat_grade", nullable = false)
-    private SeatGrade seatGrade;
-
-    @Column(nullable = false, precision = 12, scale = 2)
-    private BigDecimal price;   // 구독 시점의 기준 가격
+    @Column(precision = 12, scale = 2)
+    private BigDecimal price;   // 구독 시점의 기준 가격. 노선의 첫 최저가를 관측하기 전(측정 대기)에는 비어 있다
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
@@ -59,10 +54,9 @@ public class Subscription extends BaseTimeEntity{
     private BigDecimal dropThresholdPercent;
 
     @Builder
-    public Subscription(User user, Flight flight, SeatGrade seatGrade, BigDecimal price, BigDecimal targetPrice, BigDecimal dropThresholdPercent) {
+    public Subscription(User user, Route route, BigDecimal price, BigDecimal targetPrice, BigDecimal dropThresholdPercent) {
         this.user = user;
-        this.flight = flight;
-        this.seatGrade = seatGrade;
+        this.route = route;
         this.price = price;
         this.targetPrice = targetPrice;
         this.dropThresholdPercent = dropThresholdPercent;

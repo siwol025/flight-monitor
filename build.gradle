@@ -68,7 +68,7 @@ dependencies {
 	implementation 'net.javacrumbs.shedlock:shedlock-spring:6.6.0'
 	implementation 'net.javacrumbs.shedlock:shedlock-provider-redis-spring:6.6.0'
 
-	// HTTP 커넥션 풀링(RestTemplate 재사용): PoolingHttpClientConnectionManager +
+	// HTTP 커넥션 풀링(Duffel 어댑터의 RestClient): PoolingHttpClientConnectionManager +
 	// HttpComponentsClientHttpRequestFactory. 버전은 Spring Boot BOM이 관리.
 	implementation 'org.apache.httpcomponents.client5:httpclient5'
 }

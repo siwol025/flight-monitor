@@ -29,13 +29,13 @@ public class KafkaNotificationListener {
     @KafkaListener(topics = "flight-price-drop-events", groupId = "notification-fanout-group", concurrency = "3")
     public void processNotification(PriceDropNotificationDto eventDto) {
         try {
-            List<SubscriberWithConditionDto> subscribers = subscriptionService.getSubscribersWithCondition(eventDto.flightId(), eventDto.seatGrade());
+            List<SubscriberWithConditionDto> subscribers = subscriptionService.getSubscribersWithCondition(eventDto.routeId());
 
             if (subscribers.isEmpty()) {
                 return;
             }
 
-            String subject = formatter.createSubject(eventDto.flightNumber());
+            String subject = formatter.createSubject(eventDto);
             String content = formatter.createContent(eventDto);
 
             for (SubscriberWithConditionDto subscriber : subscribers) {
@@ -45,7 +45,7 @@ public class KafkaNotificationListener {
                 EmailSendTaskDto taskDto = new EmailSendTaskDto(subscriber.email(), subject, content);
                 try {
                     // send()는 비동기다. 브로커 쓰기 실패는 future로 늦게 도착하므로 그 경로의 실패도 놓치지 않고 남긴다.
-                    kafkaTemplate.send(OUT_TOPIC, eventDto.flightNumber() + subscriber.email(), taskDto)
+                    kafkaTemplate.send(OUT_TOPIC, eventDto.routeId() + subscriber.email(), taskDto)
                             .whenComplete((result, ex) -> {
                                 if (ex != null) {
                                     log.error("[KafkaNotificationListener] 이메일 작업 비동기 전송 실패: {}", subscriber.email(), ex);

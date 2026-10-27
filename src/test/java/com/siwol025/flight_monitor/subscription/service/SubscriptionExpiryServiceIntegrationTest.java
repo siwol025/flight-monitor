@@ -6,6 +6,10 @@ import static org.mockito.BDDMockito.given;
 import com.siwol025.flight_monitor.global.config.CacheConfig;
 import com.siwol025.flight_monitor.subscription.domain.SubscriptionStatus;
 import com.siwol025.flight_monitor.subscription.repository.SubscriptionRepository;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +30,11 @@ class SubscriptionExpiryServiceIntegrationTest {
     @EnableCaching
     @Import(SubscriptionExpiryService.class)
     static class TestConfig {
+        @Bean
+        Clock clock() {
+            return Clock.fixed(Instant.parse("2026-10-25T23:00:00Z"), ZoneId.of("Asia/Seoul"));
+        }
+
         @Bean
         CacheManager cacheManager() {
             return new ConcurrentMapCacheManager(CacheConfig.MONITORING_LIST_CACHE);
@@ -50,7 +59,7 @@ class SubscriptionExpiryServiceIntegrationTest {
         assertThat(cache.get("dummy-key")).isNotNull();
 
         given(subscriptionRepository.bulkExpireSubscriptions(
-                SubscriptionStatus.ACTIVE, SubscriptionStatus.EXPIRED))
+                SubscriptionStatus.ACTIVE, SubscriptionStatus.EXPIRED, LocalDate.of(2026, 10, 26)))
                 .willReturn(1);
 
         // WHEN: expireSubscriptions() 호출 — @CacheEvict(allEntries = true) 발동

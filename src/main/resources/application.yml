@@ -82,7 +82,7 @@ monitor:
   http:
     # 외부 API 커넥션 풀 최대 커넥션 수(max-total = max-per-route). in-flight 세마포어 permit(max-in-flight)
     # 이상이어야 풀이 새 병목이 되지 않는다. 정합 불변식(max-connections >= max-in-flight)은
-    # RestTemplateConfig와 DuffelHttpClientConfig(Duffel 전용 풀도 이 값을 쓴다)가 기동 시 fail-fast로 가드.
+    # DuffelHttpClientConfig(Duffel 전용 풀이 이 값을 쓴다)가 기동 시 fail-fast로 가드.
     max-connections: 100
   produce:
     # 모니터링 주기 T=60s (특가 30~90분 소멸 SLA 역산). lock-at-least-for는 주기보다 약간 짧게(주기당 1회 보장),

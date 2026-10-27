@@ -21,8 +21,8 @@ import org.springframework.web.client.RestClient;
 /**
  * Duffel 전용 HTTP 클라이언트와 어댑터 빈 조립.
  *
- * <p>HTTP 클라이언트는 {@code defaultCandidate = false}로 등록한다. 타입만으로 주입받는 기존 빈
- * ({@code RestTemplateConfig}의 {@code CloseableHttpClient} 주입)에 끼어들지 않고, 이름으로 지정한 곳에만 주입된다.
+ * <p>HTTP 클라이언트는 {@code defaultCandidate = false}로 등록한다. 타입만으로 주입받는 곳에 끼어들지 않고,
+ * 이름으로 지정한 곳에만 주입된다.
  * 커넥션 풀은 이 클라이언트가 소유하며 컨텍스트 종료 때 클라이언트와 함께 닫힌다.</p>
  */
 @Configuration

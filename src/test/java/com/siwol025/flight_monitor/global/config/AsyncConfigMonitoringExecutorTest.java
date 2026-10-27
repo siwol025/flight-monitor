@@ -6,19 +6,25 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.siwol025.flight_monitor.monitor.metrics.PipelineMetrics;
-import com.siwol025.flight_monitor.monitor.service.FlightLatestPriceInfoService;
+import com.siwol025.flight_monitor.fare.LowestFareFinder;
 import com.siwol025.flight_monitor.monitor.service.PriceMonitorService;
-import com.siwol025.flight_monitor.monitor.utils.CacheStrategy;
+import com.siwol025.flight_monitor.monitor.service.RouteLatestFareService;
 import com.siwol025.flight_monitor.monitor.utils.TaskQueueConsumerManager;
 import com.siwol025.flight_monitor.monitor.worker.FlightMonitoringWorker;
 import com.siwol025.flight_monitor.monitor.worker.InFlightBackpressure;
 import com.siwol025.flight_monitor.monitor.worker.MonitoringTaskProcessor;
 import com.siwol025.flight_monitor.notification.producer.NotificationPublisher;
-import com.siwol025.flight_monitor.subscription.service.FlightDataProvider;
+import com.siwol025.flight_monitor.route.domain.Route;
+import com.siwol025.flight_monitor.route.domain.RouteKey;
+import com.siwol025.flight_monitor.route.domain.SeatGrade;
+import com.siwol025.flight_monitor.route.repository.RouteRepository;
+import com.siwol025.flight_monitor.route.service.RouteService;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.time.Clock;
 import java.time.Duration;
+import java.time.LocalDate;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
@@ -72,24 +78,30 @@ class AsyncConfigMonitoringExecutorTest {
         AtomicInteger maxRunning = new AtomicInteger();
         AtomicInteger completed = new AtomicInteger();
 
-        // HTTP 경계: 외부 API 응답 지연을 흉내 내며 동시 호출 수를 잰다. null 응답이면 PriceMonitorService가 바로 끝난다
-        FlightDataProvider slowApi = mock(FlightDataProvider.class);
-        given(slowApi.fetchMockFlight(1L)).willAnswer(invocation -> {
+        // HTTP 경계(테스트 전용 가짜 운임 포트): 외부 API 응답 지연을 흉내 내며 동시 호출 수를 잰다.
+        // 운임 없음(empty)이면 PriceMonitorService가 저장 없이 바로 끝난다
+        LowestFareFinder slowApi = routeKey -> {
             maxRunning.accumulateAndGet(running.incrementAndGet(), Math::max);
             try {
                 Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
             } finally {
                 running.decrementAndGet();
                 completed.incrementAndGet();
             }
-            return null;
-        });
+            return Optional.empty();
+        };
+        // DB 경계: 작업의 노선 ID로 감시할 노선을 찾는다
+        RouteRepository routeRepository = mock(RouteRepository.class);
+        given(routeRepository.findById(1L)).willReturn(Optional.of(
+                new Route(new RouteKey("ICN", "NRT", LocalDate.of(2026, 11, 26), SeatGrade.ECONOMY))));
         // Redis 큐 경계: 작업을 totalTasks건 공급한 뒤에는 실제 BRPOP처럼 잠시 블로킹하다 타임아웃(null)한다.
         // 공급이 유한해야 상한이 깨지는 회귀에서 테스트가 멈추지 않고 바로 실패한다
         TaskQueueConsumerManager queue = mock(TaskQueueConsumerManager.class);
         given(queue.blockAndPopTask(anyLong())).willAnswer(invocation -> {
             if (supplied.getAndIncrement() < totalTasks) {
-                return "{\"flightId\":1,\"seatGrade\":\"ECONOMY\"}";
+                return "1";
             }
             try {
                 Thread.sleep(20);
@@ -100,10 +112,11 @@ class AsyncConfigMonitoringExecutorTest {
         });
 
         InFlightBackpressure backpressure = new InFlightBackpressure(maxInFlight);
-        PriceMonitorService priceMonitorService = new PriceMonitorService(slowApi,
-                mock(NotificationPublisher.class), mock(FlightLatestPriceInfoService.class), mock(CacheStrategy.class));
-        MonitoringTaskProcessor processor = new MonitoringTaskProcessor(new ObjectMapper(), priceMonitorService,
-                new PipelineMetrics(new SimpleMeterRegistry()), backpressure);
+        PipelineMetrics metrics = new PipelineMetrics(new SimpleMeterRegistry());
+        PriceMonitorService priceMonitorService = new PriceMonitorService(routeRepository, mock(RouteService.class),
+                slowApi, mock(RouteLatestFareService.class), mock(NotificationPublisher.class), metrics,
+                Clock.systemUTC());
+        MonitoringTaskProcessor processor = new MonitoringTaskProcessor(priceMonitorService, metrics, backpressure);
         FlightMonitoringWorker worker = new FlightMonitoringWorker(queue, processor, backpressure,
                 monitoringTaskExecutor, pollerCount, 3);
 

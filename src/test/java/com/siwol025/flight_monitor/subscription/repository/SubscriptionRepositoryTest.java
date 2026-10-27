@@ -2,17 +2,18 @@ package com.siwol025.flight_monitor.subscription.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.siwol025.flight_monitor.route.domain.Route;
+import com.siwol025.flight_monitor.route.domain.RouteKey;
+import com.siwol025.flight_monitor.route.domain.RouteStatus;
 import com.siwol025.flight_monitor.subscription.domain.Subscription;
 import com.siwol025.flight_monitor.subscription.domain.SubscriptionStatus;
-import com.siwol025.flight_monitor.subscription.domain.flight.Flight;
 import com.siwol025.flight_monitor.route.domain.SeatGrade;
-import com.siwol025.flight_monitor.subscription.dto.FlightMonitorTaskDto;
 import com.siwol025.flight_monitor.subscription.dto.SubscriberWithConditionDto;
 import com.siwol025.flight_monitor.user.domain.Provider;
 import com.siwol025.flight_monitor.user.domain.Role;
 import com.siwol025.flight_monitor.user.domain.User;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +23,9 @@ import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 @DataJpaTest
 class SubscriptionRepositoryTest {
 
+    // 노선 출발일 비교의 기준일(호출자가 한국 날짜로 넘긴다)
+    private static final LocalDate TODAY = LocalDate.of(2026, 10, 26);
+
     @Autowired
     SubscriptionRepository subscriptionRepository;
 
@@ -29,7 +33,7 @@ class SubscriptionRepositoryTest {
     TestEntityManager em;
 
     @Test
-    void findActiveFlightIdsAndSeatGrade_ACTIVE상태만_반환() {
+    void findActiveRouteIds_ACTIVE상태만_반환() {
         // given
         User user = em.persist(User.builder()
                 .email("test@example.com")
@@ -39,28 +43,19 @@ class SubscriptionRepositoryTest {
                 .role(Role.USER)
                 .build());
 
-        Flight flight = em.persist(Flight.builder()
-                .flightId(1001L)
-                .flightNumber("KE001")
-                .airlineCode("KE")
-                .departureAirport("ICN")
-                .arrivalAirport("NRT")
-                .departureTime(LocalDateTime.now().plusDays(1))
-                .arrivalTime(LocalDateTime.now().plusDays(1).plusHours(3))
-                .build());
+        Route economy = em.persist(new Route(new RouteKey("ICN", "NRT", TODAY.plusDays(1), SeatGrade.ECONOMY)));
+        Route business = em.persist(new Route(new RouteKey("ICN", "NRT", TODAY.plusDays(1), SeatGrade.BUSINESS)));
 
         Subscription activeSub = Subscription.builder()
                 .user(user)
-                .flight(flight)
-                .seatGrade(SeatGrade.ECONOMY)
+                .route(economy)
                 .price(BigDecimal.valueOf(300000))
                 .build();
         em.persist(activeSub);
 
         Subscription inactiveSub = Subscription.builder()
                 .user(user)
-                .flight(flight)
-                .seatGrade(SeatGrade.BUSINESS)
+                .route(business)
                 .price(BigDecimal.valueOf(700000))
                 .build();
         inactiveSub.updateStatus(SubscriptionStatus.INACTIVE);
@@ -70,12 +65,11 @@ class SubscriptionRepositoryTest {
         em.clear();
 
         // when
-        List<FlightMonitorTaskDto> result =
-                subscriptionRepository.findActiveFlightIdsAndSeatGrade(SubscriptionStatus.ACTIVE);
+        List<Long> result =
+                subscriptionRepository.findActiveRouteIds(SubscriptionStatus.ACTIVE, RouteStatus.ACTIVE, TODAY);
 
         // then
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).seatGrade()).isEqualTo(SeatGrade.ECONOMY);
+        assertThat(result).containsExactly(economy.getId());
     }
 
     @Test
@@ -83,20 +77,16 @@ class SubscriptionRepositoryTest {
         User user = em.persist(User.builder()
                 .email("cond@example.com").name("조건유저")
                 .provider(Provider.GOOGLE).providerId("google-cond-1").role(Role.USER).build());
-        Flight flight = em.persist(Flight.builder()
-                .flightId(3001L).flightNumber("KE301").airlineCode("KE")
-                .departureAirport("ICN").arrivalAirport("LAX")
-                .departureTime(LocalDateTime.now().plusDays(1))
-                .arrivalTime(LocalDateTime.now().plusDays(1).plusHours(11)).build());
+        Route route = em.persist(new Route(new RouteKey("ICN", "LAX", TODAY.plusDays(1), SeatGrade.ECONOMY)));
         em.persist(Subscription.builder()
-                .user(user).flight(flight).seatGrade(SeatGrade.ECONOMY)
+                .user(user).route(route)
                 .price(BigDecimal.valueOf(800000))
                 .targetPrice(BigDecimal.valueOf(120000))
                 .dropThresholdPercent(BigDecimal.valueOf(10.00)).build());
         em.flush(); em.clear();
 
         List<SubscriberWithConditionDto> result =
-                subscriptionRepository.findSubscribersWithCondition(3001L, SeatGrade.ECONOMY, SubscriptionStatus.ACTIVE);
+                subscriptionRepository.findSubscribersWithCondition(route.getId(), SubscriptionStatus.ACTIVE);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).email()).isEqualTo("cond@example.com");
@@ -109,18 +99,14 @@ class SubscriptionRepositoryTest {
         User user = em.persist(User.builder()
                 .email("nocond@example.com").name("무조건유저")
                 .provider(Provider.GOOGLE).providerId("google-nocond-1").role(Role.USER).build());
-        Flight flight = em.persist(Flight.builder()
-                .flightId(3002L).flightNumber("KE302").airlineCode("KE")
-                .departureAirport("ICN").arrivalAirport("NRT")
-                .departureTime(LocalDateTime.now().plusDays(2))
-                .arrivalTime(LocalDateTime.now().plusDays(2).plusHours(2)).build());
+        Route route = em.persist(new Route(new RouteKey("ICN", "NRT", TODAY.plusDays(2), SeatGrade.ECONOMY)));
         em.persist(Subscription.builder()
-                .user(user).flight(flight).seatGrade(SeatGrade.ECONOMY)
+                .user(user).route(route)
                 .price(BigDecimal.valueOf(300000)).build());
         em.flush(); em.clear();
 
         List<SubscriberWithConditionDto> result =
-                subscriptionRepository.findSubscribersWithCondition(3002L, SeatGrade.ECONOMY, SubscriptionStatus.ACTIVE);
+                subscriptionRepository.findSubscribersWithCondition(route.getId(), SubscriptionStatus.ACTIVE);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).email()).isEqualTo("nocond@example.com");
@@ -133,213 +119,47 @@ class SubscriptionRepositoryTest {
         User user = em.persist(User.builder()
                 .email("inactive@example.com").name("비활성유저")
                 .provider(Provider.GOOGLE).providerId("google-inactive-1").role(Role.USER).build());
-        Flight flight = em.persist(Flight.builder()
-                .flightId(3003L).flightNumber("KE303").airlineCode("KE")
-                .departureAirport("ICN").arrivalAirport("SYD")
-                .departureTime(LocalDateTime.now().plusDays(3))
-                .arrivalTime(LocalDateTime.now().plusDays(3).plusHours(10)).build());
+        Route route = em.persist(new Route(new RouteKey("ICN", "SYD", TODAY.plusDays(3), SeatGrade.ECONOMY)));
         Subscription inactive = Subscription.builder()
-                .user(user).flight(flight).seatGrade(SeatGrade.ECONOMY)
+                .user(user).route(route)
                 .price(BigDecimal.valueOf(500000)).build();
         inactive.updateStatus(SubscriptionStatus.INACTIVE);
         em.persist(inactive);
         em.flush(); em.clear();
 
         List<SubscriberWithConditionDto> result =
-                subscriptionRepository.findSubscribersWithCondition(3003L, SeatGrade.ECONOMY, SubscriptionStatus.ACTIVE);
+                subscriptionRepository.findSubscribersWithCondition(route.getId(), SubscriptionStatus.ACTIVE);
 
         assertThat(result).isEmpty();
     }
 
     @Test
     void findSubscribersWithCondition_다른좌석등급_구독자_제외됨() {
-        // given: 같은 항공편에 이코노미 구독자와 비즈니스 구독자가 있다
+        // given: 같은 구간·날짜에 이코노미 노선 구독자와 비즈니스 노선 구독자가 있다(좌석등급이 다르면 다른 노선)
         User economyUser = em.persist(User.builder()
                 .email("economy@example.com").name("이코노미유저")
                 .provider(Provider.GOOGLE).providerId("google-eco-1").role(Role.USER).build());
         User businessUser = em.persist(User.builder()
                 .email("business@example.com").name("비즈니스유저")
                 .provider(Provider.GOOGLE).providerId("google-biz-1").role(Role.USER).build());
-        Flight flight = em.persist(Flight.builder()
-                .flightId(3004L).flightNumber("KE304").airlineCode("KE")
-                .departureAirport("ICN").arrivalAirport("CDG")
-                .departureTime(LocalDateTime.now().plusDays(4))
-                .arrivalTime(LocalDateTime.now().plusDays(4).plusHours(13)).build());
+        Route economy = em.persist(new Route(new RouteKey("ICN", "CDG", TODAY.plusDays(4), SeatGrade.ECONOMY)));
+        Route business = em.persist(new Route(new RouteKey("ICN", "CDG", TODAY.plusDays(4), SeatGrade.BUSINESS)));
         em.persist(Subscription.builder()
-                .user(economyUser).flight(flight).seatGrade(SeatGrade.ECONOMY)
+                .user(economyUser).route(economy)
                 .price(BigDecimal.valueOf(300000)).build());
         em.persist(Subscription.builder()
-                .user(businessUser).flight(flight).seatGrade(SeatGrade.BUSINESS)
+                .user(businessUser).route(business)
                 .price(BigDecimal.valueOf(1500000))
                 .targetPrice(BigDecimal.valueOf(1000000)).build());
         em.flush(); em.clear();
 
-        // when: 이코노미 가격 하락 이벤트의 구독자 조회
+        // when: 이코노미 노선 가격 하락 이벤트의 구독자 조회
         List<SubscriberWithConditionDto> result =
-                subscriptionRepository.findSubscribersWithCondition(3004L, SeatGrade.ECONOMY, SubscriptionStatus.ACTIVE);
+                subscriptionRepository.findSubscribersWithCondition(economy.getId(), SubscriptionStatus.ACTIVE);
 
         // then: 비즈니스 구독자는 포함되지 않는다
         assertThat(result).extracting(SubscriberWithConditionDto::email)
                 .containsExactly("economy@example.com");
-    }
-
-    @Test
-    void findExpirableSubscriptions_출발완료_ACTIVE구독_반환됨() {
-        // given
-        User user = em.persist(User.builder()
-                .email("expirable@example.com")
-                .name("만료유저")
-                .provider(Provider.GOOGLE)
-                .providerId("google-expirable-1")
-                .role(Role.USER)
-                .build());
-
-        Flight flight = em.persist(Flight.builder()
-                .flightId(9001L)
-                .flightNumber("KE901")
-                .airlineCode("KE")
-                .departureAirport("ICN")
-                .arrivalAirport("NRT")
-                .departureTime(LocalDateTime.now().minusDays(1))
-                .arrivalTime(LocalDateTime.now().minusDays(1).plusHours(3))
-                .build());
-
-        Subscription activeSub = Subscription.builder()
-                .user(user)
-                .flight(flight)
-                .seatGrade(SeatGrade.ECONOMY)
-                .price(BigDecimal.valueOf(300000))
-                .build();
-        em.persist(activeSub);
-
-        em.flush();
-        em.clear();
-
-        // when
-        List<Subscription> result = subscriptionRepository.findExpirableSubscriptions(SubscriptionStatus.ACTIVE);
-
-        // then
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).getFlight()).isNotNull();
-    }
-
-    @Test
-    void findExpirableSubscriptions_출발전_ACTIVE구독_제외됨() {
-        // given
-        User user = em.persist(User.builder()
-                .email("future@example.com")
-                .name("미래유저")
-                .provider(Provider.GOOGLE)
-                .providerId("google-future-1")
-                .role(Role.USER)
-                .build());
-
-        Flight flight = em.persist(Flight.builder()
-                .flightId(9002L)
-                .flightNumber("KE902")
-                .airlineCode("KE")
-                .departureAirport("ICN")
-                .arrivalAirport("NRT")
-                .departureTime(LocalDateTime.now().plusDays(1))
-                .arrivalTime(LocalDateTime.now().plusDays(1).plusHours(3))
-                .build());
-
-        Subscription activeSub = Subscription.builder()
-                .user(user)
-                .flight(flight)
-                .seatGrade(SeatGrade.ECONOMY)
-                .price(BigDecimal.valueOf(300000))
-                .build();
-        em.persist(activeSub);
-
-        em.flush();
-        em.clear();
-
-        // when
-        List<Subscription> result = subscriptionRepository.findExpirableSubscriptions(SubscriptionStatus.ACTIVE);
-
-        // then
-        assertThat(result).isEmpty();
-    }
-
-    @Test
-    void findExpirableSubscriptions_INACTIVE구독_제외됨() {
-        // given
-        User user = em.persist(User.builder()
-                .email("inactive2@example.com")
-                .name("비활성유저2")
-                .provider(Provider.GOOGLE)
-                .providerId("google-inactive-2")
-                .role(Role.USER)
-                .build());
-
-        Flight flight = em.persist(Flight.builder()
-                .flightId(9003L)
-                .flightNumber("KE903")
-                .airlineCode("KE")
-                .departureAirport("ICN")
-                .arrivalAirport("NRT")
-                .departureTime(LocalDateTime.now().minusDays(1))
-                .arrivalTime(LocalDateTime.now().minusDays(1).plusHours(3))
-                .build());
-
-        Subscription inactiveSub = Subscription.builder()
-                .user(user)
-                .flight(flight)
-                .seatGrade(SeatGrade.ECONOMY)
-                .price(BigDecimal.valueOf(300000))
-                .build();
-        inactiveSub.updateStatus(SubscriptionStatus.INACTIVE);
-        em.persist(inactiveSub);
-
-        em.flush();
-        em.clear();
-
-        // when
-        List<Subscription> result = subscriptionRepository.findExpirableSubscriptions(SubscriptionStatus.ACTIVE);
-
-        // then
-        assertThat(result).isEmpty();
-    }
-
-    @Test
-    void findExpirableSubscriptions_이미EXPIRED구독_제외됨() {
-        // given
-        User user = em.persist(User.builder()
-                .email("expired@example.com")
-                .name("만료됨유저")
-                .provider(Provider.GOOGLE)
-                .providerId("google-expired-1")
-                .role(Role.USER)
-                .build());
-
-        Flight flight = em.persist(Flight.builder()
-                .flightId(9004L)
-                .flightNumber("KE904")
-                .airlineCode("KE")
-                .departureAirport("ICN")
-                .arrivalAirport("NRT")
-                .departureTime(LocalDateTime.now().minusDays(1))
-                .arrivalTime(LocalDateTime.now().minusDays(1).plusHours(3))
-                .build());
-
-        Subscription expiredSub = Subscription.builder()
-                .user(user)
-                .flight(flight)
-                .seatGrade(SeatGrade.ECONOMY)
-                .price(BigDecimal.valueOf(300000))
-                .build();
-        expiredSub.updateStatus(SubscriptionStatus.EXPIRED);
-        em.persist(expiredSub);
-
-        em.flush();
-        em.clear();
-
-        // when
-        List<Subscription> result = subscriptionRepository.findExpirableSubscriptions(SubscriptionStatus.ACTIVE);
-
-        // then
-        assertThat(result).isEmpty();
     }
 
     @Test
@@ -353,20 +173,11 @@ class SubscriptionRepositoryTest {
                 .role(Role.USER)
                 .build());
 
-        Flight flight = em.persist(Flight.builder()
-                .flightId(5001L)
-                .flightNumber("KE501")
-                .airlineCode("KE")
-                .departureAirport("ICN")
-                .arrivalAirport("NRT")
-                .departureTime(LocalDateTime.now().minusDays(1))
-                .arrivalTime(LocalDateTime.now().minusDays(1).plusHours(3))
-                .build());
+        Route route = em.persist(new Route(new RouteKey("ICN", "NRT", TODAY.minusDays(1), SeatGrade.ECONOMY)));
 
         Subscription activeSub = Subscription.builder()
                 .user(user)
-                .flight(flight)
-                .seatGrade(SeatGrade.ECONOMY)
+                .route(route)
                 .price(BigDecimal.valueOf(300000))
                 .build();
         em.persist(activeSub);
@@ -375,7 +186,7 @@ class SubscriptionRepositoryTest {
         em.clear();
 
         // when
-        int updated = subscriptionRepository.bulkExpireSubscriptions(SubscriptionStatus.ACTIVE, SubscriptionStatus.EXPIRED);
+        int updated = subscriptionRepository.bulkExpireSubscriptions(SubscriptionStatus.ACTIVE, SubscriptionStatus.EXPIRED, TODAY);
 
         // then
         assertThat(updated).isEqualTo(1);
@@ -394,20 +205,11 @@ class SubscriptionRepositoryTest {
                 .role(Role.USER)
                 .build());
 
-        Flight flight = em.persist(Flight.builder()
-                .flightId(5002L)
-                .flightNumber("KE502")
-                .airlineCode("KE")
-                .departureAirport("ICN")
-                .arrivalAirport("NRT")
-                .departureTime(LocalDateTime.now().plusDays(1))
-                .arrivalTime(LocalDateTime.now().plusDays(1).plusHours(3))
-                .build());
+        Route route = em.persist(new Route(new RouteKey("ICN", "NRT", TODAY.plusDays(1), SeatGrade.ECONOMY)));
 
         Subscription activeSub = Subscription.builder()
                 .user(user)
-                .flight(flight)
-                .seatGrade(SeatGrade.ECONOMY)
+                .route(route)
                 .price(BigDecimal.valueOf(300000))
                 .build();
         em.persist(activeSub);
@@ -416,7 +218,7 @@ class SubscriptionRepositoryTest {
         em.clear();
 
         // when
-        int updated = subscriptionRepository.bulkExpireSubscriptions(SubscriptionStatus.ACTIVE, SubscriptionStatus.EXPIRED);
+        int updated = subscriptionRepository.bulkExpireSubscriptions(SubscriptionStatus.ACTIVE, SubscriptionStatus.EXPIRED, TODAY);
 
         // then
         assertThat(updated).isEqualTo(0);
@@ -435,20 +237,11 @@ class SubscriptionRepositoryTest {
                 .role(Role.USER)
                 .build());
 
-        Flight flight = em.persist(Flight.builder()
-                .flightId(5003L)
-                .flightNumber("KE503")
-                .airlineCode("KE")
-                .departureAirport("ICN")
-                .arrivalAirport("NRT")
-                .departureTime(LocalDateTime.now().minusDays(1))
-                .arrivalTime(LocalDateTime.now().minusDays(1).plusHours(3))
-                .build());
+        Route route = em.persist(new Route(new RouteKey("ICN", "NRT", TODAY.minusDays(1), SeatGrade.ECONOMY)));
 
         Subscription expiredSub = Subscription.builder()
                 .user(user)
-                .flight(flight)
-                .seatGrade(SeatGrade.ECONOMY)
+                .route(route)
                 .price(BigDecimal.valueOf(300000))
                 .build();
         expiredSub.updateStatus(SubscriptionStatus.EXPIRED);
@@ -458,7 +251,7 @@ class SubscriptionRepositoryTest {
         em.clear();
 
         // when
-        int updated = subscriptionRepository.bulkExpireSubscriptions(SubscriptionStatus.ACTIVE, SubscriptionStatus.EXPIRED);
+        int updated = subscriptionRepository.bulkExpireSubscriptions(SubscriptionStatus.ACTIVE, SubscriptionStatus.EXPIRED, TODAY);
 
         // then
         assertThat(updated).isEqualTo(0);
@@ -477,20 +270,11 @@ class SubscriptionRepositoryTest {
                 .role(Role.USER)
                 .build());
 
-        Flight flight = em.persist(Flight.builder()
-                .flightId(2001L)
-                .flightNumber("OZ201")
-                .airlineCode("OZ")
-                .departureAirport("GMP")
-                .arrivalAirport("CJU")
-                .departureTime(LocalDateTime.now().plusDays(2))
-                .arrivalTime(LocalDateTime.now().plusDays(2).plusHours(1))
-                .build());
+        Route route = em.persist(new Route(new RouteKey("GMP", "CJU", TODAY.plusDays(2), SeatGrade.ECONOMY)));
 
         Subscription subscription = Subscription.builder()
                 .user(user)
-                .flight(flight)
-                .seatGrade(SeatGrade.ECONOMY)
+                .route(route)
                 .price(BigDecimal.valueOf(150000))
                 .build();
         em.persist(subscription);
@@ -503,6 +287,6 @@ class SubscriptionRepositoryTest {
 
         // then
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).getFlight()).isNotNull();
+        assertThat(result.get(0).getRoute()).isNotNull();
     }
 }

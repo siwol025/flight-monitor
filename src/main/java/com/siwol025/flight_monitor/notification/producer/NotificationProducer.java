@@ -22,11 +22,11 @@ public class NotificationProducer implements NotificationPublisher{
     @Async("notificationEventExecutor")
     public void publishPriceDrop(PriceDropNotificationDto priceDropNotificationDto) {
         try {
-            String messageKey = String.valueOf(priceDropNotificationDto.flightId());
+            String messageKey = String.valueOf(priceDropNotificationDto.routeId());
 
             kafkaTemplate.send(TOPIC_NAME, messageKey, priceDropNotificationDto);
         } catch (Exception e) {
-            log.error("[NotificationProducer] 카프카 알림 전송 실패 (메시지 유실): 항공편 {}", priceDropNotificationDto.flightNumber(), e);
+            log.error("[NotificationProducer] 카프카 알림 전송 실패 (메시지 유실): 노선 {}", priceDropNotificationDto.routeId(), e);
         }
     }
 }

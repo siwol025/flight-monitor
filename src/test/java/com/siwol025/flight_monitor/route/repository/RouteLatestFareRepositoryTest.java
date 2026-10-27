@@ -1,10 +1,10 @@
-package com.siwol025.flight_monitor.monitor.repository;
+package com.siwol025.flight_monitor.route.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.siwol025.flight_monitor.monitor.domain.RouteLatestFare;
 import com.siwol025.flight_monitor.route.domain.Route;
 import com.siwol025.flight_monitor.route.domain.RouteKey;
+import com.siwol025.flight_monitor.route.domain.RouteLatestFare;
 import com.siwol025.flight_monitor.route.domain.SeatGrade;
 import java.math.BigDecimal;
 import java.time.Instant;

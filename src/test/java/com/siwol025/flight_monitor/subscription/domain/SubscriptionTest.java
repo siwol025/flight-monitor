@@ -7,8 +7,7 @@ import static org.mockito.Mockito.mock;
 
 import com.siwol025.flight_monitor.global.exception.ErrorTag;
 import com.siwol025.flight_monitor.global.exception.custom.UnauthorizedException;
-import com.siwol025.flight_monitor.subscription.domain.flight.Flight;
-import com.siwol025.flight_monitor.route.domain.SeatGrade;
+import com.siwol025.flight_monitor.route.domain.Route;
 import com.siwol025.flight_monitor.user.domain.User;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,11 +21,10 @@ class SubscriptionTest {
     @BeforeEach
     void setUp() {
         owner = mock(User.class);
-        Flight flight = mock(Flight.class);
+        Route route = mock(Route.class);
         subscription = Subscription.builder()
                 .user(owner)
-                .flight(flight)
-                .seatGrade(SeatGrade.ECONOMY)
+                .route(route)
                 .price(BigDecimal.valueOf(150_000))
                 .build();
     }
@@ -45,13 +43,12 @@ class SubscriptionTest {
 
     @Test
     void builder_targetPrice_지정시_저장된다() {
-        Flight flight = mock(Flight.class);
+        Route route = mock(Route.class);
         BigDecimal targetPrice = BigDecimal.valueOf(120_000);
 
         Subscription sub = Subscription.builder()
                 .user(owner)
-                .flight(flight)
-                .seatGrade(SeatGrade.ECONOMY)
+                .route(route)
                 .price(BigDecimal.valueOf(150_000))
                 .targetPrice(targetPrice)
                 .build();
@@ -61,13 +58,12 @@ class SubscriptionTest {
 
     @Test
     void builder_dropThresholdPercent_지정시_저장된다() {
-        Flight flight = mock(Flight.class);
+        Route route = mock(Route.class);
         BigDecimal dropThresholdPercent = BigDecimal.valueOf(10.00);
 
         Subscription sub = Subscription.builder()
                 .user(owner)
-                .flight(flight)
-                .seatGrade(SeatGrade.ECONOMY)
+                .route(route)
                 .price(BigDecimal.valueOf(150_000))
                 .dropThresholdPercent(dropThresholdPercent)
                 .build();
