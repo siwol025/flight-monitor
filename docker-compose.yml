@@ -21,10 +21,12 @@ services:
     # LTS(8.4) 고정. 9.x Innovation 릴리스는 다음 버전이 나오면 지원이 끝나고, 운영 관리형 DB도 8.x 계열이다
     image: mysql:8.4.10
     container_name: flight-mysql
-    env_file:
-      - .env
+    # .env 전체(env_file)가 아니라 DB 자격 증명 두 개만 넘긴다(다른 비밀값이 docker inspect로 보이지 않게).
+    # 값은 compose가 프로젝트의 .env로 보간하고, 비어 있으면 빈 root 비밀번호 대신 오류로 멈춘다
     environment:
       MYSQL_DATABASE: flight_monitor
+      DB_USERNAME: ${DB_USERNAME:?DB_USERNAME을 .env에 설정하세요}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD를 .env에 설정하세요}
     # MySQL 이미지는 MYSQL_USER=root를 거부한다(일반 사용자 전용). .env의 DB_USERNAME이 root여도 일반 사용자여도 같은
     # 자격 증명으로 접속되게, root 비밀번호는 항상 DB_PASSWORD로 두고 root가 아닐 때만 일반 사용자를 만든다.
     # $$는 compose 보간을 피해 컨테이너 셸이 펼친다

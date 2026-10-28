@@ -20,6 +20,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationInfo;
 import org.flywaydb.core.api.callback.Callback;
@@ -135,25 +137,40 @@ class DatabaseSchemaMigrationTest {
         return "root".equals(username) ? ROOT_USER_DB : APP_USER_DB;
     }
 
-    /** compose의 mysql 서비스 정의 그대로 띄운 MySQL. DB_USERNAME·DB_PASSWORD는 compose에서 .env로 들어오는 값 */
+    /**
+     * compose의 mysql 서비스 정의 그대로 띄운 MySQL. compose가 프로젝트의 .env로 하는 보간(${DB_USERNAME} 등)을
+     * 테스트의 가짜 자격 증명으로 한다. 정의에 없는 값은 넣지 않는다(컨테이너가 받는 환경은 compose와 같다)
+     */
     @SuppressWarnings("unchecked")
     private static GenericContainer<?> composeMysql(String username) {
+        Map<String, String> dotEnv = Map.of("DB_USERNAME", username, "DB_PASSWORD", DB_PASSWORD);
         Map<String, Object> service = composeService("mysql");
-        // compose 보간 규칙: $$는 문자 $(컨테이너 셸이 펼친다)
         String[] entrypoint = ((List<String>) service.get("entrypoint")).stream()
-                .map(part -> part.replace("$$", "$"))
+                .map(part -> interpolate(part, dotEnv))
                 .toArray(String[]::new);
         GenericContainer<?> container = new GenericContainer<>(DockerImageName.parse((String) service.get("image")))
                 .withExposedPorts(3306)
-                .withEnv("DB_USERNAME", username)
-                .withEnv("DB_PASSWORD", DB_PASSWORD)
                 .withCreateContainerCmdModifier(cmd -> cmd.withEntrypoint(entrypoint))
                 // 초기화용 임시 서버(port: 0)가 아니라 실제 서버가 뜬 뒤
                 .waitingFor(Wait.forLogMessage(".*ready for connections.*port: 3306.*", 1)
                         .withStartupTimeout(Duration.ofMinutes(2)));
         ((Map<String, Object>) service.get("environment"))
-                .forEach((key, value) -> container.withEnv(key, String.valueOf(value)));
+                .forEach((key, value) -> container.withEnv(key, interpolate(String.valueOf(value), dotEnv)));
         return container;
+    }
+
+    /** compose 보간: ${NAME}·${NAME:?…} 등은 .env 값으로, $$는 문자 $(컨테이너 셸이 펼친다) */
+    private static String interpolate(String value, Map<String, String> dotEnv) {
+        return Pattern.compile("\\$\\$|\\$\\{(\\w+)[^}]*}").matcher(value).replaceAll(match -> {
+            if (match.group().equals("$$")) {
+                return Matcher.quoteReplacement("$");
+            }
+            String resolved = dotEnv.get(match.group(1));
+            if (resolved == null) {
+                throw new IllegalStateException("테스트가 모르는 compose 변수: " + match.group(1));
+            }
+            return Matcher.quoteReplacement(resolved);
+        });
     }
 
     @SuppressWarnings("unchecked")
