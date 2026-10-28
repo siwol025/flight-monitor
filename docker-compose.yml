@@ -6,6 +6,9 @@ x-app-template: &app_template
   env_file:
     - .env
   depends_on:
+    # 스키마는 앱이 기동할 때 Flyway가 적용한다. 앱과 mock이 동시에 돌려도 Flyway의 MySQL 잠금으로 한쪽만 적용한다
+    mysql:
+      condition: service_healthy
     redis:
       condition: service_started
     kafka:
@@ -14,6 +17,38 @@ x-app-template: &app_template
     - flight-network
 
 services:
+  mysql:
+    # LTS(8.4) 고정. 9.x Innovation 릴리스는 다음 버전이 나오면 지원이 끝나고, 운영 관리형 DB도 8.x 계열이다
+    image: mysql:8.4.10
+    container_name: flight-mysql
+    env_file:
+      - .env
+    environment:
+      MYSQL_DATABASE: flight_monitor
+    # MySQL 이미지는 MYSQL_USER=root를 거부한다(일반 사용자 전용). .env의 DB_USERNAME이 root여도 일반 사용자여도 같은
+    # 자격 증명으로 접속되게, root 비밀번호는 항상 DB_PASSWORD로 두고 root가 아닐 때만 일반 사용자를 만든다.
+    # $$는 compose 보간을 피해 컨테이너 셸이 펼친다
+    entrypoint:
+      - sh
+      - -c
+      - >-
+        export MYSQL_ROOT_PASSWORD="$$DB_PASSWORD";
+        if [ "$$DB_USERNAME" != root ]; then export MYSQL_USER="$$DB_USERNAME" MYSQL_PASSWORD="$$DB_PASSWORD"; fi;
+        exec docker-entrypoint.sh mysqld
+    # 호스트 3306은 기존 호스트 MySQL이 쓴다. 루프백에만 연다(dev bootRun·직접 조회용). 앱 컨테이너는 mysql:3306으로 붙는다
+    ports:
+      - "127.0.0.1:3307:3306"
+    # 자격 증명 없이 확인한다. 초기화용 임시 서버는 TCP를 열지 않으므로 실제 서버가 뜬 뒤에만 통과한다
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent" ]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - flight-network
+
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
@@ -125,3 +160,4 @@ networks:
 
 volumes:
   grafana-data:
+  mysql-data:
