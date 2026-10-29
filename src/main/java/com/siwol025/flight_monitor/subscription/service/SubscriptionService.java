@@ -1,6 +1,5 @@
 package com.siwol025.flight_monitor.subscription.service;
 
-import com.siwol025.flight_monitor.global.config.CacheConfig;
 import com.siwol025.flight_monitor.global.exception.ErrorTag;
 import com.siwol025.flight_monitor.global.exception.custom.BadRequestException;
 import com.siwol025.flight_monitor.global.exception.custom.NotFoundException;
@@ -27,7 +26,6 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -122,7 +120,6 @@ public class SubscriptionService {
     /**
      * 감시할 노선 ID(활성 구독이 있고 출발일이 지나지 않은 활성 노선, 중복 없음). 출발일 당일 노선은 그날이 끝날 때까지 감시한다.
      */
-    @Cacheable(value = CacheConfig.MONITORING_LIST_CACHE, key = "'all'")
     public List<Long> getActiveRouteIds() {
         return subscriptionRepository.findActiveRouteIds(SubscriptionStatus.ACTIVE, RouteStatus.ACTIVE, LocalDate.now(clock));
     }

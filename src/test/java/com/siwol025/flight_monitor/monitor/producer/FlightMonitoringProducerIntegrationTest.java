@@ -1,6 +1,7 @@
 package com.siwol025.flight_monitor.monitor.producer;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.siwol025.flight_monitor.monitor.utils.TaskQueueManager;
@@ -25,13 +26,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @DataJpaTest
 @Import({FlightMonitoringProducer.class, SubscriptionService.class, RouteService.class,
-        FlightMonitoringProducerIntegrationTest.FixedClockConfig.class})
+        FlightMonitoringProducerIntegrationTest.FixedClockConfig.class,
+        FlightMonitoringProducerIntegrationTest.CachingEnabledConfig.class})
 class FlightMonitoringProducerIntegrationTest {
 
     @TestConfiguration
@@ -40,6 +45,19 @@ class FlightMonitoringProducerIntegrationTest {
         @Bean
         Clock clock() {
             return Clock.fixed(Instant.parse("2026-10-25T23:00:00Z"), ZoneId.of("Asia/Seoul"));
+        }
+    }
+
+    /**
+     * 앱에 캐시 기반이 있어도 감시 노선 목록은 캐시하지 않는다(새 구독을 다음 발행에 바로 반영).
+     * DataJpaTest는 캐시를 켜지 않으므로, 목록에 캐시가 붙으면 드러나도록 여기서 켠다.
+     */
+    @TestConfiguration
+    @EnableCaching
+    static class CachingEnabledConfig {
+        @Bean
+        CacheManager cacheManager() {
+            return new ConcurrentMapCacheManager();
         }
     }
 
@@ -84,6 +102,28 @@ class FlightMonitoringProducerIntegrationTest {
         // 큐 페이로드는 노선 ID 숫자 문자열이다
         assertThat(payloads.getValue()).containsExactlyInAnyOrder(
                 String.valueOf(shared.getId()), String.valueOf(departingToday.getId()));
+    }
+
+    @Test
+    void 구독등록직후_다음발행에서_새노선발행됨() {
+        User alice = persistUser("alice");
+        Route watched = persistRoute("NRT", LocalDate.of(2026, 10, 27));
+        persistSubscription(alice, watched);
+        em.flush();
+        producer.produceMonitoringTasks();
+
+        // 첫 발행 뒤 새 노선 구독이 생긴다
+        Route added = persistRoute("KIX", LocalDate.of(2026, 10, 27));
+        persistSubscription(alice, added);
+        em.flush();
+
+        producer.produceMonitoringTasks();
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<String>> payloads = ArgumentCaptor.forClass(List.class);
+        verify(taskQueueManager, times(2)).publishTasks(payloads.capture());
+        assertThat(payloads.getAllValues().get(1)).containsExactlyInAnyOrder(
+                String.valueOf(watched.getId()), String.valueOf(added.getId()));
     }
 
     private User persistUser(String name) {
