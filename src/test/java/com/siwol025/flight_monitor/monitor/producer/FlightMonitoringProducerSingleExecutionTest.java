@@ -7,10 +7,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.siwol025.flight_monitor.monitor.utils.TaskQueueManager;
-import com.siwol025.flight_monitor.subscription.dto.FlightMonitorTaskDto;
-import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
 import com.siwol025.flight_monitor.subscription.service.SubscriptionService;
 import java.time.Duration;
 import java.util.List;
@@ -20,7 +17,6 @@ import net.javacrumbs.shedlock.core.SimpleLock;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
@@ -63,10 +59,6 @@ class FlightMonitoringProducerSingleExecutionTest {
     @Configuration
     @Import({com.siwol025.flight_monitor.global.config.ShedLockConfig.class, FlightMonitoringProducer.class})
     static class TestConfig {
-        @Bean
-        ObjectMapper objectMapper() {
-            return new ObjectMapper();
-        }
     }
 
     @MockitoBean
@@ -83,10 +75,9 @@ class FlightMonitoringProducerSingleExecutionTest {
 
     @Test
     void 프로듀서_다중노드_동시발화_주기당_1회만_발행() {
-        // GIVEN: 본문이 실행되면 발행하도록 큐 크기는 임계치 미만, 활성 항공편은 비어있지 않게
-        given(taskQueueManager.getQueueSizeSafely()).willReturn(0L);
-        given(subscriptionService.getActiveFlights())
-                .willReturn(List.of(new FlightMonitorTaskDto(1L, SeatGrade.ECONOMY)));
+        // GIVEN: 본문이 실행되면 발행하도록 활성 노선은 비어있지 않게
+        given(subscriptionService.getActiveRouteIds())
+                .willReturn(List.of(1L));
 
         // 첫 노드는 락 획득(SimpleLock 반환), 두 번째 노드는 획득 실패(Optional.empty)
         SimpleLock heldLock = mock(SimpleLock.class);
@@ -99,14 +90,13 @@ class FlightMonitoringProducerSingleExecutionTest {
         producer.produceMonitoringTasks();
 
         // THEN: 본문은 정확히 한 번만 실행되어야 한다 (두 번째 호출은 락 미획득으로 skip)
-        verify(subscriptionService, times(1)).getActiveFlights();
+        verify(subscriptionService, times(1)).getActiveRouteIds();
         verify(taskQueueManager, times(1)).publishTasks(any());
     }
 
     @Test
     void 프로듀서_리더선출_락설정_전달됨() {
-        given(taskQueueManager.getQueueSizeSafely()).willReturn(0L);
-        given(subscriptionService.getActiveFlights()).willReturn(List.of());
+        given(subscriptionService.getActiveRouteIds()).willReturn(List.of());
 
         given(lockProvider.lock(any(LockConfiguration.class)))
                 .willReturn(java.util.Optional.of(mock(SimpleLock.class)));

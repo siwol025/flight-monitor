@@ -31,7 +31,8 @@ public class SubscriptionController implements SubscriptionControllerSwagger{
             @Parameter(hidden = true) @LoginUser User user,
             @Valid @RequestBody SubscriptionRequest request
     ) {
-        subscriptionService.subscribe(user, request.flightId(), request.seatGrade(), request.targetPrice(), request.dropThresholdPercent());
+        subscriptionService.subscribe(user, request.departureAirport(), request.arrivalAirport(), request.departureDate(),
+                request.seatGrade(), request.targetPrice(), request.dropThresholdPercent());
         return ResponseEntity.noContent().build();
     }
 

@@ -47,12 +47,16 @@ spring:
               - email
               - profile
 
-  # Redis(Lettuce) 커넥션 풀 — 블로킹 BRPOP은 전용 커넥션을 요구한다. 풀이 없으면 pop마다 커넥션을
+  # Redis(Lettuce) 커넥션 풀 — 블로킹 BZPOPMIN은 전용 커넥션을 요구한다. 풀이 없으면 pop마다 커넥션을
   # 신규 생성/폐기해 고처리량에서 TIME_WAIT 누적으로 에페메랄 포트가 고갈된다(실측: pop ~560/s에서
   # ~50s 만에 포트 고갈 → 파이프라인 스톨). max-active는 동시 블로킹 폴러 수(monitor.worker.count)에
   # push/shedlock/queue-size 등 비블로킹 사용분 헤드룸을 더해 사이징한다.
   data:
     redis:
+      # 명령 타임아웃(설정하지 않으면 Lettuce 기본 60초). Redis가 응답하지 않을 때 레이트 리미터 호출이 이 시간만큼 매달린 뒤
+      # 로컬 폴백으로 넘어간다. 블로킹 BZPOPMIN에도 걸리므로 monitor.consumer.block-pop-timeout-seconds(3초)보다 커야 한다
+      # (RedisPopCircuitBreakerConsistencyValidator가 기동 시 가드)
+      timeout: 4s
       lettuce:
         pool:
           enabled: true
@@ -65,31 +69,31 @@ monitor:
   worker:
     count: 3
   consumer:
-    # 블로킹 BRPOP 타임아웃(초). redisPopCircuitBreaker.slowCallDurationThreshold(5s) 보다 엄격히 작아야 한다
-    # — 그래야 큐가 비었을 때 정상적으로 타임아웃까지 블로킹된 BRPOP 이 "느린 호출"로 오분류되지 않는다.
+    # 블로킹 BZPOPMIN 타임아웃(초). redisPopCircuitBreaker.slowCallDurationThreshold(5s) 보다 엄격히 작아야 한다
+    # — 그래야 큐가 비었을 때 정상적으로 타임아웃까지 블로킹된 BZPOPMIN 이 "느린 호출"로 오분류되지 않는다.
     # RedisPopCircuitBreakerConsistencyValidator 가 기동 시 fail-fast 로 가드.
     block-pop-timeout-seconds: 3
-  executor:
-    # monitoringTaskExecutor 플랫폼 스레드풀. 동시 처리 수 상한은 backpressure.max-in-flight 세마포어가
-    # 결정하고, 풀은 그 상한만큼의 스레드로 처리한다(pool-size = max-in-flight). 큐는 permit 반납/스레드
-    # 반환 타이밍 race 흡수용 소량이며 버퍼링 목적이 아니다(미처리 백로그는 durable Redis 큐가 짊어진다).
-    pool-size: 100
-    queue-capacity: 10
   backpressure:
     # in-flight 상한의 단일 권위(세마포어 permit 총량). 외부 API 응답 지연이 커져도 동시 처리 수를 이 값으로
-    # 상한해 스레드풀 큐 오버플로우를 방지하고, 초과 백로그는 durable Redis 큐에 남긴다.
-    # 값 = 외부 API rate 한도에 정합(Little's Law: rate × 응답시간). 산출·측정 근거는 docs/test-environment.md.
-    max-in-flight: 100
+    # 상한하고, 초과 백로그는 durable Redis 큐에 남긴다.
+    # 값 = 전역 한도 × 응답 시간 p99 ÷ (서버 수 − 1)(서버 1대면 ÷ 1, 스펙 §6-1). Duffel 기본값:
+    # 0.45건/초(60초당 27건) × 응답 상한 15초 = 6.75 → 7. p99를 재기 전 초기값은 타임아웃으로 잡는다.
+    # 조정은 이 값을 yml에서(또는 같은 키의 환경변수 MONITOR_BACKPRESSURE_MAX_IN_FLIGHT로) 바꾸고, monitor.http.max-connections와 함께 올린다.
+    max-in-flight: 7
   ratelimiter:
-    # 외부 API 전역 rate 한도(초당 요청 수) 준수용 Redis 분산 rate limiter(공유 토큰 버킷, Lua 원자 실행).
-    # 멀티 인스턴스에서 각 서버가 로컬로 걸면 합산이 한도를 초과하므로, 토큰을 Redis에 두고 모든 인스턴스·워커가 공유.
+    # 외부 API 전역 호출 한도(기간당 N건) 준수용 Redis 공유 레이트 리미터(Lua 원자 실행). 서버마다 로컬로 걸면 합산이
+    # 한도를 넘으므로 토큰과 429 전체 정지를 Redis에 두고 모든 인스턴스·워커가 공유한다.
+    # 기본값은 실제 Duffel 한도(60초당 30건)의 90%. 한도는 yml에서(또는 같은 키의 환경변수 MONITOR_RATELIMITER_LIMIT·_PERIOD로) 바꾼다.
     enabled: true
-    rate-per-sec: 100
+    limit: 27
+    period: 60s
+    # 서버 대수. 서버를 늘리거나 줄이면 이 값만 바꾼다. Redis 장애 중 서버마다 전역 한도 ÷ 대수로 따로 센다.
+    instances: 1
   http:
-    # 외부 API 커넥션 풀 최대 커넥션 수(max-total = max-per-route). in-flight 세마포어 permit(max-in-flight)
-    # 이상이어야 풀이 새 병목이 되지 않는다. 정합 불변식(max-connections >= max-in-flight)은
-    # RestTemplateConfig가 기동 시 fail-fast로 가드.
-    max-connections: 100
+    # Duffel 전용 커넥션 풀 최대 커넥션 수(max-total = max-per-route). max-in-flight와 함께 움직인다: 진행 중인 요청마다
+    # 커넥션을 하나씩 붙잡으므로 이 값이 max-in-flight보다 작으면 풀이 새 병목이 된다. 환경변수로 max-in-flight만 올리고
+    # 이 값(MONITOR_HTTP_MAX_CONNECTIONS)을 빠뜨리면 DuffelHttpClientConfig가 기동 시 fail-fast로 알린다.
+    max-connections: 7
   produce:
     # 모니터링 주기 T=60s (특가 30~90분 소멸 SLA 역산). lock-at-least-for는 주기보다 약간 짧게(주기당 1회 보장),
     # lock-at-most-for는 리더 노드 사망 시 락 자동 만료 안전망(= 주기). 정합 불변식(lock-at-least-for < fixed-rate-ms,
@@ -98,12 +102,45 @@ monitor:
     lock-at-least-for: PT55S
     lock-at-most-for: PT60S
 
+# 외부 운임 업체(Duffel) 어댑터. mock ↔ 실제 전환은 환경변수 두 개(FARE_PROVIDER_DUFFEL_BASE_URL, DUFFEL_API_TOKEN)로 한다.
+fare-provider:
+  duffel:
+    # 기본값은 실제 업체다. mock 컨트롤러는 프로필과 상관없이 항상 등록되므로 기본값이 mock(자기 자신)이면
+    # base-url을 빠뜨렸을 때 가짜 가격으로 실제 사용자에게 알림이 나가고 오류도 나지 않는다. 실제 업체가 기본값이면
+    # 토큰 누락이 401(설정 오류)로 드러난다. compose(mock 환경)는 application-docker.yml에서 덮어쓴다.
+    base-url: https://api.duffel.com
+    # 비어 있으면 호출이 401 → 설정 오류 예외로 드러난다(기동 시 검사 없음)
+    api-key: ${DUFFEL_API_TOKEN:}
+    version: v2
+    # 업체가 항공사 응답을 기다리는 최대 시간(요청 쿼리 supplier_timeout, 허용 2~60초).
+    # response-timeout은 이보다 길어야 업체가 정상적으로 마무리한 응답을 우리가 먼저 끊지 않는다.
+    supplier-timeout: 10s
+    connect-timeout: 3s
+    response-timeout: 15s
+    # 업체 한도(실측 ratelimit-limit 30, 60초 고정 창). 응답 헤더가 이 값과 다르면 경고 로그를 남긴다.
+    # 앱 호출 한도(업체 한도의 90%)와 비교하면 경고가 매번 뜨므로 업체 한도를 따로 둔다.
+    expected-rate-limit: 30
+
 subscription:
   expiry:
     cron: "0 0 * * * *"
 
-notification:
-  mode: kafka
+# MockMailService(dev, docker) 장애 주입 — 메일 유실 재현·측정용. 기본값은 주입 없음
+mock:
+  mail:
+    failure-rate: ${MOCK_MAIL_FAILURE_RATE:0}
+    permanent-failure-ratio: ${MOCK_MAIL_PERMANENT_FAILURE_RATIO:0}
+    latency-ms: ${MOCK_MAIL_LATENCY_MS:0}
+    outage-start-after-ms: ${MOCK_MAIL_OUTAGE_START_AFTER_MS:0}
+    outage-duration-ms: ${MOCK_MAIL_OUTAGE_DURATION_MS:0}
+  # Duffel 호환 엔드포인트(/air/offer_requests)가 강제하는 업체 한도. 기본값은 실제 Duffel 테스트 모드와 같은
+  # 60초당 30건(실측 ratelimit-limit 30, 분 경계 고정 창)이라 어댑터 expected-rate-limit(30)과 맞는다.
+  # 여러 대·엔터프라이즈 등급(높은 한도) 실험은 이 값을 yml에서 올린다(같은 키의 환경변수 MOCK_DUFFEL_RATE_LIMIT_LIMIT 등으로
+  # 덮어써도 된다).
+  duffel:
+    rate-limit:
+      limit: 30
+      period: 60s
 
 kafka:
   topic:
@@ -111,6 +148,12 @@ kafka:
       partitions: 9
     email-send-tasks:
       partitions: 150
+  # 메일 발송 블로킹 재시도 (1s → 2s → 4s → 8s → 16s 기본, 총 31초). 30초 이하 SMTP 장애를 DLT 없이 흡수.
+  # 재시도 소진 시 email-send-tasks.DLT
+  email-task:
+    retry:
+      max-retries: ${EMAIL_TASK_MAX_RETRIES:5}
+      initial-interval-ms: ${EMAIL_TASK_RETRY_INITIAL_INTERVAL_MS:1000}
 
 jwt:
   secret: "${JWT_SECRET}"
@@ -152,13 +195,31 @@ resilience4j:
         # 느린 요청 비율이 40% 넘으면 OPEN
         slowCallRateThreshold: 40
         # 느린 요청 판정 임계. block-pop 타임아웃(3s)보다 커야 한다 — 정상적으로 서버 타임아웃까지 블로킹된
-        # BRPOP 을 느린 호출로 세지 않도록(서버 타임아웃을 넘어선 실제 클라이언트 측 정체만 서킷을 연다).
+        # BZPOPMIN 을 느린 호출로 세지 않도록(서버 타임아웃을 넘어선 실제 클라이언트 측 정체만 서킷을 연다).
         # RedisPopCircuitBreakerConsistencyValidator 가 가드.
         slowCallDurationThreshold: 5s
         # OPEN 상태가 되면 5초 동안 Redis 접근 차단
         waitDurationInOpenState: 5s
         # HALF_OPEN 상태에서 5건만 테스트 요청 허용
         permittedNumberOfCallsInHalfOpenState: 5
+
+      # 공유 레이트 리미터(RedisRateLimiter) 전용. Redis 호출(eval·SET)만 감싼다(대기 수면은 밖)
+      redisRateLimiterCircuitBreaker:
+        # 리미터 호출은 분당 수십 건이라 최근 호출 횟수로 판단
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 4
+        # 최근 최대 4건 중 절반 이상 실패하면(최소 2건) OPEN — 성공 1건 뒤 시간 초과 1건으로도 열릴 수 있고, 그때는
+        # OPEN 동안(아래 10초) 서버마다 로컬 버킷(전역 한도 ÷ monitor.ratelimiter.instances)으로 센다
+        minimumNumberOfCalls: 2
+        failureRateThreshold: 50
+        # OPEN 10초 뒤 1건으로 복구를 확인하고, 성공하면 공유 버킷으로 돌아간다
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 1
+        # Redis가 응답하지 않거나(명령 시간 초과) 연결이 안 될 때만 실패로 센다. 그 밖의 Redis 오류(WRONGTYPE 등)는
+        # 로컬 폴백 뒤로 숨기지 않고 그대로 드러낸다
+        recordExceptions:
+          - org.springframework.dao.QueryTimeoutException
+          - org.springframework.data.redis.RedisConnectionFailureException
 
 server:
   tomcat:

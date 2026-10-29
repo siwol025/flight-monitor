@@ -3,10 +3,14 @@ package com.siwol025.flight_monitor.monitor.utils;
 import com.siwol025.flight_monitor.global.fallback.service.FallbackTaskService;
 import com.siwol025.flight_monitor.monitor.metrics.PipelineMetrics;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import java.time.Clock;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations.TypedTuple;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -18,15 +22,27 @@ public class TaskQueueManager {
     private final FallbackTaskService fallbackTaskService;
     private final TaskQueueConsumerManager taskQueueConsumerManager;
     private final PipelineMetrics pipelineMetrics;
+    private final Clock clock;
 
-    private static final String TASK_QUEUE_KEY = "monitoring:task:queue";
+    // 감시 큐(ZSET). 멤버 = 노선 ID, 점수 = 처음 넣은 시각(epoch ms). 소비 쪽(TaskQueueConsumerManager)도 이 키를 쓴다.
+    // 옛 리스트 키(monitoring:task:queue)와 이름이 달라야 같은 키에 리스트·ZSET 명령이 섞이지 않는다(WRONGTYPE)
+    static final String ROUTE_QUEUE_KEY = "monitoring:route:queue";
 
+    /**
+     * ZADD NX로 넣는다. 이미 기다리는 노선은 무시되고 처음 넣은 시각을 지키므로 큐 길이는 활성 노선 수를 넘지 않는다.
+     */
     @CircuitBreaker(name = "redisPushCircuitBreaker", fallbackMethod = "fallbackPublishTasks")
     public void publishTasks(List<String> jsonPayloads) {
         if (jsonPayloads == null || jsonPayloads.isEmpty()) {
             return;
         }
-        redisTemplate.opsForList().leftPushAll(TASK_QUEUE_KEY, jsonPayloads);
+        // 점수는 발행자 시계다(ShedLock으로 주기당 발행자 하나라 주기 사이 순서만 맞으면 된다). 한계: 리더가 시계가 주기
+        // 이상 늦은 서버로 바뀌면 그동안 새로 넣은 노선이 앞지를 수 있고(누락은 없음), 같은 청크는 점수가 같아 멤버 문자열 순이다
+        double enqueuedAt = clock.millis();
+        Set<TypedTuple<String>> routes = jsonPayloads.stream()
+                .map(routeId -> TypedTuple.of(routeId, enqueuedAt))
+                .collect(Collectors.toSet());
+        redisTemplate.opsForZSet().addIfAbsent(ROUTE_QUEUE_KEY, routes);
     }
 
     public void fallbackPublishTasks(List<String> jsonPayloads, Throwable t) {
@@ -47,7 +63,7 @@ public class TaskQueueManager {
 
     @CircuitBreaker(name = "redisPushCircuitBreaker", fallbackMethod = "fallbackGetQueueSizeSafely")
     public Long getQueueSizeSafely() {
-        return redisTemplate.opsForList().size(TASK_QUEUE_KEY);
+        return redisTemplate.opsForZSet().zCard(ROUTE_QUEUE_KEY);
     }
 
     private Long fallbackGetQueueSizeSafely(Throwable t) {

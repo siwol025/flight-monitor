@@ -12,7 +12,9 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.micrometer.prometheusmetrics.PrometheusConfig;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 
 class PipelineMetricsTest {
@@ -97,5 +99,23 @@ class PipelineMetricsTest {
 
         assertThat(scraped).contains("pipeline_external_api_latency_seconds_bucket");
         assertThat(scraped).contains("pipeline_task_latency_seconds_bucket");
+    }
+
+    @Test
+    void 갱신간격지표_30분넘는간격도_유한버킷에집계() {
+        // 갱신 간격은 분 단위다. 타이머 히스토그램 기본 범위(30초까지)면 그보다 긴 간격이 +Inf 버킷에만 들어가 분위수를 못 구한다
+        PrometheusMeterRegistry registry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
+        PipelineMetrics pipelineMetrics = new PipelineMetrics(registry);
+
+        pipelineMetrics.recordRouteRefreshInterval(Duration.ofMinutes(40));
+
+        List<String> finiteBucketsWithObservation = Pattern
+                .compile("pipeline_route_refresh_interval_seconds_bucket\\{[^}]*le=\"([^\"]+)\"[^}]*} (\\S+)")
+                .matcher(registry.scrape())
+                .results()
+                .filter(bucket -> !bucket.group(1).equals("+Inf") && Double.parseDouble(bucket.group(2)) > 0)
+                .map(bucket -> bucket.group(1))
+                .toList();
+        assertThat(finiteBucketsWithObservation).isNotEmpty();
     }
 }

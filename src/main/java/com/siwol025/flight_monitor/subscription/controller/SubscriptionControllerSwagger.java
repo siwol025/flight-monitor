@@ -10,11 +10,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
 
-@Tag(name = "Subscription", description = "항공편 구독 관련 API")
+@Tag(name = "Subscription", description = "노선 구독 관련 API")
 public interface SubscriptionControllerSwagger {
 
     @Operation(
-            summary = "항공편 구독 생성",
+            summary = "노선 구독 생성",
             responses = {
                     @ApiResponse(
                             responseCode = "204",

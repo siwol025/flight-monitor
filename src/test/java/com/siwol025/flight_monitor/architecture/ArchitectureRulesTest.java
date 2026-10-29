@@ -1,0 +1,48 @@
+package com.siwol025.flight_monitor.architecture;
+
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+
+import com.tngtech.archunit.core.domain.JavaClasses;
+import com.tngtech.archunit.core.importer.ClassFileImporter;
+import com.tngtech.archunit.core.importer.ImportOption;
+import org.junit.jupiter.api.Test;
+
+/**
+ * 패키지 경계 규칙. 운영 클래스만 검사한다(테스트 클래스 제외).
+ */
+class ArchitectureRulesTest {
+
+    private static final JavaClasses PRODUCTION_CLASSES = new ClassFileImporter()
+            .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+            .importPackages("com.siwol025.flight_monitor");
+
+    @Test
+    void duffel어댑터타입은_어댑터패키지밖에서_참조되지않음() {
+        // 빈 조립 설정(DuffelHttpClientConfig)도 어댑터 패키지 안에 있으므로 예외가 필요 없다
+        noClasses().that().resideOutsideOfPackage("..fare.adapter.duffel..")
+                .should().dependOnClassesThat().resideInAPackage("..fare.adapter.duffel..")
+                .check(PRODUCTION_CLASSES);
+    }
+
+    @Test
+    void mock밖에서_mock패키지를_import하지않음() {
+        noClasses().that().resideOutsideOfPackage("com.siwol025.flight_monitor.mock..")
+                .should().dependOnClassesThat().resideInAPackage("com.siwol025.flight_monitor.mock..")
+                .check(PRODUCTION_CLASSES);
+    }
+
+    @Test
+    void route는_다른도메인패키지에_의존하지않음() {
+        // route는 노선 어휘의 단일 위치라 다른 도메인이 route에 의존한다(반대는 순환). global(예외·ErrorTag·설정)은 허용
+        noClasses().that().resideInAPackage("com.siwol025.flight_monitor.route..")
+                .should().dependOnClassesThat().resideInAnyPackage(
+                        "com.siwol025.flight_monitor.subscription..",
+                        "com.siwol025.flight_monitor.monitor..",
+                        "com.siwol025.flight_monitor.notification..",
+                        "com.siwol025.flight_monitor.fare..",
+                        "com.siwol025.flight_monitor.mock..",
+                        "com.siwol025.flight_monitor.user..",
+                        "com.siwol025.flight_monitor.auth..")
+                .check(PRODUCTION_CLASSES);
+    }
+}

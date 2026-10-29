@@ -2,7 +2,7 @@ package com.siwol025.flight_monitor.mock.flight.dto.response;
 
 import com.siwol025.flight_monitor.global.exception.ErrorTag;
 import com.siwol025.flight_monitor.global.exception.custom.NotFoundException;
-import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
+import com.siwol025.flight_monitor.route.domain.SeatGrade;
 import com.siwol025.flight_monitor.mock.flight.domain.MockFlight;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;

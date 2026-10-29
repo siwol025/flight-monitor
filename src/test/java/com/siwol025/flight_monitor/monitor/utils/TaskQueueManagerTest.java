@@ -2,18 +2,14 @@ package com.siwol025.flight_monitor.monitor.utils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.siwol025.flight_monitor.global.fallback.service.FallbackTaskService;
 import com.siwol025.flight_monitor.monitor.metrics.PipelineMetrics;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import java.util.Collections;
+import java.time.Clock;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,20 +18,15 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.data.redis.RedisConnectionFailureException;
-import org.springframework.data.redis.core.ListOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 @ExtendWith(MockitoExtension.class)
 class TaskQueueManagerTest {
 
-    private static final String TASK_QUEUE_KEY = "monitoring:task:queue";
     private static final Throwable REDIS_DOWN = new RedisConnectionFailureException("redis down");
 
     @Mock
     private StringRedisTemplate redisTemplate;
-
-    @Mock
-    private ListOperations<String, String> listOperations;
 
     @Mock
     private FallbackTaskService fallbackTaskService;
@@ -50,38 +41,7 @@ class TaskQueueManagerTest {
     void setUp() {
         meterRegistry = new SimpleMeterRegistry();
         taskQueueManager = new TaskQueueManager(redisTemplate, fallbackTaskService, taskQueueConsumerManager,
-                new PipelineMetrics(meterRegistry));
-    }
-
-    @Test
-    void publishTasks_락없이_Redis푸시만_수행() {
-        // given
-        List<String> payloads = List.of("payload-1", "payload-2");
-        given(redisTemplate.opsForList()).willReturn(listOperations);
-
-        // when
-        taskQueueManager.publishTasks(payloads);
-
-        // then: 분산락 없이 leftPushAll 이 정확히 한 번 호출된다
-        verify(listOperations, times(1)).leftPushAll(TASK_QUEUE_KEY, payloads);
-    }
-
-    @Test
-    void publishTasks_빈리스트면_아무것도안함() {
-        // when
-        taskQueueManager.publishTasks(Collections.emptyList());
-
-        // then
-        verify(listOperations, never()).leftPushAll(anyString(), anyList());
-    }
-
-    @Test
-    void publishTasks_null이면_아무것도안함() {
-        // when
-        taskQueueManager.publishTasks(null);
-
-        // then
-        verify(listOperations, never()).leftPushAll(anyString(), anyList());
+                new PipelineMetrics(meterRegistry), Clock.systemUTC());
     }
 
     @Test

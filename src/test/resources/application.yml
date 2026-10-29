@@ -10,6 +10,10 @@ spring:
         dialect: org.hibernate.dialect.H2Dialect
   cache:
     type: none
+  # H2 테스트는 Hibernate가 스키마를 만든다(위 ddl-auto: create-drop). 기준선(V1)은 MySQL 문법이라 H2에서 돌리지 않는다.
+  # Flyway 기준선은 DatabaseSchemaMigrationTest가 compose와 같은 MySQL로 검사한다
+  flyway:
+    enabled: false
 
 monitor:
   consumer:
@@ -19,6 +23,11 @@ monitor:
     fixed-rate-ms: 60000
     lock-at-least-for: PT55S
     lock-at-most-for: PT60S
+
+fare-provider:
+  duffel:
+    # 테스트가 실제 업체로 나가지 않게 한다(.invalid는 절대 해석되지 않는 예약 도메인)
+    base-url: http://duffel.invalid
 
 resilience4j:
   circuitbreaker:

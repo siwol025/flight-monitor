@@ -27,6 +27,10 @@ repositories {
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	runtimeOnly 'com.mysql:mysql-connector-j'
+	// 스키마는 Flyway가 기동 때 src/main/resources/db/migration을 버전 순서대로 적용한다. Boot 4는 자동 설정이 모듈로
+	// 나뉘어 스타터가 있어야 돌고, Flyway 10+는 MySQL 지원이 별도 모듈이다(빠지면 "Unsupported Database"). 버전은 BOM
+	implementation 'org.springframework.boot:spring-boot-starter-flyway'
+	runtimeOnly 'org.flywaydb:flyway-mysql'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	compileOnly 'org.projectlombok:lombok'
@@ -44,13 +48,17 @@ dependencies {
 	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
 
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-	// Lettuce 커넥션 풀 — 블로킹 BRPOP 전용 커넥션 재사용(pop마다 커넥션 신규 생성 방지).
+	// Lettuce 커넥션 풀 — 블로킹 BZPOPMIN 전용 커넥션 재사용(pop마다 커넥션 신규 생성 방지).
 	implementation 'org.apache.commons:commons-pool2'
 	implementation 'com.fasterxml.jackson.core:jackson-databind'
 	implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 	implementation 'org.springframework.boot:spring-boot-starter-mail'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	// 패키지 경계 규칙(ArchUnit). JUnit 5 전용 엔진(archunit-junit5) 대신 코어만 쓰고 일반 @Test에서 check한다
+	testImplementation 'com.tngtech.archunit:archunit:1.4.1'
+	// 공유 레이트 리미터(Lua)를 실제 Redis(compose와 같은 redis:7.0-alpine)로 검사한다. 버전은 Spring Boot BOM이 관리
+	testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
 	testCompileOnly 'org.projectlombok:lombok'
 	testAnnotationProcessor 'org.projectlombok:lombok'
 
@@ -66,11 +74,13 @@ dependencies {
 	implementation 'net.javacrumbs.shedlock:shedlock-spring:6.6.0'
 	implementation 'net.javacrumbs.shedlock:shedlock-provider-redis-spring:6.6.0'
 
-	// HTTP 커넥션 풀링(RestTemplate 재사용): PoolingHttpClientConnectionManager +
+	// HTTP 커넥션 풀링(Duffel 어댑터의 RestClient): PoolingHttpClientConnectionManager +
 	// HttpComponentsClientHttpRequestFactory. 버전은 Spring Boot BOM이 관리.
 	implementation 'org.apache.httpcomponents.client5:httpclient5'
 }
 
 tasks.named('test') {
 	useJUnitPlatform()
+	// DatabaseSchemaMigrationTest가 compose의 mysql 정의를 읽는다. 입력으로 두지 않으면 compose만 바꿨을 때 테스트가 최신으로 보여 건너뛴다
+	inputs.file('docker-compose.yml')
 }

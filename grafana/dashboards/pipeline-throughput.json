@@ -33,7 +33,7 @@
       "id": 2,
       "type": "timeseries",
       "title": "큐 깊이 (Queue Depth)",
-      "description": "monitoring:task:queue 대기 태스크 수. 주기 T 안에 0으로 수렴하는지 = 실질 용량.",
+      "description": "monitoring:route:queue 대기 노선 수. 주기 T 안에 0으로 수렴하는지 = 실질 용량.",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
       "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },

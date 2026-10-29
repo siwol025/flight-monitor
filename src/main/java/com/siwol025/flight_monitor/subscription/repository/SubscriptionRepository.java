@@ -1,11 +1,11 @@
 package com.siwol025.flight_monitor.subscription.repository;
 
+import com.siwol025.flight_monitor.route.domain.RouteStatus;
 import com.siwol025.flight_monitor.subscription.domain.Subscription;
 import com.siwol025.flight_monitor.subscription.domain.SubscriptionStatus;
-import com.siwol025.flight_monitor.subscription.domain.flight.SeatGrade;
-import com.siwol025.flight_monitor.subscription.dto.FlightMonitorTaskDto;
 import com.siwol025.flight_monitor.subscription.dto.SubscriberWithConditionDto;
-import com.siwol025.flight_monitor.user.dto.UserEmailDto;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -20,7 +20,7 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
 
     @Query(
             "SELECT s FROM Subscription s " +
-            "JOIN FETCH s.flight " +
+            "JOIN FETCH s.route " +
             "WHERE s.user.id = :userId " +
             "ORDER BY s.createdAt desc"
     )
@@ -29,62 +29,44 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
     @Query(
             "SELECT s " +
             "FROM Subscription s " +
-            "JOIN FETCH s.flight " +
+            "JOIN FETCH s.route " +
             "WHERE s.id = :id"
     )
-    Optional<Subscription> findByIdWithFlight(@Param("id") Long id);
+    Optional<Subscription> findByIdWithRoute(@Param("id") Long id);
 
-    boolean existsByUserIdAndFlightIdAndSeatGrade(Long userId, Long flightId, SeatGrade seatGrade);
-
-    @Query(
-            "SELECT DISTINCT " +
-                "new com.siwol025.flight_monitor.subscription.dto.FlightMonitorTaskDto(s.flight.flightId, s.seatGrade) " +
-            "FROM Subscription s " +
-            "JOIN s.flight f " +
-            "WHERE f.departureTime > CURRENT_TIMESTAMP " +
-            "AND s.status = :status"
-    )
-    List<FlightMonitorTaskDto> findActiveFlightIdsAndSeatGrade(@Param("status") SubscriptionStatus status);
+    boolean existsByUserIdAndRouteId(Long userId, Long routeId);
 
     @Query(
-            "SELECT DISTINCT " +
-                "new com.siwol025.flight_monitor.user.dto.UserEmailDto(s.user.email) " +
+            "SELECT DISTINCT r.id " +
             "FROM Subscription s " +
-            "JOIN s.flight f " +
-            "WHERE f.flightId = :flightId " +
-            "AND s.seatGrade = :seatGrade " +
-            "AND s.status = :status"
+            "JOIN s.route r " +
+            "WHERE s.status = :status " +
+            "AND r.status = :routeStatus " +
+            "AND r.departureDate >= :today"
     )
-    List<UserEmailDto> findSubscriberEmails(@Param("flightId") Long flightId,
-                                            @Param("seatGrade") SeatGrade seatGrade,
-                                            @Param("status") SubscriptionStatus status);
+    List<Long> findActiveRouteIds(@Param("status") SubscriptionStatus status,
+                                  @Param("routeStatus") RouteStatus routeStatus,
+                                  @Param("today") LocalDate today);
 
     @Query(
             "SELECT DISTINCT " +
                 "new com.siwol025.flight_monitor.subscription.dto.SubscriberWithConditionDto(s.user.email, s.targetPrice, s.dropThresholdPercent) " +
             "FROM Subscription s " +
-            "JOIN s.flight f " +
-            "WHERE f.flightId = :flightId " +
-            "AND s.seatGrade = :seatGrade " +
+            "WHERE s.route.id = :routeId " +
             "AND s.status = :status"
     )
-    List<SubscriberWithConditionDto> findSubscribersWithCondition(@Param("flightId") Long flightId,
-                                                                  @Param("seatGrade") SeatGrade seatGrade,
+    List<SubscriberWithConditionDto> findSubscribersWithCondition(@Param("routeId") Long routeId,
                                                                   @Param("status") SubscriptionStatus status);
-
-    @Deprecated
-    @Query(
-            "SELECT s " +
-            "FROM Subscription s " +
-            "JOIN FETCH s.flight f " +
-            "WHERE s.status = :status " +
-            "AND f.departureTime < CURRENT_TIMESTAMP"
-    )
-    List<Subscription> findExpirableSubscriptions(@Param("status") SubscriptionStatus status);
 
     @Modifying(clearAutomatically = true)
     @Transactional
-    @Query("UPDATE Subscription s SET s.status = :expired WHERE s.status = :active AND s.flight.departureTime < CURRENT_TIMESTAMP")
+    @Query("UPDATE Subscription s SET s.status = :expired WHERE s.status = :active AND s.route.departureDate < :today")
     int bulkExpireSubscriptions(@Param("active") SubscriptionStatus active,
-                                @Param("expired") SubscriptionStatus expired);
+                                @Param("expired") SubscriptionStatus expired,
+                                @Param("today") LocalDate today);
+
+    // 대부분 0행이다. 같은 영속성 컨텍스트의 구독이 옛 값(null)을 보지 않게 실행 전 flush, 실행 후 clear한다
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("UPDATE Subscription s SET s.price = :price WHERE s.route.id = :routeId AND s.price IS NULL")
+    int fillPendingBaselinePrice(@Param("routeId") Long routeId, @Param("price") BigDecimal price);
 }
