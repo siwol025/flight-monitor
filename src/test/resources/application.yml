@@ -8,8 +8,6 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
-  cache:
-    type: none
   # H2 테스트는 Hibernate가 스키마를 만든다(위 ddl-auto: create-drop). 기준선(V1)은 MySQL 문법이라 H2에서 돌리지 않는다.
   # Flyway 기준선은 DatabaseSchemaMigrationTest가 compose와 같은 MySQL로 검사한다
   flyway:
