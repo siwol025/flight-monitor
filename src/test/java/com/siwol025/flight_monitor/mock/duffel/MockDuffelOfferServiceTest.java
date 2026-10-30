@@ -7,6 +7,7 @@ import com.siwol025.flight_monitor.mock.airline.domain.MockAirline;
 import com.siwol025.flight_monitor.mock.airport.domain.MockAirport;
 import com.siwol025.flight_monitor.mock.flight.domain.FlightSeatPrice;
 import com.siwol025.flight_monitor.mock.flight.domain.MockFlight;
+import com.siwol025.flight_monitor.mock.flight.domain.Seat;
 import com.siwol025.flight_monitor.route.domain.SeatGrade;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -91,7 +92,49 @@ class MockDuffelOfferServiceTest {
         assertThat(response.data().offers()).isEmpty();
     }
 
-    private void persistFlight(String flightNumber, MockAirport departure, MockAirport arrival,
+    @Test
+    void search_offerId에_등급구분되는좌석가격ID() {
+        MockFlight ke701 = persistFlight("KE701", icn, nrt, LocalDateTime.of(2026, 11, 26, 9, 0),
+                LocalDateTime.of(2026, 11, 26, 11, 20), SeatGrade.ECONOMY, "250000", SeatGrade.BUSINESS, "900000");
+        em.flush();
+        Long economyPriceId = priceId(ke701, SeatGrade.ECONOMY);
+        Long businessPriceId = priceId(ke701, SeatGrade.BUSINESS);
+        em.clear();
+
+        MockDuffelOfferResponse economy = mockDuffelOfferService.search(request("ICN", "NRT", DEPARTURE_DATE, "economy"));
+        // 검색 쿼리는 해당 등급 가격만 fetch하므로, 요청마다 영속성 컨텍스트가 따로인 운영처럼 비운다
+        em.clear();
+        MockDuffelOfferResponse business = mockDuffelOfferService.search(request("ICN", "NRT", DEPARTURE_DATE, "business"));
+
+        assertThat(economy.data().offers()).extracting(MockDuffelOfferResponse.Offer::id)
+                .containsExactly("off_mock_" + economyPriceId);
+        assertThat(business.data().offers()).extracting(MockDuffelOfferResponse.Offer::id)
+                .containsExactly("off_mock_" + businessPriceId);
+    }
+
+    @Test
+    void search_빈좌석없는등급_결과에서제외() {
+        persistFlight("KE701", icn, nrt, LocalDateTime.of(2026, 11, 26, 9, 0), LocalDateTime.of(2026, 11, 26, 11, 20),
+                SeatGrade.ECONOMY, "250000");
+        // 이코노미 좌석이 모두 예약됨(비즈니스는 빈 좌석 있음)
+        MockFlight ke703 = persistFlight("KE703", icn, nrt, LocalDateTime.of(2026, 11, 26, 12, 0),
+                LocalDateTime.of(2026, 11, 26, 14, 20), SeatGrade.ECONOMY, "200000", SeatGrade.BUSINESS, "900000");
+        ke703.getSeats().stream().filter(seat -> seat.getSeatGrade() == SeatGrade.ECONOMY).forEach(Seat::reserve);
+        // 이코노미 가격은 있지만 좌석이 없음
+        MockFlight ke705 = persistFlight("KE705", icn, nrt, LocalDateTime.of(2026, 11, 26, 15, 0),
+                LocalDateTime.of(2026, 11, 26, 17, 20), SeatGrade.ECONOMY, "180000");
+        ke705.getSeats().clear();
+        em.flush();
+        em.clear();
+
+        MockDuffelOfferResponse response = mockDuffelOfferService.search(request("ICN", "NRT", DEPARTURE_DATE, "economy"));
+
+        assertThat(response.data().offers())
+                .extracting(offer -> offer.slices().getFirst().segments().getFirst().marketingCarrierFlightNumber())
+                .containsExactly("701");
+    }
+
+    private MockFlight persistFlight(String flightNumber, MockAirport departure, MockAirport arrival,
                                LocalDateTime departureTime, LocalDateTime arrivalTime, Object... gradeAndPrices) {
         MockFlight flight = MockFlight.builder()
                 .flightNumber(flightNumber).airline(koreanAir)
@@ -102,8 +145,17 @@ class MockDuffelOfferServiceTest {
             flight.addFlightSeatPrice(FlightSeatPrice.builder().flight(flight)
                     .seatGrade((SeatGrade) gradeAndPrices[i]).price(new BigDecimal((String) gradeAndPrices[i + 1]))
                     .build());
+            // 빈 좌석이 있어야 예매 가능(검색 대상)이다
+            flight.addSeat(Seat.builder().flight(flight).seatGrade((SeatGrade) gradeAndPrices[i])
+                    .seatNumber(i / 2 + 1 + "A").isBooked(false).build());
         }
-        em.persist(flight);
+        return em.persist(flight);
+    }
+
+    private static Long priceId(MockFlight flight, SeatGrade seatGrade) {
+        return flight.getFlightSeatPrices().stream()
+                .filter(price -> price.getSeatGrade() == seatGrade)
+                .findFirst().orElseThrow().getId();
     }
 
     private static MockDuffelOfferRequest request(String origin, String destination, LocalDate date, String cabinClass) {

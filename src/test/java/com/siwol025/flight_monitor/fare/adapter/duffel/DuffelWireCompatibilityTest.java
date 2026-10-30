@@ -15,8 +15,10 @@ import com.siwol025.flight_monitor.mock.duffel.MockDuffelOfferService;
 import com.siwol025.flight_monitor.mock.duffel.MockDuffelRateLimitEnforcer;
 import com.siwol025.flight_monitor.mock.flight.domain.FlightSeatPrice;
 import com.siwol025.flight_monitor.mock.flight.domain.MockFlight;
+import com.siwol025.flight_monitor.mock.flight.domain.Seat;
 import com.siwol025.flight_monitor.mock.flight.repository.MockFlightRepository;
 import com.siwol025.flight_monitor.mock.flight.repository.MockFlightSeatPriceRepository;
+import com.siwol025.flight_monitor.mock.flight.repository.MockSeatRepository;
 import com.siwol025.flight_monitor.route.domain.RouteKey;
 import com.siwol025.flight_monitor.route.domain.SeatGrade;
 import java.io.IOException;
@@ -88,9 +90,13 @@ class DuffelWireCompatibilityTest {
     @Autowired
     private MockFlightSeatPriceRepository mockFlightSeatPriceRepository;
 
+    @Autowired
+    private MockSeatRepository mockSeatRepository;
+
     @AfterEach
     void tearDown() {
-        // 랜덤 포트 서버는 트랜잭션 롤백이 안 되므로 FK 순서대로 지운다(가격 → 항공편 → 공항·항공사)
+        // 랜덤 포트 서버는 트랜잭션 롤백이 안 되므로 FK 순서대로 지운다(좌석·가격 → 항공편 → 공항·항공사)
+        mockSeatRepository.deleteAllInBatch();
         mockFlightSeatPriceRepository.deleteAllInBatch();
         mockFlightRepository.deleteAllInBatch();
         mockAirportRepository.deleteAllInBatch();
@@ -182,6 +188,8 @@ class DuffelWireCompatibilityTest {
                 .build();
         flight.addFlightSeatPrice(FlightSeatPrice.builder().flight(flight)
                 .seatGrade(SeatGrade.ECONOMY).price(new BigDecimal(economyPrice)).build());
+        // 빈 좌석이 있어야 예매 가능(검색 대상)이다
+        flight.addSeat(Seat.builder().flight(flight).seatGrade(SeatGrade.ECONOMY).seatNumber("1A").isBooked(false).build());
         mockFlightRepository.save(flight);
     }
 }

@@ -21,4 +21,7 @@ public interface MockSeatRepository extends JpaRepository<Seat, Long> {
             + "AND s.seatGrade = :seatGrade "
             + "ORDER BY s.seatNumber")
     List<Seat> findSeatsByFlightIdAndSeatGrade(Long flightId, SeatGrade seatGrade);
+
+    // 예매 가능 판정: 해당 항공편·등급에 빈 좌석이 하나라도 있는지(읽기만 한다)
+    boolean existsByFlightIdAndSeatGradeAndIsBookedFalse(Long flightId, SeatGrade seatGrade);
 }
