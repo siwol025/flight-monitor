@@ -29,3 +29,21 @@ fare-provider:
   duffel:
     # compose는 mock 환경: 같은 코드의 mock 인스턴스가 Duffel 형식으로 응답한다
     base-url: http://flight-mock-api:8080
+    # mock 한도(아래 mock.duffel.rate-limit.limit)와 같게 둔다. 다르면 감시 응답마다 ratelimit-limit 불일치 경고가 남는다
+    expected-rate-limit: 100
+
+# compose(mock 환경)의 업체 호출 한도: 60초당 100건. application.yml 기본값(30)은 실제 Duffel 한도 기준이라 그대로 둔다
+mock:
+  duffel:
+    rate-limit:
+      limit: 100
+      period: 60s
+
+monitor:
+  ratelimiter:
+    # 전역 한도(Redis로 모든 인스턴스가 공유): 업체 한도 100의 90% = 90. 서버가 2대여도 전역 한도는 그대로이고,
+    # 남는 10건/분은 사용자 예매 흐름(검색·재조회·주문) 몫이다. 실제 Duffel(60초당 30건)에 이 값으로 붙으면 429 전체 정지가 반복된다
+    limit: 90
+    period: 60s
+    # 모니터링 서버 2대 가정. Redis 장애 중에는 서버마다 90 ÷ 2 = 45건으로 따로 세어 합계가 90을 넘지 않는다
+    instances: 2
