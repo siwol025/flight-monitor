@@ -42,4 +42,12 @@ public record MockDuffelErrorResponse(List<Error> errors, Meta meta) {
                         "The resource you are trying to access does not exist.", DOCUMENTATION_URL)),
                 new Meta("mock_" + UUID.randomUUID(), 404));
     }
+
+    // 422: 주문 금액·통화가 현재 가격과 다름. code와 type은 mock이 정한 값이다
+    public static MockDuffelErrorResponse priceChanged() {
+        return new MockDuffelErrorResponse(
+                List.of(new Error("invalid_state_error", "price_changed", "Price changed",
+                        "The payment amount or currency does not match the current offer price.", DOCUMENTATION_URL)),
+                new Meta("mock_" + UUID.randomUUID(), 422));
+    }
 }

@@ -51,12 +51,11 @@ public class MockDuffelOfferService {
 
     // offer ID는 off_mock_{좌석가격 행 ID}: 항공편과 등급을 함께 식별한다
     public OfferLookup findOffer(String offerId) {
-        Matcher matcher = OFFER_ID.matcher(offerId);
-        if (!matcher.matches()) {
+        Optional<Long> priceId = parsePriceId(offerId);
+        if (priceId.isEmpty()) {
             return new OfferLookup.NotFound();
         }
-        Optional<FlightSeatPrice> found = mockFlightSeatPriceRepository.findWithFlightDetailsById(
-                Long.parseLong(matcher.group(1)));
+        Optional<FlightSeatPrice> found = mockFlightSeatPriceRepository.findWithFlightDetailsById(priceId.get());
         if (found.isEmpty()) {
             return new OfferLookup.NotFound();
         }
@@ -66,6 +65,12 @@ public class MockDuffelOfferService {
             return new OfferLookup.SoldOut();
         }
         return new OfferLookup.Found(new MockDuffelOfferDetailResponse(toOffer(price.getFlight(), price)));
+    }
+
+    // off_mock_{좌석가격 행 ID}에서 ID를 꺼낸다. 형식이 맞지 않으면 빈 값(주문도 같은 규칙을 쓴다)
+    static Optional<Long> parsePriceId(String offerId) {
+        Matcher matcher = OFFER_ID.matcher(offerId);
+        return matcher.matches() ? Optional.of(Long.parseLong(matcher.group(1))) : Optional.empty();
     }
 
     /**
@@ -89,7 +94,7 @@ public class MockDuffelOfferService {
         return toOffer(flight, price);
     }
 
-    private static MockDuffelOfferResponse.Offer toOffer(MockFlight flight, FlightSeatPrice price) {
+    static MockDuffelOfferResponse.Offer toOffer(MockFlight flight, FlightSeatPrice price) {
         MockDuffelOfferResponse.Segment segment = new MockDuffelOfferResponse.Segment(
                 new MockDuffelOfferResponse.Place(flight.getDepartureAirport().getAirportCode()),
                 new MockDuffelOfferResponse.Place(flight.getArrivalAirport().getAirportCode()),
