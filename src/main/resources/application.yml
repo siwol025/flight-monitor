@@ -141,6 +141,33 @@ mock:
     rate-limit:
       limit: 30
       period: 60s
+  # mock 인스턴스가 기동할 때 채우는 가짜 항공편 데이터(Duffel test 모드처럼 가상 항공사). 시더 빈은 mock 프로필 전용이라
+  # 여기서 켜도 app 인스턴스에는 영향이 없다. 오늘부터 days일 중 항공편이 없는 날짜만 채운다.
+  # 기본 규모: 공항 6 → 노선 30 × 3편 × 30일 = 항공편 2,700 / 가격 8,100 / 좌석 29,700
+  seed:
+    enabled: true
+    airports:
+      - { code: ICN, name: 인천 }
+      - { code: NRT, name: 나리타 }
+      - { code: KIX, name: 간사이 }
+      - { code: BKK, name: 방콕 }
+      - { code: SIN, name: 싱가포르 }
+      - { code: HKG, name: 홍콩 }
+    airlines:
+      - { code: ZZ, name: Duffel Airways }
+    days: 30
+    flights-per-route-per-day: 3
+    # 등급별 가격 범위(USD 정수, 양 끝 포함). mock 운임 통화는 USD 고정이다
+    prices:
+      ECONOMY: { min: 100, max: 600 }
+      BUSINESS: { min: 800, max: 2500 }
+      FIRST: { min: 2500, max: 6000 }
+    # 항공편 하나의 등급별 좌석 수. 몇 번만 구매해도 매진되도록 작게 둔다
+    seats:
+      ECONOMY: 6
+      BUSINESS: 3
+      FIRST: 2
+    random-seed: 42
 
 kafka:
   topic:

@@ -150,6 +150,8 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=docker, mock
       - JAVA_TOOL_OPTIONS=-Xms512m -Xmx512m -XX:+UseG1GC
+      # 기동 시 시딩(약 4만 행)의 JDBC 배치를 다중 행 INSERT 하나로 묶는다. 없으면 MySQL 드라이버가 행마다 왕복한다
+      - SPRING_DATASOURCE_HIKARI_DATA_SOURCE_PROPERTIES_REWRITEBATCHEDSTATEMENTS=true
     deploy:
       resources:
         limits:
