@@ -29,3 +29,38 @@ fare-provider:
   duffel:
     # compose는 mock 환경: 같은 코드의 mock 인스턴스가 Duffel 형식으로 응답한다
     base-url: http://flight-mock-api:8080
+    # mock 한도(아래 mock.duffel.rate-limit.limit)와 같게 둔다. 다르면 감시 응답마다 ratelimit-limit 불일치 경고가 남는다
+    expected-rate-limit: 100
+    # mock 검색 지연 상한(아래 mock.latency 최대 30초)보다 길게 둔다. supplier-timeout(10s)보다 긴 관계도 그대로다
+    response-timeout: 35s
+
+mock:
+  # 스카이스캐너 Live Pricing 지연 모방: Duffel 검색 응답을 10~30초(base + 0~jitter) 늦춘다. 단건 조회·주문에는 걸지 않는다.
+  # 지연 중에는 mock의 Tomcat 요청 스레드를 붙잡는다(기본 최대 200). 지금 동시 대기는 앱 2대 × 53 + 사용자 흐름 ≈ 111이다.
+  # 앱을 3대 이상으로 늘리거나 지연을 더 키우면 mock에 spring.threads.virtual.enabled 또는 server.tomcat.threads.max를 검토한다
+  latency:
+    enabled: true
+    base-ms: 10000
+    jitter-ms: 20000
+  # compose(mock 환경)의 업체 호출 한도: 60초당 100건. application.yml 기본값(30)은 실제 Duffel 한도 기준이라 그대로 둔다
+  duffel:
+    rate-limit:
+      limit: 100
+      period: 60s
+
+monitor:
+  backpressure:
+    # 산정식은 application.yml과 같다: 전역 한도 × 응답 상한 ÷ (서버 수 − 1). 90/60s = 1.5건/초 × 35초 ÷ (2 − 1) = 52.5 → 53.
+    # 응답 상한은 스카이스캐너 Live Pricing 지연 모방(최대 30초)에 맞춘 response-timeout이다. 서버당 몫이 아니라 전역 한도 기준인
+    # 이유: 토큰은 Redis에서 먼저 가져가는 쪽이 쓰므로, 다른 서버가 죽거나 느릴 때 한 서버가 전체를 감당할 수 있어야 한다
+    max-in-flight: 53
+  http:
+    # max-connections >= max-in-flight 불변식(DuffelHttpClientConfig가 기동 시 검사)에 맞춰 같이 올린다
+    max-connections: 53
+  ratelimiter:
+    # 전역 한도(Redis로 모든 인스턴스가 공유): 업체 한도 100의 90% = 90. 서버가 2대여도 전역 한도는 그대로이고,
+    # 남는 10건/분은 사용자 예매 흐름(검색·재조회·주문) 몫이다. 실제 Duffel(60초당 30건)에 이 값으로 붙으면 429 전체 정지가 반복된다
+    limit: 90
+    period: 60s
+    # 모니터링 서버 2대 가정. Redis 장애 중에는 서버마다 90 ÷ 2 = 45건으로 따로 세어 합계가 90을 넘지 않는다
+    instances: 2

@@ -4,19 +4,31 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.siwol025.flight_monitor.fare.FareRateLimitedException;
+import com.siwol025.flight_monitor.fare.FlightOffer;
+import com.siwol025.flight_monitor.fare.FlightOfferFinder;
+import com.siwol025.flight_monitor.fare.FlightOfferUnavailableException;
+import com.siwol025.flight_monitor.fare.FlightOrderPlacer;
+import com.siwol025.flight_monitor.fare.Gender;
 import com.siwol025.flight_monitor.fare.LowestFare;
 import com.siwol025.flight_monitor.fare.LowestFareFinder;
+import com.siwol025.flight_monitor.fare.Passenger;
+import com.siwol025.flight_monitor.fare.PassengerTitle;
+import com.siwol025.flight_monitor.fare.PlacedOrder;
 import com.siwol025.flight_monitor.mock.airline.domain.MockAirline;
 import com.siwol025.flight_monitor.mock.airline.repository.MockAirlineRepository;
 import com.siwol025.flight_monitor.mock.airport.domain.MockAirport;
 import com.siwol025.flight_monitor.mock.airport.repository.MockAirportRepository;
 import com.siwol025.flight_monitor.mock.duffel.MockDuffelOfferController;
 import com.siwol025.flight_monitor.mock.duffel.MockDuffelOfferService;
+import com.siwol025.flight_monitor.mock.duffel.MockDuffelOrderController;
+import com.siwol025.flight_monitor.mock.duffel.MockDuffelOrderService;
 import com.siwol025.flight_monitor.mock.duffel.MockDuffelRateLimitEnforcer;
 import com.siwol025.flight_monitor.mock.flight.domain.FlightSeatPrice;
 import com.siwol025.flight_monitor.mock.flight.domain.MockFlight;
+import com.siwol025.flight_monitor.mock.flight.domain.Seat;
 import com.siwol025.flight_monitor.mock.flight.repository.MockFlightRepository;
 import com.siwol025.flight_monitor.mock.flight.repository.MockFlightSeatPriceRepository;
+import com.siwol025.flight_monitor.mock.flight.repository.MockSeatRepository;
 import com.siwol025.flight_monitor.route.domain.RouteKey;
 import com.siwol025.flight_monitor.route.domain.SeatGrade;
 import java.io.IOException;
@@ -58,12 +70,16 @@ class DuffelWireCompatibilityTest {
     private static final RouteKey ICN_NRT_ECONOMY =
             new RouteKey("ICN", "NRT", LocalDate.of(2026, 11, 26), SeatGrade.ECONOMY);
 
+    private static final Passenger PASSENGER = new Passenger(PassengerTitle.MR, "Gildong", "Hong", Gender.M,
+            LocalDate.of(1990, 1, 1), "gildong@test.com", "+821012345678");
+
     @SpringBootConfiguration
     @EnableAutoConfiguration
     @EntityScan(basePackageClasses = {MockFlight.class, MockAirline.class, MockAirport.class})
     @EnableJpaRepositories(basePackageClasses = {MockFlightRepository.class, MockAirlineRepository.class,
             MockAirportRepository.class})
-    @Import({MockDuffelOfferController.class, MockDuffelOfferService.class, MockDuffelRateLimitEnforcer.class})
+    @Import({MockDuffelOfferController.class, MockDuffelOfferService.class, MockDuffelRateLimitEnforcer.class,
+            MockDuffelOrderController.class, MockDuffelOrderService.class})
     static class MockServerApplication {
 
         // 한도 창이 테스트 도중 넘어가지 않게 시각을 고정한다(16:07:44가 속한 창은 16:08:00에 끝난다)
@@ -88,9 +104,13 @@ class DuffelWireCompatibilityTest {
     @Autowired
     private MockFlightSeatPriceRepository mockFlightSeatPriceRepository;
 
+    @Autowired
+    private MockSeatRepository mockSeatRepository;
+
     @AfterEach
     void tearDown() {
-        // 랜덤 포트 서버는 트랜잭션 롤백이 안 되므로 FK 순서대로 지운다(가격 → 항공편 → 공항·항공사)
+        // 랜덤 포트 서버는 트랜잭션 롤백이 안 되므로 FK 순서대로 지운다(좌석·가격 → 항공편 → 공항·항공사)
+        mockSeatRepository.deleteAllInBatch();
         mockFlightSeatPriceRepository.deleteAllInBatch();
         mockFlightRepository.deleteAllInBatch();
         mockAirportRepository.deleteAllInBatch();
@@ -152,6 +172,65 @@ class DuffelWireCompatibilityTest {
         }
     }
 
+    @Test
+    void 와이어호환_단건조회_mock_offer를_어댑터가읽음() {
+        saveKe701WithOneSeat();
+
+        adapterContext("http://localhost:" + port).run(context -> {
+            FlightOfferFinder finder = context.getBean(FlightOfferFinder.class);
+            FlightOffer searched = finder.searchOffers(ICN_NRT_ECONOMY).getFirst();
+
+            assertThat(searched).isEqualTo(new FlightOffer(searched.offerId(), new BigDecimal("250000.00"), "USD",
+                    "ICN", "NRT", SeatGrade.ECONOMY, "KE", "Korean Air", "701",
+                    LocalDateTime.of(2026, 11, 26, 9, 0), LocalDateTime.of(2026, 11, 26, 11, 20)));
+            assertThat(finder.findOffer(searched.offerId())).contains(searched);
+        });
+    }
+
+    @Test
+    void 와이어호환_주문_mock_주문응답을_어댑터가읽음() {
+        saveKe701WithOneSeat();
+
+        adapterContext("http://localhost:" + port).run(context -> {
+            FlightOffer offer = context.getBean(FlightOfferFinder.class).searchOffers(ICN_NRT_ECONOMY).getFirst();
+
+            PlacedOrder order = context.getBean(FlightOrderPlacer.class)
+                    .placeOrder(offer.offerId(), offer.amount(), offer.currency(), PASSENGER);
+
+            assertThat(order.orderId()).startsWith("ord_mock_");
+            assertThat(order.bookingReference()).matches("[0-9A-Z]{6}");
+            assertThat(order.amount()).isEqualByComparingTo("250000");
+            assertThat(order.currency()).isEqualTo("USD");
+        });
+    }
+
+    @Test
+    void 와이어호환_매진후_단건빈결과_주문예매불가() {
+        saveKe701WithOneSeat();
+
+        adapterContext("http://localhost:" + port).run(context -> {
+            FlightOfferFinder finder = context.getBean(FlightOfferFinder.class);
+            FlightOrderPlacer placer = context.getBean(FlightOrderPlacer.class);
+            FlightOffer offer = finder.searchOffers(ICN_NRT_ECONOMY).getFirst();
+            placer.placeOrder(offer.offerId(), offer.amount(), offer.currency(), PASSENGER);
+
+            // 마지막 좌석이 팔렸다: mock의 422 offer_no_longer_available을 어댑터가 code로 구분한다
+            assertThat(finder.findOffer(offer.offerId())).isEmpty();
+            assertThatThrownBy(() -> placer.placeOrder(offer.offerId(), offer.amount(), offer.currency(), PASSENGER))
+                    .isInstanceOf(FlightOfferUnavailableException.class);
+        });
+    }
+
+    // 이코노미 250000(USD), 빈 좌석 1개
+    private void saveKe701WithOneSeat() {
+        MockAirline koreanAir = mockAirlineRepository.save(
+                MockAirline.builder().airlineCode("KE").airlineName("Korean Air").build());
+        MockAirport icn = mockAirportRepository.save(MockAirport.builder().airportCode("ICN").airportName("인천").build());
+        MockAirport nrt = mockAirportRepository.save(MockAirport.builder().airportCode("NRT").airportName("나리타").build());
+        saveFlight("KE701", koreanAir, icn, nrt, LocalDateTime.of(2026, 11, 26, 9, 0),
+                LocalDateTime.of(2026, 11, 26, 11, 20), "250000");
+    }
+
     @Nested
     @TestPropertySource(properties = "mock.duffel.rate-limit.limit=1")
     class 한도1건 {
@@ -182,6 +261,8 @@ class DuffelWireCompatibilityTest {
                 .build();
         flight.addFlightSeatPrice(FlightSeatPrice.builder().flight(flight)
                 .seatGrade(SeatGrade.ECONOMY).price(new BigDecimal(economyPrice)).build());
+        // 빈 좌석이 있어야 예매 가능(검색 대상)이다
+        flight.addSeat(Seat.builder().flight(flight).seatGrade(SeatGrade.ECONOMY).seatNumber("1A").isBooked(false).build());
         mockFlightRepository.save(flight);
     }
 }

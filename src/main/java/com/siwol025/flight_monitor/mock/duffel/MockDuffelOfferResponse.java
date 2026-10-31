@@ -25,7 +25,12 @@ public record MockDuffelOfferResponse(Data data) {
                           @JsonProperty("marketing_carrier") Carrier marketingCarrier,
                           @JsonProperty("marketing_carrier_flight_number") String marketingCarrierFlightNumber,
                           @JsonProperty("departing_at") String departingAt,
-                          @JsonProperty("arriving_at") String arrivingAt) {
+                          @JsonProperty("arriving_at") String arrivingAt,
+                          List<SegmentPassenger> passengers) {
+    }
+
+    // 실제 Duffel처럼 구간의 승객마다 좌석 등급을 둔다(mock은 성인 1명)
+    public record SegmentPassenger(@JsonProperty("cabin_class") String cabinClass) {
     }
 
     public record Place(@JsonProperty("iata_code") String iataCode) {
