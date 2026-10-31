@@ -77,7 +77,8 @@ class MockDuffelOfferServiceTest {
         assertThat(ke701).isEqualTo(new MockDuffelOfferResponse.Segment(
                 new MockDuffelOfferResponse.Place("ICN"), new MockDuffelOfferResponse.Place("NRT"),
                 new MockDuffelOfferResponse.Carrier("KE", "Korean Air"), "701",
-                "2026-11-26T00:00:00", "2026-11-26T02:20:00"));
+                "2026-11-26T00:00:00", "2026-11-26T02:20:00",
+                List.of(new MockDuffelOfferResponse.SegmentPassenger("economy"))));
     }
 
     @Test
@@ -132,6 +133,29 @@ class MockDuffelOfferServiceTest {
         assertThat(response.data().offers())
                 .extracting(offer -> offer.slices().getFirst().segments().getFirst().marketingCarrierFlightNumber())
                 .containsExactly("701");
+    }
+
+    @Test
+    void offer_segment에_cabin_class포함_검색과단건() {
+        MockFlight ke701 = persistFlight("KE701", icn, nrt, LocalDateTime.of(2026, 11, 26, 9, 0),
+                LocalDateTime.of(2026, 11, 26, 11, 20), SeatGrade.ECONOMY, "250000", SeatGrade.BUSINESS, "900000");
+        em.flush();
+        String businessOfferId = "off_mock_" + priceId(ke701, SeatGrade.BUSINESS);
+        em.clear();
+
+        MockDuffelOfferResponse.Segment searched = mockDuffelOfferService
+                .search(request("ICN", "NRT", DEPARTURE_DATE, "business"))
+                .data().offers().getFirst().slices().getFirst().segments().getFirst();
+        em.clear();
+        MockDuffelOfferService.OfferLookup.Found found =
+                (MockDuffelOfferService.OfferLookup.Found) mockDuffelOfferService.findOffer(businessOfferId);
+        MockDuffelOfferResponse.Segment single = found.response().data().slices().getFirst().segments().getFirst();
+
+        // 실제 Duffel과 같은 위치: slices[].segments[].passengers[].cabin_class
+        assertThat(searched.passengers()).extracting(MockDuffelOfferResponse.SegmentPassenger::cabinClass)
+                .containsExactly("business");
+        assertThat(single.passengers()).extracting(MockDuffelOfferResponse.SegmentPassenger::cabinClass)
+                .containsExactly("business");
     }
 
     private MockFlight persistFlight(String flightNumber, MockAirport departure, MockAirport arrival,

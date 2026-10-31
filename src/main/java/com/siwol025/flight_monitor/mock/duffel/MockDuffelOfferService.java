@@ -101,7 +101,8 @@ public class MockDuffelOfferService {
                 new MockDuffelOfferResponse.Carrier(flight.getAirline().getAirlineCode(), flight.getAirline().getAirlineName()),
                 flightNumberWithoutCarrier(flight),
                 flight.getDepartureTime().format(DUFFEL_DATE_TIME),
-                flight.getArrivalTime().format(DUFFEL_DATE_TIME));
+                flight.getArrivalTime().format(DUFFEL_DATE_TIME),
+                List.of(new MockDuffelOfferResponse.SegmentPassenger(cabinClass(price.getSeatGrade()))));
         // 금액은 Duffel처럼 소수 두 자리 문자열. 가격 컬럼에 scale이 지정되지 않아 셋째 자리가 있을 수 있으므로 반올림한다
         return new MockDuffelOfferResponse.Offer(OFFER_ID_PREFIX + price.getId(),
                 price.getPrice().setScale(2, RoundingMode.HALF_UP).toPlainString(), CURRENCY,
@@ -113,6 +114,14 @@ public class MockDuffelOfferService {
         String flightNumber = flight.getFlightNumber();
         String carrierCode = flight.getAirline().getAirlineCode();
         return flightNumber.startsWith(carrierCode) ? flightNumber.substring(carrierCode.length()) : flightNumber;
+    }
+
+    private static String cabinClass(SeatGrade seatGrade) {
+        return switch (seatGrade) {
+            case ECONOMY -> "economy";
+            case BUSINESS -> "business";
+            case FIRST -> "first";
+        };
     }
 
     private static SeatGrade seatGrade(String cabinClass) {

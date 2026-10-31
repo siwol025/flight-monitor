@@ -59,15 +59,29 @@ public class DuffelHttpClientConfig {
                 .build();
     }
 
+    // 인스턴스 하나가 FlightOfferFinder·FlightOrderPlacer 두 포트로 주입된다(반환형이 구현 타입이라 두 타입으로 찾힘)
+    @Bean
+    DuffelFlightBookingClient duffelFlightBookingClient(
+            @Qualifier("duffelHttpClient") CloseableHttpClient duffelHttpClient,
+            DuffelProperties properties, ObjectProvider<Clock> clock) {
+        return new DuffelFlightBookingClient(restClient(duffelHttpClient, properties), properties,
+                clock.getIfAvailable(Clock::systemUTC));
+    }
+
     @Bean
     public LowestFareFinder lowestFareFinder(@Qualifier("duffelHttpClient") CloseableHttpClient duffelHttpClient,
                                              DuffelProperties properties, ObjectProvider<Clock> clock) {
-        RestClient restClient = RestClient.builder()
+        return new DuffelLowestFareFinder(restClient(duffelHttpClient, properties), properties,
+                clock.getIfAvailable(Clock::systemUTC));
+    }
+
+    // 감시와 예매 어댑터가 같은 커넥션 풀·인증 헤더를 쓴다
+    private static RestClient restClient(CloseableHttpClient duffelHttpClient, DuffelProperties properties) {
+        return RestClient.builder()
                 .baseUrl(properties.getBaseUrl())
                 .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + properties.getApiKey())
                 .defaultHeader("Duffel-Version", properties.getVersion())
                 .requestFactory(new HttpComponentsClientHttpRequestFactory(duffelHttpClient))
                 .build();
-        return new DuffelLowestFareFinder(restClient, properties, clock.getIfAvailable(Clock::systemUTC));
     }
 }
