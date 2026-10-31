@@ -29,9 +29,18 @@ public enum ErrorTag {
     INVALID_AIRPORT_CODE("공항 코드는 영문 3자여야 합니다."),
     PAST_DEPARTURE_DATE("출발일이 이미 지났습니다."),
     INVALID_ROUTE_SUBSCRIPTION("운임 업체가 조회할 수 없는 노선이라 구독할 수 없습니다."),
+    PASSENGER_NOT_ADULT("승객은 출발일 기준 만 18세 이상이어야 합니다."),
+    INVALID_ROUTE("항공권 업체가 조회할 수 없는 노선입니다."),
 
     // 403 Forbidden (resource ownership)
-    UNAUTHORIZED_SUBSCRIPTION("해당 구독을 취소할 권한이 없습니다.");
+    UNAUTHORIZED_SUBSCRIPTION("해당 구독을 취소할 권한이 없습니다."),
+
+    // 409 Conflict
+    OFFER_UNAVAILABLE("예매할 수 없는 항공권입니다."),
+    OFFER_PRICE_CHANGED("항공권 가격이 바뀌었습니다. 현재 가격을 확인해 주세요."),
+
+    // 503 Service Unavailable
+    FARE_PROVIDER_UNAVAILABLE("항공권 업체를 지금 이용할 수 없습니다. 잠시 후 다시 시도해 주세요.");
 
     private final String message;
 

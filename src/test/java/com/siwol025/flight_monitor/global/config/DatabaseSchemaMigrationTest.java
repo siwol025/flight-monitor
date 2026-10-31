@@ -87,7 +87,7 @@ class DatabaseSchemaMigrationTest {
     void 스키마_빈DB에Flyway적용후_엔티티검증통과(String username) {
         app(database(username), username).run(context -> {
             assertThat(context).hasNotFailed();
-            assertThat(appliedMigrations(context)).containsExactly("1:SUCCESS");
+            assertThat(appliedMigrations(context)).containsExactly("1:SUCCESS", "2:SUCCESS");
         });
     }
 
@@ -98,7 +98,7 @@ class DatabaseSchemaMigrationTest {
         // 이미 적용된 기준선은 이력으로 알아보고 다시 돌리지 않는다(다시 돌리면 CREATE TABLE이 "이미 있음"으로 실패한다)
         app(APP_USER_DB, APP_USER).run(context -> {
             assertThat(context).hasNotFailed();
-            assertThat(appliedMigrations(context)).containsExactly("1:SUCCESS");
+            assertThat(appliedMigrations(context)).containsExactly("1:SUCCESS", "2:SUCCESS");
         });
     }
 
@@ -108,7 +108,7 @@ class DatabaseSchemaMigrationTest {
         // 기준선 적용은 수백 ms라 다른 인스턴스의 기동보다 빨리 끝나 겹치지 않을 수 있다. 적용하는 쪽을 잠깐 붙잡아 반드시 겹치게 한다
         Runnable instance = () -> app(APP_USER_DB, APP_USER).withBean(SlowMigration.class).run(context -> {
             assertThat(context).hasNotFailed();
-            assertThat(appliedMigrations(context)).containsExactly("1:SUCCESS");
+            assertThat(appliedMigrations(context)).containsExactly("1:SUCCESS", "2:SUCCESS");
         });
 
         CompletableFuture<Void> app = CompletableFuture.runAsync(instance);
