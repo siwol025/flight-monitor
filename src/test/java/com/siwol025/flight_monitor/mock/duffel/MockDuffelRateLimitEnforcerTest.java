@@ -9,6 +9,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.siwol025.flight_monitor.mock.duffel.MockDuffelRateLimitEnforcer.RateLimitStatus;
 import com.siwol025.flight_monitor.mock.flight.repository.MockFlightRepository;
+import com.siwol025.flight_monitor.mock.flight.repository.MockFlightSeatPriceRepository;
+import com.siwol025.flight_monitor.mock.flight.repository.MockSeatRepository;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -32,7 +34,8 @@ class MockDuffelRateLimitEnforcerTest {
         // 진짜 컨트롤러·한도 강제기·서비스, DB 경계(리포지토리)만 목. 시각은 고정: 16:07:44가 속한 창은 16:08:00에 끝난다
         Clock clock = Clock.fixed(Instant.parse("2026-10-25T16:07:44Z"), ZoneOffset.UTC);
         MockDuffelOfferController controller = new MockDuffelOfferController(
-                new MockDuffelOfferService(mock(MockFlightRepository.class)),
+                new MockDuffelOfferService(mock(MockFlightRepository.class), mock(MockFlightSeatPriceRepository.class),
+                        mock(MockSeatRepository.class)),
                 new MockDuffelRateLimitEnforcer(30, Duration.ofSeconds(60)),
                 new StaticListableBeanFactory(Map.of("clock", clock)).getBeanProvider(Clock.class));
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller).build();

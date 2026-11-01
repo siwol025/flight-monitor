@@ -26,4 +26,28 @@ public record MockDuffelErrorResponse(List<Error> errors, Meta meta) {
                         DOCUMENTATION_URL)),
                 new Meta("mock_" + UUID.randomUUID(), 429));
     }
+
+    // 422: 매진(빈 좌석 없음). code는 Duffel의 다른 offer 엔드포인트에 있는 값이고, type은 mock이 정한 값이다
+    public static MockDuffelErrorResponse offerNoLongerAvailable() {
+        return new MockDuffelErrorResponse(
+                List.of(new Error("invalid_state_error", "offer_no_longer_available", "Offer no longer available",
+                        "The offer is no longer available. Search again for up-to-date offers.", DOCUMENTATION_URL)),
+                new Meta("mock_" + UUID.randomUUID(), 422));
+    }
+
+    // 404: 형식이 맞지 않거나 없는 offer ID. type은 mock이 정한 값이다
+    public static MockDuffelErrorResponse notFound() {
+        return new MockDuffelErrorResponse(
+                List.of(new Error("invalid_request_error", "not_found", "Not found",
+                        "The resource you are trying to access does not exist.", DOCUMENTATION_URL)),
+                new Meta("mock_" + UUID.randomUUID(), 404));
+    }
+
+    // 422: 주문 금액·통화가 현재 가격과 다름. code와 type은 mock이 정한 값이다
+    public static MockDuffelErrorResponse priceChanged() {
+        return new MockDuffelErrorResponse(
+                List.of(new Error("invalid_state_error", "price_changed", "Price changed",
+                        "The payment amount or currency does not match the current offer price.", DOCUMENTATION_URL)),
+                new Meta("mock_" + UUID.randomUUID(), 422));
+    }
 }

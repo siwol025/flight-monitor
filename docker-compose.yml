@@ -150,6 +150,10 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=docker, mock
       - JAVA_TOOL_OPTIONS=-Xms512m -Xmx512m -XX:+UseG1GC
+      # 기동 시 시딩(약 4만 행)의 JDBC 배치를 다중 행 INSERT 하나로 묶는다. 없으면 MySQL 드라이버가 행마다 왕복한다.
+      # 드라이버 속성 이름은 대소문자를 구분하는데 환경 변수로는 Hikari data-source-properties의 Map 키를 대소문자 그대로
+      # 넘길 수 없어서 URL 파라미터로 준다. 나머지는 application-docker.yml의 url과 같게 유지한다
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/flight_monitor?serverTimezone=UTC&characterEncoding=UTF-8&rewriteBatchedStatements=true
     deploy:
       resources:
         limits:

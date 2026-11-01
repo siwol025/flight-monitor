@@ -81,7 +81,7 @@ class DuffelLowestFareFinder implements LowestFareFinder {
                 .body(toRequest(routeKey))
                 .retrieve()
                 .onStatus(status -> status.value() == 429, (req, res) -> {
-                    throw new FareRateLimitedException(resetAt(res.getHeaders()),
+                    throw new FareRateLimitedException(resetAt(res.getHeaders(), clock),
                             "Duffel 호출 한도 초과: ratelimit-reset=" + res.getHeaders().getFirst("ratelimit-reset"));
                 })
                 .onStatus(status -> status.value() == 422, (req, res) -> {
@@ -101,13 +101,13 @@ class DuffelLowestFareFinder implements LowestFareFinder {
     }
 
     // 오류 본문(errors[]·meta.request_id)은 원인 추적용으로 예외 메시지에 그대로 싣는다
-    private static String bodyOf(ClientHttpResponse response) throws IOException {
+    static String bodyOf(ClientHttpResponse response) throws IOException {
         return new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8);
     }
 
     // ratelimit-reset은 RFC 2616 HTTP 날짜(예: Sun, 25 Oct 2026 16:08:00 GMT). 없거나 해석할 수 없으면
     // 문서의 한도 기간(60초) 뒤로 잡는다 — 전체 정지는 재개 시각이 비지 않는다는 전제 위에 있다
-    private Instant resetAt(HttpHeaders headers) {
+    static Instant resetAt(HttpHeaders headers, Clock clock) {
         String reset = headers.getFirst("ratelimit-reset");
         if (reset != null) {
             try {
@@ -128,7 +128,8 @@ class DuffelLowestFareFinder implements LowestFareFinder {
                 segments.getLast().arrivingAt());
     }
 
-    private static OfferRequest toRequest(RouteKey routeKey) {
+    // 항공권 목록 검색(DuffelFlightBookingClient)도 같은 요청을 쓴다
+    static OfferRequest toRequest(RouteKey routeKey) {
         OfferRequest.Slice slice = new OfferRequest.Slice(routeKey.departureAirport(), routeKey.arrivalAirport(),
                 routeKey.departureDate().toString());
         return new OfferRequest(new OfferRequest.Data(List.of(slice), List.of(new OfferRequest.Passenger("adult")),

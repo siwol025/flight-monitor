@@ -1,5 +1,6 @@
 package com.siwol025.flight_monitor.global.exception;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -7,10 +8,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.siwol025.flight_monitor.global.exception.custom.BadRequestException;
 import com.siwol025.flight_monitor.global.exception.custom.NotFoundException;
+import com.siwol025.flight_monitor.global.exception.custom.OfferPriceChangedException;
 import com.siwol025.flight_monitor.global.exception.custom.UnauthorizedException;
 import com.siwol025.flight_monitor.route.domain.SeatGrade;
 import com.siwol025.flight_monitor.subscription.dto.request.SubscriptionRequest;
 import jakarta.validation.Valid;
+import java.math.BigDecimal;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -52,6 +55,16 @@ class GlobalExceptionHandlerTest {
 
         @PostMapping("/valid")
         void requireValid(@Valid @RequestBody SubscriptionRequest request) {}
+
+        @GetMapping("/price-changed")
+        void priceChanged() {
+            throw new OfferPriceChangedException(new BigDecimal("250000.00"), "USD");
+        }
+
+        @GetMapping("/price-changed-unknown")
+        void priceChangedUnknown() {
+            throw new OfferPriceChangedException(null, null);
+        }
     }
 
     @BeforeEach
@@ -102,6 +115,36 @@ class GlobalExceptionHandlerTest {
                         .content("{}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.tag").value("INVALID_INPUT"));
+    }
+
+    @Test
+    void 본문해석실패이면_400과_INVALID_INPUT반환() throws Exception {
+        // 있을 수 없는 날짜와 깨진 JSON은 검증 전에 해석 단계에서 실패한다. 클라이언트 입력 오류이므로 500이 아니다
+        for (String body : new String[]{"{\"departureDate\":\"2026-13-40\"}", "{\"departureAirport\":"}) {
+            mockMvc.perform(post("/test/valid")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.tag").value("INVALID_INPUT"))
+                    .andExpect(jsonPath("$.message").value(ErrorTag.INVALID_INPUT.getMessage()));
+        }
+    }
+
+    @Test
+    void 가격변동이면_409와_현재금액통화포함() throws Exception {
+        mockMvc.perform(get("/test/price-changed"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.tag").value("OFFER_PRICE_CHANGED"))
+                .andExpect(jsonPath("$.message").value(ErrorTag.OFFER_PRICE_CHANGED.getMessage()))
+                .andExpect(jsonPath("$.currentAmount").value(250000.00))
+                .andExpect(jsonPath("$.currentCurrency").value("USD"));
+
+        // 주문 단계(재조회 뒤 바뀜)는 현재가를 모른다
+        mockMvc.perform(get("/test/price-changed-unknown"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.tag").value("OFFER_PRICE_CHANGED"))
+                .andExpect(jsonPath("$.currentAmount").value(nullValue()))
+                .andExpect(jsonPath("$.currentCurrency").value(nullValue()));
     }
 
     @Test
