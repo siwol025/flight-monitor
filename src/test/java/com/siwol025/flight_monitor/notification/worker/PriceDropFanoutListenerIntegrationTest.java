@@ -34,9 +34,9 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @DataJpaTest
-@Import({KafkaNotificationListener.class, SubscriptionService.class, RouteService.class, AlertConditionChecker.class,
-        NotificationContentFormatter.class, KafkaNotificationListenerIntegrationTest.ClockConfig.class})
-class KafkaNotificationListenerIntegrationTest {
+@Import({PriceDropFanoutListener.class, SubscriptionService.class, RouteService.class, AlertConditionChecker.class,
+        NotificationContentFormatter.class, PriceDropFanoutListenerIntegrationTest.ClockConfig.class})
+class PriceDropFanoutListenerIntegrationTest {
 
     private static final LocalDate DEPARTURE_DATE = LocalDate.of(2026, 11, 26);
 
@@ -53,7 +53,7 @@ class KafkaNotificationListenerIntegrationTest {
     private RabbitTemplate rabbitTemplate;
 
     @Autowired
-    private KafkaNotificationListener listener;
+    private PriceDropFanoutListener listener;
 
     @Autowired
     private TestEntityManager em;

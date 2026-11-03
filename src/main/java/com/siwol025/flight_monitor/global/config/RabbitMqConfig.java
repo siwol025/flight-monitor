@@ -32,6 +32,7 @@ public class RabbitMqConfig {
 
     public static final String NOTIFICATION_EXCHANGE = "notification";
     public static final String NOTIFICATION_DLX = "notification.dlx";
+    public static final String PRICE_DROP_EVENTS_QUEUE = "price-drop-events";
     public static final String EMAIL_SEND_TASKS_QUEUE = "email-send-tasks";
     public static final String EMAIL_SEND_TASKS_DLQ = "email-send-tasks.dlq";
 
@@ -50,6 +51,16 @@ public class RabbitMqConfig {
     // 블로킹 재시도 중에는 소비자에 미리 받아 둔 메시지도 기다리므로 1로 둔다(재전달 범위도 최소)
     @Value("${notification.email-task.prefetch:1}")
     private int emailTaskPrefetch;
+
+    /**
+     * 가격 하락 이벤트 큐. 팬아웃 리스너가 예외를 삼키므로 DLQ를 두지 않는다(Kafka 시절에도 DLT 없음).
+     */
+    @Bean
+    public Declarables priceDropEventTopology() {
+        DirectExchange exchange = new DirectExchange(NOTIFICATION_EXCHANGE);
+        Queue queue = QueueBuilder.durable(PRICE_DROP_EVENTS_QUEUE).build();
+        return new Declarables(exchange, queue, BindingBuilder.bind(queue).to(exchange).with(PRICE_DROP_EVENTS_QUEUE));
+    }
 
     /**
      * 메일 작업 큐와 DLQ. 재시도를 소진하거나 영구 오류로 reject된 메시지는 DLX를 거쳐 DLQ로 간다.

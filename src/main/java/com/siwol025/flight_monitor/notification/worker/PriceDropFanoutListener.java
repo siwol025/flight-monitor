@@ -9,23 +9,23 @@ import com.siwol025.flight_monitor.subscription.service.SubscriptionService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.context.annotation.Profile;
-import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 @Profile("!mock")
-public class KafkaNotificationListener {
+public class PriceDropFanoutListener {
 
     private final SubscriptionService subscriptionService;
     private final RabbitTemplate rabbitTemplate;
     private final NotificationContentFormatter formatter;
     private final AlertConditionChecker alertConditionChecker;
 
-    @KafkaListener(topics = "flight-price-drop-events", groupId = "notification-fanout-group", concurrency = "3")
+    @RabbitListener(queues = RabbitMqConfig.PRICE_DROP_EVENTS_QUEUE, concurrency = "3")
     public void processNotification(PriceDropNotificationDto eventDto) {
         try {
             List<SubscriberWithConditionDto> subscribers = subscriptionService.getSubscribersWithCondition(eventDto.routeId());
@@ -46,11 +46,11 @@ public class KafkaNotificationListener {
                     rabbitTemplate.convertAndSend(RabbitMqConfig.NOTIFICATION_EXCHANGE,
                             RabbitMqConfig.EMAIL_SEND_TASKS_QUEUE, taskDto);
                 } catch (Exception e) {
-                    log.error("[KafkaNotificationListener] 특정 유저 이메일 작업 전송 실패: {}", subscriber.email(), e);
+                    log.error("[PriceDropFanoutListener] 특정 유저 이메일 작업 전송 실패: {}", subscriber.email(), e);
                 }
             }
         } catch (Exception e) {
-            log.error("[KafkaNotificationListener] 알림 분배 처리 중 오류 발생", e);
+            log.error("[PriceDropFanoutListener] 알림 분배 처리 중 오류 발생", e);
         }
     }
 

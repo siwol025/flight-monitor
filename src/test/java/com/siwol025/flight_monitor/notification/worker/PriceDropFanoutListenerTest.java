@@ -30,7 +30,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
-class KafkaNotificationListenerTest {
+class PriceDropFanoutListenerTest {
 
     private static final BigDecimal OLD_PRICE = new BigDecimal("300000");
     private static final BigDecimal NEW_PRICE = new BigDecimal("250000");
@@ -49,7 +49,7 @@ class KafkaNotificationListenerTest {
     private AlertConditionChecker alertConditionChecker;
 
     @InjectMocks
-    private KafkaNotificationListener kafkaNotificationListener;
+    private PriceDropFanoutListener priceDropFanoutListener;
 
     @Test
     void processNotification_구독자_존재시_각_구독자에게_이메일발송_태스크_전송됨() {
@@ -73,7 +73,7 @@ class KafkaNotificationListenerTest {
         given(alertConditionChecker.shouldNotify(any(), any(), any(), any())).willReturn(true);
 
         // when
-        kafkaNotificationListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto);
 
         // then
         then(rabbitTemplate).should(times(2))
@@ -100,7 +100,7 @@ class KafkaNotificationListenerTest {
         given(alertConditionChecker.shouldNotify(any(), any(), any(), any())).willReturn(true);
 
         // when
-        kafkaNotificationListener.processNotification(dto);
+        priceDropFanoutListener.processNotification(dto);
 
         // then
         then(formatter).should().createSubject(dto);
@@ -124,7 +124,7 @@ class KafkaNotificationListenerTest {
                 .willReturn(List.of());
 
         // when
-        kafkaNotificationListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto);
 
         // then
         then(rabbitTemplate).shouldHaveNoInteractions();
@@ -151,7 +151,7 @@ class KafkaNotificationListenerTest {
         given(alertConditionChecker.shouldNotify(eq(OLD_PRICE), eq(NEW_PRICE), isNull(), isNull())).willReturn(true);
 
         // when
-        kafkaNotificationListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto);
 
         // then
         then(rabbitTemplate).should(times(1))
@@ -180,7 +180,7 @@ class KafkaNotificationListenerTest {
         given(alertConditionChecker.shouldNotify(eq(OLD_PRICE), eq(NEW_PRICE), eq(targetPrice), isNull())).willReturn(true);
 
         // when
-        kafkaNotificationListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto);
 
         // then
         then(rabbitTemplate).should(times(1))
@@ -209,7 +209,7 @@ class KafkaNotificationListenerTest {
         given(alertConditionChecker.shouldNotify(eq(OLD_PRICE), eq(NEW_PRICE), eq(targetPrice), isNull())).willReturn(false);
 
         // when
-        kafkaNotificationListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto);
 
         // then
         then(rabbitTemplate).shouldHaveNoInteractions();
@@ -237,7 +237,7 @@ class KafkaNotificationListenerTest {
         given(alertConditionChecker.shouldNotify(eq(OLD_PRICE), eq(NEW_PRICE), isNull(), eq(threshold))).willReturn(true);
 
         // when
-        kafkaNotificationListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto);
 
         // then
         then(rabbitTemplate).should(times(1))
@@ -265,7 +265,7 @@ class KafkaNotificationListenerTest {
         given(alertConditionChecker.shouldNotify(any(), any(), any(), any())).willReturn(false);
 
         // when
-        kafkaNotificationListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto);
 
         // then
         then(rabbitTemplate).shouldHaveNoInteractions();
@@ -284,7 +284,7 @@ class KafkaNotificationListenerTest {
                 .convertAndSend(eq("notification"), eq("email-send-tasks"), argThat(taskTo("fail@test.com")));
 
         // when
-        kafkaNotificationListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto);
 
         // then
         then(rabbitTemplate).should()
@@ -313,7 +313,7 @@ class KafkaNotificationListenerTest {
         given(alertConditionChecker.shouldNotify(eq(OLD_PRICE), eq(NEW_PRICE), isNull(), eq(threshold))).willReturn(false);
 
         // when
-        kafkaNotificationListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto);
 
         // then
         then(rabbitTemplate).shouldHaveNoInteractions();
@@ -329,8 +329,8 @@ class KafkaNotificationListenerTest {
         given(alertConditionChecker.shouldNotify(any(), any(), any(), any())).willReturn(true);
 
         // when
-        kafkaNotificationListener.processNotification(eventDto);
-        kafkaNotificationListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto);
 
         // then
         then(rabbitTemplate).should(times(2))
@@ -354,7 +354,7 @@ class KafkaNotificationListenerTest {
         given(alertConditionChecker.shouldNotify(any(), any(), any(), any())).willReturn(true);
 
         // when
-        kafkaNotificationListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto);
 
         // then: 비즈니스 구독자에게만 발송된다
         then(rabbitTemplate).should()
