@@ -7,10 +7,8 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
-@EnableAsync
 @Configuration
 public class AsyncConfig {
 
@@ -30,8 +28,9 @@ public class AsyncConfig {
         executor.setMaxPoolSize(5);
         executor.setQueueCapacity(100);
         executor.setThreadNamePrefix("notification-Async-");
-
-        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+        // 가격 하락 발행 확인을 판정하고 최신가를 갱신한다. 제출하는 쪽이 브로커 I/O 스레드·시간 초과 타이머라 CallerRuns면
+        // DB 갱신이 그 스레드에서 돈다. 거부(Abort)는 발행 실패로 처리되어 다음 주기에 다시 감지된다
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
         executor.initialize();
         return executor;
     }

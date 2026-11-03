@@ -3,6 +3,7 @@ package com.siwol025.flight_monitor.notification.worker;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+import com.siwol025.flight_monitor.global.config.AsyncConfig;
 import com.siwol025.flight_monitor.global.config.RabbitMqConfig;
 import com.siwol025.flight_monitor.notification.dto.EmailSendTaskDto;
 import com.siwol025.flight_monitor.notification.dto.PriceDropNotificationDto;
@@ -50,7 +51,7 @@ import org.testcontainers.utility.DockerImageName;
 @DataJpaTest
 @Testcontainers
 @ImportAutoConfiguration(RabbitAutoConfiguration.class)
-@Import({RabbitMqConfig.class, NotificationProducer.class, PriceDropFanoutListener.class, SubscriptionService.class,
+@Import({RabbitMqConfig.class, AsyncConfig.class, NotificationProducer.class, PriceDropFanoutListener.class, SubscriptionService.class,
         RouteService.class, AlertConditionChecker.class, NotificationContentFormatter.class,
         PriceDropEventQueueIntegrationTest.ClockConfig.class})
 class PriceDropEventQueueIntegrationTest {

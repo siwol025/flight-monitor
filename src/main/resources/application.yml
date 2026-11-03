@@ -51,6 +51,12 @@ spring:
   rabbitmq:
     username: ${RABBITMQ_USERNAME}
     password: ${RABBITMQ_PASSWORD}
+    # 가격 하락 이벤트는 브로커 확인(ack)을 받고 큐까지 라우팅된 뒤에만 최신가를 전진시킨다. 라우팅 실패는 ack와 함께
+    # return으로 오므로 mandatory로 받아 실패로 본다(메일 작업 발행에도 걸리지만 메일 큐는 항상 있다)
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
     listener:
       simple:
         # 기본 팩토리(팬아웃 리스너)에서 리스너 밖으로 나온 예외는 재큐하지 않고 버린다. 팬아웃은 예외를 삼키므로 실제로는
@@ -180,6 +186,11 @@ mock:
     random-seed: 42
 
 notification:
+  price-drop:
+    # 가격 하락 이벤트의 브로커 확인 대기 상한. 넘으면 실패로 보고 최신가를 그대로 둔다(다음 주기에 다시 감지).
+    # 감시 주기(monitor.produce.fixed-rate-ms, 60초)보다 짧아야 한다: 길면 확인을 기다리는 동안 다음 주기가 같은 하락을
+    # 다시 발행한다. 정상 확인은 ms 단위라 10초면 충분하다
+    confirm-timeout: 10s
   # 메일 작업 큐(RabbitMQ email-send-tasks) 소비자. 소비자마다 블로킹 재시도를 하므로 prefetch는 1로 둔다
   email-task:
     concurrency: 50
