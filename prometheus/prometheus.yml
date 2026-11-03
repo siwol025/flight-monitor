@@ -11,3 +11,9 @@ scrape_configs:
     scrape_interval: 15s
     static_configs:
       - targets: ['kafka-exporter:9308']
+
+  # 큐별 깊이·소비자 수를 보려면 집계(/metrics)가 아니라 객체별 지표가 필요하다
+  - job_name: 'rabbitmq'
+    metrics_path: '/metrics/per-object'
+    static_configs:
+      - targets: ['rabbitmq:15692']

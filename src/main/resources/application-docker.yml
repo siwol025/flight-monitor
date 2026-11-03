@@ -12,6 +12,10 @@ spring:
   kafka:
     bootstrap-servers: kafka:29092
 
+  rabbitmq:
+    host: rabbitmq
+    port: 5672
+
   security:
     oauth2:
       client:
