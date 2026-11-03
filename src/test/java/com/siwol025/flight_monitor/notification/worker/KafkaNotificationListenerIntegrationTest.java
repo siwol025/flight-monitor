@@ -1,10 +1,7 @@
 package com.siwol025.flight_monitor.notification.worker;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -25,7 +22,6 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,7 +30,7 @@ import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @DataJpaTest
@@ -52,9 +48,9 @@ class KafkaNotificationListenerIntegrationTest {
         }
     }
 
-    // Kafka 경계
+    // 메일 작업 큐 경계
     @MockitoBean
-    private KafkaTemplate<String, Object> kafkaTemplate;
+    private RabbitTemplate rabbitTemplate;
 
     @Autowired
     private KafkaNotificationListener listener;
@@ -73,12 +69,11 @@ class KafkaNotificationListenerIntegrationTest {
         persistSubscription("business", business, null, null);
         persistSubscription("expired", economy, null, null).updateStatus(SubscriptionStatus.EXPIRED);
         em.flush();
-        given(kafkaTemplate.send(anyString(), anyString(), any())).willReturn(CompletableFuture.completedFuture(null));
 
         listener.processNotification(priceDrop(economy.getId()));
 
         ArgumentCaptor<Object> tasks = ArgumentCaptor.forClass(Object.class);
-        verify(kafkaTemplate, times(2)).send(eq("email-send-tasks"), anyString(), tasks.capture());
+        verify(rabbitTemplate, times(2)).convertAndSend(eq("notification"), eq("email-send-tasks"), tasks.capture());
         assertThat(tasks.getAllValues())
                 .extracting(task -> ((EmailSendTaskDto) task).toEmail())
                 .containsExactlyInAnyOrder("plain@test.com", "drop@test.com");

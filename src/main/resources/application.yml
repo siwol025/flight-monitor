@@ -178,11 +178,14 @@ kafka:
   topic:
     price-drop-events:
       partitions: 9
-    email-send-tasks:
-      partitions: 150
-  # 메일 발송 블로킹 재시도 (1s → 2s → 4s → 8s → 16s 기본, 총 31초). 30초 이하 SMTP 장애를 DLT 없이 흡수.
-  # 재시도 소진 시 email-send-tasks.DLT
+
+notification:
+  # 메일 작업 큐(RabbitMQ email-send-tasks) 소비자. 소비자마다 블로킹 재시도를 하므로 prefetch는 1로 둔다
   email-task:
+    concurrency: 50
+    prefetch: 1
+    # 메일 발송 블로킹 재시도 (1s → 2s → 4s → 8s → 16s 기본, 총 31초). 30초 이하 SMTP 장애를 DLQ 없이 흡수.
+    # 재시도 소진 시 email-send-tasks.dlq
     retry:
       max-retries: ${EMAIL_TASK_MAX_RETRIES:5}
       initial-interval-ms: ${EMAIL_TASK_RETRY_INITIAL_INTERVAL_MS:1000}

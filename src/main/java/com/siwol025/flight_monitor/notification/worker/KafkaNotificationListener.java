@@ -1,5 +1,6 @@
 package com.siwol025.flight_monitor.notification.worker;
 
+import com.siwol025.flight_monitor.global.config.RabbitMqConfig;
 import com.siwol025.flight_monitor.notification.dto.EmailSendTaskDto;
 import com.siwol025.flight_monitor.notification.dto.PriceDropNotificationDto;
 import com.siwol025.flight_monitor.notification.service.AlertConditionChecker;
@@ -8,9 +9,9 @@ import com.siwol025.flight_monitor.subscription.service.SubscriptionService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.context.annotation.Profile;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -20,11 +21,9 @@ import org.springframework.stereotype.Component;
 public class KafkaNotificationListener {
 
     private final SubscriptionService subscriptionService;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final RabbitTemplate rabbitTemplate;
     private final NotificationContentFormatter formatter;
     private final AlertConditionChecker alertConditionChecker;
-
-    private static final String OUT_TOPIC = "email-send-tasks";
 
     @KafkaListener(topics = "flight-price-drop-events", groupId = "notification-fanout-group", concurrency = "3")
     public void processNotification(PriceDropNotificationDto eventDto) {
@@ -44,13 +43,8 @@ public class KafkaNotificationListener {
                 }
                 EmailSendTaskDto taskDto = new EmailSendTaskDto(subscriber.email(), subject, content);
                 try {
-                    // send()는 비동기다. 브로커 쓰기 실패는 future로 늦게 도착하므로 그 경로의 실패도 놓치지 않고 남긴다.
-                    kafkaTemplate.send(OUT_TOPIC, eventDto.routeId() + subscriber.email(), taskDto)
-                            .whenComplete((result, ex) -> {
-                                if (ex != null) {
-                                    log.error("[KafkaNotificationListener] 이메일 작업 비동기 전송 실패: {}", subscriber.email(), ex);
-                                }
-                            });
+                    rabbitTemplate.convertAndSend(RabbitMqConfig.NOTIFICATION_EXCHANGE,
+                            RabbitMqConfig.EMAIL_SEND_TASKS_QUEUE, taskDto);
                 } catch (Exception e) {
                     log.error("[KafkaNotificationListener] 특정 유저 이메일 작업 전송 실패: {}", subscriber.email(), e);
                 }
