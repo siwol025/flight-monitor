@@ -24,11 +24,13 @@ public class EmailTaskListener {
     // 발송 예외는 삼키지 않는다. emailTaskListenerContainerFactory의 재시도가 재시도·DLQ로 처리한다.
     @RabbitListener(queues = RabbitMqConfig.EMAIL_SEND_TASKS_QUEUE, containerFactory = "emailTaskListenerContainerFactory")
     public void processEmailTask(@Payload EmailSendTaskDto taskDto,
-                                 @Header(AmqpHeaders.MESSAGE_ID) String messageId,
-                                 @Header(AmqpHeaders.TIMESTAMP) Date publishedAt) {
+                                 @Header(name = AmqpHeaders.MESSAGE_ID, required = false) String messageId,
+                                 @Header(name = AmqpHeaders.TIMESTAMP, required = false) Date publishedAt) {
         notificationService.sendPriceDropNotification(taskDto);
         // latency = fan-out 발행(메시지 timestamp) → 발송 완료. 재시도 대기도 포함된다.
-        log.info("[EmailTaskListener] 알림 전송 완료: {} id={} latency={}ms", RabbitMqConfig.EMAIL_SEND_TASKS_QUEUE,
-                messageId, System.currentTimeMillis() - publishedAt.getTime());
+        // id·timestamp는 로그에만 쓰므로 없어도 발송은 정상 처리한다
+        String latency = publishedAt == null ? "unknown" : (System.currentTimeMillis() - publishedAt.getTime()) + "ms";
+        log.info("[EmailTaskListener] 알림 전송 완료: {} id={} latency={}", RabbitMqConfig.EMAIL_SEND_TASKS_QUEUE,
+                messageId, latency);
     }
 }
