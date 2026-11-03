@@ -1,5 +1,7 @@
 package com.siwol025.flight_monitor.notification.worker;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import com.siwol025.flight_monitor.notification.dto.EmailSendTaskDto;
 import com.siwol025.flight_monitor.notification.dto.PriceDropNotificationDto;
 import com.siwol025.flight_monitor.notification.service.AlertConditionChecker;
@@ -7,7 +9,10 @@ import com.siwol025.flight_monitor.route.domain.SeatGrade;
 import com.siwol025.flight_monitor.subscription.dto.SubscriberWithConditionDto;
 import com.siwol025.flight_monitor.subscription.service.SubscriptionService;
 
+import java.net.ConnectException;
 import org.junit.jupiter.api.Test;
+import org.springframework.amqp.AmqpConnectException;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -73,7 +78,7 @@ class PriceDropFanoutListenerTest {
         given(alertConditionChecker.shouldNotify(any(), any(), any(), any())).willReturn(true);
 
         // when
-        priceDropFanoutListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto, null);
 
         // then
         then(rabbitTemplate).should(times(2))
@@ -100,7 +105,7 @@ class PriceDropFanoutListenerTest {
         given(alertConditionChecker.shouldNotify(any(), any(), any(), any())).willReturn(true);
 
         // when
-        priceDropFanoutListener.processNotification(dto);
+        priceDropFanoutListener.processNotification(dto, null);
 
         // then
         then(formatter).should().createSubject(dto);
@@ -124,7 +129,7 @@ class PriceDropFanoutListenerTest {
                 .willReturn(List.of());
 
         // when
-        priceDropFanoutListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto, null);
 
         // then
         then(rabbitTemplate).shouldHaveNoInteractions();
@@ -151,7 +156,7 @@ class PriceDropFanoutListenerTest {
         given(alertConditionChecker.shouldNotify(eq(OLD_PRICE), eq(NEW_PRICE), isNull(), isNull())).willReturn(true);
 
         // when
-        priceDropFanoutListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto, null);
 
         // then
         then(rabbitTemplate).should(times(1))
@@ -180,7 +185,7 @@ class PriceDropFanoutListenerTest {
         given(alertConditionChecker.shouldNotify(eq(OLD_PRICE), eq(NEW_PRICE), eq(targetPrice), isNull())).willReturn(true);
 
         // when
-        priceDropFanoutListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto, null);
 
         // then
         then(rabbitTemplate).should(times(1))
@@ -209,7 +214,7 @@ class PriceDropFanoutListenerTest {
         given(alertConditionChecker.shouldNotify(eq(OLD_PRICE), eq(NEW_PRICE), eq(targetPrice), isNull())).willReturn(false);
 
         // when
-        priceDropFanoutListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto, null);
 
         // then
         then(rabbitTemplate).shouldHaveNoInteractions();
@@ -237,7 +242,7 @@ class PriceDropFanoutListenerTest {
         given(alertConditionChecker.shouldNotify(eq(OLD_PRICE), eq(NEW_PRICE), isNull(), eq(threshold))).willReturn(true);
 
         // when
-        priceDropFanoutListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto, null);
 
         // then
         then(rabbitTemplate).should(times(1))
@@ -265,14 +270,14 @@ class PriceDropFanoutListenerTest {
         given(alertConditionChecker.shouldNotify(any(), any(), any(), any())).willReturn(false);
 
         // when
-        priceDropFanoutListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto, null);
 
         // then
         then(rabbitTemplate).shouldHaveNoInteractions();
     }
 
     @Test
-    void processNotification_한구독자_동기발송실패해도_나머지구독자_발송됨() {
+    void processNotification_한구독자_발행실패시_예외전파() {
         // given
         Long routeId = 15L;
         PriceDropNotificationDto eventDto = priceDropEvent(routeId, "KE015");
@@ -280,15 +285,26 @@ class PriceDropFanoutListenerTest {
                 new SubscriberWithConditionDto("fail@test.com", null, null),
                 new SubscriberWithConditionDto("ok@test.com", null, null)));
         given(alertConditionChecker.shouldNotify(any(), any(), any(), any())).willReturn(true);
-        willThrow(new RuntimeException("rabbitmq unavailable")).given(rabbitTemplate)
+        willThrow(new AmqpConnectException(new ConnectException("rabbitmq unavailable"))).given(rabbitTemplate)
                 .convertAndSend(eq("notification"), eq("email-send-tasks"), argThat(taskTo("fail@test.com")));
 
-        // when
-        priceDropFanoutListener.processNotification(eventDto);
+        // when & then: 삼키면 그 구독자의 메일이 조용히 사라진다. 컨테이너 재시도·DLQ가 이벤트 전체를 다시 처리한다
+        assertThatThrownBy(() -> priceDropFanoutListener.processNotification(eventDto, null))
+                .isInstanceOf(AmqpConnectException.class);
+    }
 
-        // then
-        then(rabbitTemplate).should()
-                .convertAndSend(eq("notification"), eq("email-send-tasks"), argThat(taskTo("ok@test.com")));
+    @Test
+    void processNotification_구독자조회실패시_예외전파() {
+        // given
+        Long routeId = 16L;
+        PriceDropNotificationDto eventDto = priceDropEvent(routeId, "KE016");
+        given(subscriptionService.getSubscribersWithCondition(routeId))
+                .willThrow(new DataAccessResourceFailureException("DB 연결 실패"));
+
+        // when & then
+        assertThatThrownBy(() -> priceDropFanoutListener.processNotification(eventDto, null))
+                .isInstanceOf(DataAccessResourceFailureException.class);
+        then(rabbitTemplate).shouldHaveNoInteractions();
     }
 
     @Test
@@ -313,7 +329,7 @@ class PriceDropFanoutListenerTest {
         given(alertConditionChecker.shouldNotify(eq(OLD_PRICE), eq(NEW_PRICE), isNull(), eq(threshold))).willReturn(false);
 
         // when
-        priceDropFanoutListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto, null);
 
         // then
         then(rabbitTemplate).shouldHaveNoInteractions();
@@ -329,8 +345,8 @@ class PriceDropFanoutListenerTest {
         given(alertConditionChecker.shouldNotify(any(), any(), any(), any())).willReturn(true);
 
         // when
-        priceDropFanoutListener.processNotification(eventDto);
-        priceDropFanoutListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto, null);
+        priceDropFanoutListener.processNotification(eventDto, null);
 
         // then
         then(rabbitTemplate).should(times(2))
@@ -354,7 +370,7 @@ class PriceDropFanoutListenerTest {
         given(alertConditionChecker.shouldNotify(any(), any(), any(), any())).willReturn(true);
 
         // when
-        priceDropFanoutListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto, null);
 
         // then: 비즈니스 구독자에게만 발송된다
         then(rabbitTemplate).should()

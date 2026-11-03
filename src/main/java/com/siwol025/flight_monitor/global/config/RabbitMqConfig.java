@@ -31,6 +31,7 @@ public class RabbitMqConfig {
     public static final String NOTIFICATION_EXCHANGE = "notification";
     public static final String NOTIFICATION_DLX = "notification.dlx";
     public static final String PRICE_DROP_EVENTS_QUEUE = "price-drop-events";
+    public static final String PRICE_DROP_EVENTS_DLQ = "price-drop-events.dlq";
     public static final String EMAIL_SEND_TASKS_QUEUE = "email-send-tasks";
     public static final String EMAIL_SEND_TASKS_DLQ = "email-send-tasks.dlq";
 
@@ -50,14 +51,29 @@ public class RabbitMqConfig {
     @Value("${notification.email-task.prefetch:1}")
     private int emailTaskPrefetch;
 
+    // 팬아웃 블로킹 재시도. 실패 원인은 주로 구독자 조회(DB)라 메일(SMTP)과 따로 조정한다. 기본 5회(31초)
+    @Value("${notification.price-drop-fanout.retry.max-retries:5}")
+    private int priceDropFanoutMaxRetries;
+
+    @Value("${notification.price-drop-fanout.retry.initial-interval-ms:1000}")
+    private long priceDropFanoutInitialIntervalMs;
+
     /**
-     * 가격 하락 이벤트 큐. 팬아웃 리스너가 예외를 삼키므로 DLQ를 두지 않는다.
+     * 가격 하락 이벤트 큐와 DLQ. 팬아웃이 재시도를 소진하면 DLX를 거쳐 DLQ로 간다.
+     * 기존 브로커에 DLX 인자 없이 선언된 큐가 있으면 인자가 달라 선언이 실패하므로, 배포 전에 빈 큐를 지우고 다시 선언한다.
      */
     @Bean
     public Declarables priceDropEventTopology() {
         DirectExchange exchange = new DirectExchange(NOTIFICATION_EXCHANGE);
-        Queue queue = QueueBuilder.durable(PRICE_DROP_EVENTS_QUEUE).build();
-        return new Declarables(exchange, queue, BindingBuilder.bind(queue).to(exchange).with(PRICE_DROP_EVENTS_QUEUE));
+        DirectExchange deadLetterExchange = new DirectExchange(NOTIFICATION_DLX);
+        Queue queue = QueueBuilder.durable(PRICE_DROP_EVENTS_QUEUE)
+                .deadLetterExchange(NOTIFICATION_DLX)
+                .deadLetterRoutingKey(PRICE_DROP_EVENTS_DLQ)
+                .build();
+        Queue deadLetterQueue = QueueBuilder.durable(PRICE_DROP_EVENTS_DLQ).build();
+        Binding binding = BindingBuilder.bind(queue).to(exchange).with(PRICE_DROP_EVENTS_QUEUE);
+        Binding deadLetterBinding = BindingBuilder.bind(deadLetterQueue).to(deadLetterExchange).with(PRICE_DROP_EVENTS_DLQ);
+        return new Declarables(exchange, deadLetterExchange, queue, deadLetterQueue, binding, deadLetterBinding);
     }
 
     /**
@@ -112,7 +128,7 @@ public class RabbitMqConfig {
         factory.setDefaultRequeueRejected(false);
         factory.setAdviceChain(
                 RetryInterceptorBuilder.stateless()
-                        .retryPolicy(emailTaskRetryPolicy(emailTaskMaxRetries, emailTaskInitialIntervalMs))
+                        .retryPolicy(retryPolicy(emailTaskMaxRetries, emailTaskInitialIntervalMs))
                         .recoverer(new RejectAndDontRequeueRecoverer() {
                             @Override
                             public void recover(Message message, Throwable cause) {
@@ -126,9 +142,36 @@ public class RabbitMqConfig {
     }
 
     /**
+     * 가격 하락 팬아웃 리스너 전용 팩토리. 리스너가 정상 종료해야 ack한다(AUTO).
+     * 예외는 블로킹 재시도 후 reject(재큐 없음)되어 DLQ로 간다. 재시도 중에는 미리 받아 둔 메시지도 기다리므로 prefetch는 1이다.
+     */
+    @Bean
+    public SimpleRabbitListenerContainerFactory priceDropFanoutListenerContainerFactory(
+            SimpleRabbitListenerContainerFactoryConfigurer configurer, ConnectionFactory connectionFactory) {
+        SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
+        configurer.configure(factory, connectionFactory);
+        factory.setConcurrentConsumers(3);
+        factory.setPrefetchCount(1);
+        factory.setDefaultRequeueRejected(false);
+        factory.setAdviceChain(
+                RetryInterceptorBuilder.stateless()
+                        .retryPolicy(retryPolicy(priceDropFanoutMaxRetries, priceDropFanoutInitialIntervalMs))
+                        .recoverer(new RejectAndDontRequeueRecoverer() {
+                            @Override
+                            public void recover(Message message, Throwable cause) {
+                                log.error("[PriceDropFanoutRetry] DLQ 이동: {} id={}", PRICE_DROP_EVENTS_QUEUE,
+                                        message.getMessageProperties().getMessageId(), cause);
+                                super.recover(message, cause);
+                            }
+                        })
+                        .build());
+        return factory;
+    }
+
+    /**
      * 초기 간격부터 2배씩 maxRetries회 재시도한다(최초 시도 제외). 영구 오류(BadRequestException)는 원인 체인까지 보고 제외한다.
      */
-    static RetryPolicy emailTaskRetryPolicy(int maxRetries, long initialIntervalMs) {
+    static RetryPolicy retryPolicy(int maxRetries, long initialIntervalMs) {
         return RetryPolicy.builder()
                 .maxRetries(maxRetries)
                 .delay(Duration.ofMillis(initialIntervalMs))
