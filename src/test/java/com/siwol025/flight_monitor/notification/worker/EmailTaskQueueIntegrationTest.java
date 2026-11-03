@@ -28,6 +28,7 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.mail.MailSendException;
+import org.springframework.util.StringUtils;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.rabbitmq.RabbitMQContainer;
@@ -104,7 +105,7 @@ class EmailTaskQueueIntegrationTest {
     }
 
     @Test
-    void 메일작업큐_일시오류_재시도소진시_DLQ로이동() {
+    void 메일작업큐_일시오류_재시도소진시_DLQ로이동(CapturedOutput output) {
         AtomicInteger attempts = new AtomicInteger();
         doAnswer(invocation -> {
             attempts.incrementAndGet();
@@ -120,11 +121,13 @@ class EmailTaskQueueIntegrationTest {
             // 최초 1회 + 재시도 MAX_RETRIES회
             assertThat(attempts.get()).isEqualTo(MAX_RETRIES + 1);
             assertThat(messageCount(context, RabbitMqConfig.EMAIL_SEND_TASKS_QUEUE)).isZero();
+            // 시도마다 실패 로그가 남아야 재시도 경과를 로그로 셀 수 있다
+            assertThat(failureLogCount(output)).isEqualTo(MAX_RETRIES + 1);
         });
     }
 
     @Test
-    void 메일작업큐_영구오류_재시도없이_DLQ로이동() {
+    void 메일작업큐_영구오류_재시도없이_DLQ로이동(CapturedOutput output) {
         AtomicInteger attempts = new AtomicInteger();
         doAnswer(invocation -> {
             attempts.incrementAndGet();
@@ -140,6 +143,7 @@ class EmailTaskQueueIntegrationTest {
             // 리스너 예외는 ListenerExecutionFailedException으로 감싸여 오므로 원인 체인으로 걸러져야 한다
             assertThat(attempts.get()).isEqualTo(1);
             assertThat(messageCount(context, RabbitMqConfig.EMAIL_SEND_TASKS_QUEUE)).isZero();
+            assertThat(failureLogCount(output)).isEqualTo(1);
         });
     }
 
@@ -171,6 +175,10 @@ class EmailTaskQueueIntegrationTest {
                     .until(() -> messageCount(context, RabbitMqConfig.EMAIL_SEND_TASKS_QUEUE) == 0);
             assertThat(messageCount(context, RabbitMqConfig.EMAIL_SEND_TASKS_DLQ)).isZero();
         });
+    }
+
+    private int failureLogCount(CapturedOutput output) {
+        return StringUtils.countOccurrencesOf(output.getOut(), "[EmailTaskRetry] 발송 실패: email-send-tasks id=");
     }
 
     private void publish(AssertableApplicationContext context) {

@@ -4,7 +4,6 @@ import com.siwol025.flight_monitor.global.exception.custom.BadRequestException;
 import java.time.Duration;
 import java.util.Date;
 import lombok.extern.slf4j.Slf4j;
-import org.aopalliance.intercept.MethodInterceptor;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.Declarables;
@@ -23,7 +22,6 @@ import org.springframework.boot.amqp.autoconfigure.RabbitTemplateCustomizer;
 import org.springframework.boot.amqp.autoconfigure.SimpleRabbitListenerContainerFactoryConfigurer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.NestedExceptionUtils;
 import org.springframework.core.retry.RetryPolicy;
 
 @Slf4j
@@ -112,7 +110,6 @@ public class RabbitMqConfig {
         factory.setPrefetchCount(emailTaskPrefetch);
         // 재시도 밖으로 새는 예외도 무한 재큐 대신 DLQ로 보낸다
         factory.setDefaultRequeueRejected(false);
-        // 앞의 advice가 바깥이다: 재시도가 시도마다 안쪽의 실패 로그를 거친다
         factory.setAdviceChain(
                 RetryInterceptorBuilder.stateless()
                         .retryPolicy(emailTaskRetryPolicy(emailTaskMaxRetries, emailTaskInitialIntervalMs))
@@ -124,26 +121,8 @@ public class RabbitMqConfig {
                                 super.recover(message, cause);
                             }
                         })
-                        .build(),
-                emailTaskFailureLogInterceptor());
+                        .build());
         return factory;
-    }
-
-    /**
-     * 시도마다 실패를 남긴다. 재시도 interceptor에 리스너 훅이 없어 시도 번호 대신 줄 수로 센다.
-     */
-    private static MethodInterceptor emailTaskFailureLogInterceptor() {
-        return invocation -> {
-            try {
-                return invocation.proceed();
-            } catch (Throwable ex) {
-                String messageId = invocation.getArguments()[1] instanceof Message message
-                        ? message.getMessageProperties().getMessageId() : null;
-                log.warn("[EmailTaskRetry] 발송 실패: {} id={} cause={}", EMAIL_SEND_TASKS_QUEUE, messageId,
-                        NestedExceptionUtils.getMostSpecificCause(ex).getClass().getSimpleName());
-                throw ex;
-            }
-        };
     }
 
     /**
