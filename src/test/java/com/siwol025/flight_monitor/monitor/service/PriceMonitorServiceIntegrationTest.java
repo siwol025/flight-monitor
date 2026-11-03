@@ -91,7 +91,7 @@ class PriceMonitorServiceIntegrationTest {
         }
     }
 
-    // Kafka 경계
+    // 알림 발행 경계
     @MockitoBean
     private NotificationPublisher notificationPublisher;
 

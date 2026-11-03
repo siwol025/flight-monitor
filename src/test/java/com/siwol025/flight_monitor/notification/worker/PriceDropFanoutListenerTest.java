@@ -7,31 +7,30 @@ import com.siwol025.flight_monitor.route.domain.SeatGrade;
 import com.siwol025.flight_monitor.subscription.dto.SubscriberWithConditionDto;
 import com.siwol025.flight_monitor.subscription.service.SubscriptionService;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.mockito.ArgumentMatcher;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.BDDMockito.then;
-import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
-class KafkaNotificationListenerTest {
+class PriceDropFanoutListenerTest {
 
     private static final BigDecimal OLD_PRICE = new BigDecimal("300000");
     private static final BigDecimal NEW_PRICE = new BigDecimal("250000");
@@ -41,7 +40,7 @@ class KafkaNotificationListenerTest {
     private SubscriptionService subscriptionService;
 
     @Mock
-    private KafkaTemplate<String, Object> kafkaTemplate;
+    private RabbitTemplate rabbitTemplate;
 
     @Mock
     private NotificationContentFormatter formatter;
@@ -50,17 +49,10 @@ class KafkaNotificationListenerTest {
     private AlertConditionChecker alertConditionChecker;
 
     @InjectMocks
-    private KafkaNotificationListener kafkaNotificationListener;
-
-    @BeforeEach
-    void stubSendSucceeds() {
-        // 실제 계약: send()는 항상 future를 반환한다. 기본값을 성공 완료로 두고, 실패 시나리오에서만 재정의한다.
-        lenient().when(kafkaTemplate.send(anyString(), anyString(), any()))
-                .thenReturn(CompletableFuture.completedFuture(null));
-    }
+    private PriceDropFanoutListener priceDropFanoutListener;
 
     @Test
-    void processNotification_구독자_존재시_각_구독자에게_이메일발송_태스크_Kafka_전송됨() {
+    void processNotification_구독자_존재시_각_구독자에게_이메일발송_태스크_전송됨() {
         // given
         Long routeId = 1L;
         PriceDropNotificationDto eventDto = PriceDropNotificationDto.builder()
@@ -81,11 +73,11 @@ class KafkaNotificationListenerTest {
         given(alertConditionChecker.shouldNotify(any(), any(), any(), any())).willReturn(true);
 
         // when
-        kafkaNotificationListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto);
 
         // then
-        then(kafkaTemplate).should(times(2))
-                .send(eq("email-send-tasks"), anyString(), any(EmailSendTaskDto.class));
+        then(rabbitTemplate).should(times(2))
+                .convertAndSend(eq("notification"), eq("email-send-tasks"), any(EmailSendTaskDto.class));
     }
 
     @Test
@@ -108,7 +100,7 @@ class KafkaNotificationListenerTest {
         given(alertConditionChecker.shouldNotify(any(), any(), any(), any())).willReturn(true);
 
         // when
-        kafkaNotificationListener.processNotification(dto);
+        priceDropFanoutListener.processNotification(dto);
 
         // then
         then(formatter).should().createSubject(dto);
@@ -132,10 +124,10 @@ class KafkaNotificationListenerTest {
                 .willReturn(List.of());
 
         // when
-        kafkaNotificationListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto);
 
         // then
-        then(kafkaTemplate).shouldHaveNoInteractions();
+        then(rabbitTemplate).shouldHaveNoInteractions();
     }
 
     @Test
@@ -159,11 +151,11 @@ class KafkaNotificationListenerTest {
         given(alertConditionChecker.shouldNotify(eq(OLD_PRICE), eq(NEW_PRICE), isNull(), isNull())).willReturn(true);
 
         // when
-        kafkaNotificationListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto);
 
         // then
-        then(kafkaTemplate).should(times(1))
-                .send(eq("email-send-tasks"), anyString(), any(EmailSendTaskDto.class));
+        then(rabbitTemplate).should(times(1))
+                .convertAndSend(eq("notification"), eq("email-send-tasks"), any(EmailSendTaskDto.class));
     }
 
     @Test
@@ -188,11 +180,11 @@ class KafkaNotificationListenerTest {
         given(alertConditionChecker.shouldNotify(eq(OLD_PRICE), eq(NEW_PRICE), eq(targetPrice), isNull())).willReturn(true);
 
         // when
-        kafkaNotificationListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto);
 
         // then
-        then(kafkaTemplate).should(times(1))
-                .send(eq("email-send-tasks"), anyString(), any(EmailSendTaskDto.class));
+        then(rabbitTemplate).should(times(1))
+                .convertAndSend(eq("notification"), eq("email-send-tasks"), any(EmailSendTaskDto.class));
     }
 
     @Test
@@ -217,10 +209,10 @@ class KafkaNotificationListenerTest {
         given(alertConditionChecker.shouldNotify(eq(OLD_PRICE), eq(NEW_PRICE), eq(targetPrice), isNull())).willReturn(false);
 
         // when
-        kafkaNotificationListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto);
 
         // then
-        then(kafkaTemplate).shouldHaveNoInteractions();
+        then(rabbitTemplate).shouldHaveNoInteractions();
     }
 
     @Test
@@ -245,11 +237,11 @@ class KafkaNotificationListenerTest {
         given(alertConditionChecker.shouldNotify(eq(OLD_PRICE), eq(NEW_PRICE), isNull(), eq(threshold))).willReturn(true);
 
         // when
-        kafkaNotificationListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto);
 
         // then
-        then(kafkaTemplate).should(times(1))
-                .send(eq("email-send-tasks"), anyString(), any(EmailSendTaskDto.class));
+        then(rabbitTemplate).should(times(1))
+                .convertAndSend(eq("notification"), eq("email-send-tasks"), any(EmailSendTaskDto.class));
     }
 
     @Test
@@ -273,10 +265,10 @@ class KafkaNotificationListenerTest {
         given(alertConditionChecker.shouldNotify(any(), any(), any(), any())).willReturn(false);
 
         // when
-        kafkaNotificationListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto);
 
         // then
-        then(kafkaTemplate).shouldHaveNoInteractions();
+        then(rabbitTemplate).shouldHaveNoInteractions();
     }
 
     @Test
@@ -288,15 +280,15 @@ class KafkaNotificationListenerTest {
                 new SubscriberWithConditionDto("fail@test.com", null, null),
                 new SubscriberWithConditionDto("ok@test.com", null, null)));
         given(alertConditionChecker.shouldNotify(any(), any(), any(), any())).willReturn(true);
-        given(kafkaTemplate.send(eq("email-send-tasks"), eq("15fail@test.com"), any(EmailSendTaskDto.class)))
-                .willThrow(new RuntimeException("kafka unavailable"));
+        willThrow(new RuntimeException("rabbitmq unavailable")).given(rabbitTemplate)
+                .convertAndSend(eq("notification"), eq("email-send-tasks"), argThat(taskTo("fail@test.com")));
 
         // when
-        kafkaNotificationListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto);
 
         // then
-        then(kafkaTemplate).should()
-                .send(eq("email-send-tasks"), eq("15ok@test.com"), any(EmailSendTaskDto.class));
+        then(rabbitTemplate).should()
+                .convertAndSend(eq("notification"), eq("email-send-tasks"), argThat(taskTo("ok@test.com")));
     }
 
     @Test
@@ -321,10 +313,10 @@ class KafkaNotificationListenerTest {
         given(alertConditionChecker.shouldNotify(eq(OLD_PRICE), eq(NEW_PRICE), isNull(), eq(threshold))).willReturn(false);
 
         // when
-        kafkaNotificationListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto);
 
         // then
-        then(kafkaTemplate).shouldHaveNoInteractions();
+        then(rabbitTemplate).shouldHaveNoInteractions();
     }
 
     @Test
@@ -337,12 +329,12 @@ class KafkaNotificationListenerTest {
         given(alertConditionChecker.shouldNotify(any(), any(), any(), any())).willReturn(true);
 
         // when
-        kafkaNotificationListener.processNotification(eventDto);
-        kafkaNotificationListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto);
 
         // then
-        then(kafkaTemplate).should(times(2))
-                .send(eq("email-send-tasks"), eq("30repeat@test.com"), any(EmailSendTaskDto.class));
+        then(rabbitTemplate).should(times(2))
+                .convertAndSend(eq("notification"), eq("email-send-tasks"), argThat(taskTo("repeat@test.com")));
     }
 
     @Test
@@ -362,11 +354,15 @@ class KafkaNotificationListenerTest {
         given(alertConditionChecker.shouldNotify(any(), any(), any(), any())).willReturn(true);
 
         // when
-        kafkaNotificationListener.processNotification(eventDto);
+        priceDropFanoutListener.processNotification(eventDto);
 
         // then: 비즈니스 구독자에게만 발송된다
-        then(kafkaTemplate).should()
-                .send(eq("email-send-tasks"), eq("40business@test.com"), any(EmailSendTaskDto.class));
+        then(rabbitTemplate).should()
+                .convertAndSend(eq("notification"), eq("email-send-tasks"), argThat(taskTo("business@test.com")));
+    }
+
+    private static ArgumentMatcher<Object> taskTo(String email) {
+        return task -> task instanceof EmailSendTaskDto dto && dto.toEmail().equals(email);
     }
 
     private PriceDropNotificationDto priceDropEvent(Long routeId, String flightNumber) {

@@ -9,8 +9,9 @@ spring:
       host: redis
       port: 6379
 
-  kafka:
-    bootstrap-servers: kafka:29092
+  rabbitmq:
+    host: rabbitmq
+    port: 5672
 
   security:
     oauth2:
@@ -19,11 +20,6 @@ spring:
           google:
             # Nginx(80포트)를 통해 통신하므로 포트번호 제거
             redirect-uri: "http://localhost/login/oauth2/code/google"
-
-logging:
-  level:
-    org.apache.kafka: INFO
-    org.springframework.kafka: INFO
 
 fare-provider:
   duffel:

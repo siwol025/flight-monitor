@@ -63,7 +63,9 @@ dependencies {
 	testAnnotationProcessor 'org.projectlombok:lombok'
 
 	implementation 'org.redisson:redisson:3.43.0'
-	implementation 'org.springframework.kafka:spring-kafka'
+	implementation 'org.springframework.boot:spring-boot-starter-amqp'
+	// 메일 작업 큐의 재시도·DLQ를 실제 RabbitMQ(compose와 같은 이미지)로 검사한다. 버전은 Spring Boot BOM이 관리
+	testImplementation 'org.testcontainers:testcontainers-rabbitmq'
 
 	implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.2.0'
 	// spring-boot-starter-aop: Boot 4.x에서 미지원 아티팩트. AOP는 resilience4j 트랜지티브 의존성(spring-aop, aspectjweaver)으로 자동 포함됨

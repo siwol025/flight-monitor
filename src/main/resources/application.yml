@@ -47,6 +47,16 @@ spring:
               - email
               - profile
 
+  # RabbitMQ 자격 증명. 주소는 기본값(localhost:5672, dev bootRun이 compose 포트에 붙음)이고 compose는 application-docker.yml에서 덮어쓴다
+  rabbitmq:
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
+    listener:
+      simple:
+        # 기본 팩토리(팬아웃 리스너)에서 리스너 밖으로 나온 예외는 재큐하지 않고 버린다. 팬아웃은 예외를 삼키므로 실제로는
+        # 역직렬화 실패만 해당한다. 메일 리스너는 전용 팩토리에서 따로 정한다
+        default-requeue-rejected: false
+
   # Redis(Lettuce) 커넥션 풀 — 블로킹 BZPOPMIN은 전용 커넥션을 요구한다. 풀이 없으면 pop마다 커넥션을
   # 신규 생성/폐기해 고처리량에서 TIME_WAIT 누적으로 에페메랄 포트가 고갈된다(실측: pop ~560/s에서
   # ~50s 만에 포트 고갈 → 파이프라인 스톨). max-active는 동시 블로킹 폴러 수(monitor.worker.count)에
@@ -169,15 +179,13 @@ mock:
       FIRST: 2
     random-seed: 42
 
-kafka:
-  topic:
-    price-drop-events:
-      partitions: 9
-    email-send-tasks:
-      partitions: 150
-  # 메일 발송 블로킹 재시도 (1s → 2s → 4s → 8s → 16s 기본, 총 31초). 30초 이하 SMTP 장애를 DLT 없이 흡수.
-  # 재시도 소진 시 email-send-tasks.DLT
+notification:
+  # 메일 작업 큐(RabbitMQ email-send-tasks) 소비자. 소비자마다 블로킹 재시도를 하므로 prefetch는 1로 둔다
   email-task:
+    concurrency: 50
+    prefetch: 1
+    # 메일 발송 블로킹 재시도 (1s → 2s → 4s → 8s → 16s 기본, 총 31초). 30초 이하 SMTP 장애를 DLQ 없이 흡수.
+    # 재시도 소진 시 email-send-tasks.dlq
     retry:
       max-retries: ${EMAIL_TASK_MAX_RETRIES:5}
       initial-interval-ms: ${EMAIL_TASK_RETRY_INITIAL_INTERVAL_MS:1000}

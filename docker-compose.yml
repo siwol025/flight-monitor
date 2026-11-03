@@ -11,7 +11,7 @@ x-app-template: &app_template
       condition: service_healthy
     redis:
       condition: service_started
-    kafka:
+    rabbitmq:
       condition: service_healthy
   networks:
     - flight-network
@@ -88,45 +88,30 @@ services:
     networks:
       - flight-network
 
-  kafka:
-    image: confluentinc/cp-kafka:7.4.0
+  rabbitmq:
+    # management 이미지는 관리 화면(rabbitmq_management)과 지표(rabbitmq_prometheus, 15692)를 기본으로 켠다
+    image: rabbitmq:4.3.7-management
+    container_name: flight-rabbitmq
+    # 데이터 디렉터리가 노드 이름(rabbit@호스트명) 아래에 생기므로 호스트명을 고정한다. 없으면 컨테이너를 다시 만들 때
+    # 호스트명이 바뀌어 볼륨의 durable 큐를 찾지 못한다
+    hostname: rabbitmq
+    # 자격 증명은 compose가 프로젝트의 .env로 보간하고, 비어 있으면 오류로 멈춘다(기본 guest는 원격 접속이 막혀 있다)
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:?RABBITMQ_USERNAME을 .env에 설정하세요}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD를 .env에 설정하세요}
+    # 루프백에만 연다(dev bootRun·관리 화면용). 앱 컨테이너는 rabbitmq:5672, Prometheus는 rabbitmq:15692로 붙는다
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
     healthcheck:
-      test: [ "CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list" ]
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
       interval: 10s
       timeout: 5s
-      retries: 5
-    container_name: flight-kafka
-    ports:
-      - "9092:9092"
-    environment:
-      KAFKA_NODE_ID: 1
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,CONTROLLER://0.0.0.0:29093,PLAINTEXT_HOST://0.0.0.0:9092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
-      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
-      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:29093'
-      KAFKA_PROCESS_ROLES: 'broker,controller'
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
-      KAFKA_METADATA_MAX_IDLE_INTERVAL_MS: 3600000
-      KAFKA_LOG4J_LOGGERS: "org.apache.kafka.image.loader.MetadataLoader=WARN"
-      CLUSTER_ID: 'MkU3OEVBNTcwNTJDRDRFMg'
+      retries: 10
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
     networks:
       - flight-network
-
-  kafka-exporter:
-    image: danielqsj/kafka-exporter:latest
-    command: [ "--kafka.server=kafka:29092" ]
-    ports:
-      - "9308:9308"
-    networks:
-      - flight-network
-    # [추가할 부분] 카프카가 헬스체크를 통과한 이후에만 실행되도록 순서 보장
-    depends_on:
-      kafka:
-        condition: service_healthy
 
   flight-app:
     <<: *app_template
@@ -167,3 +152,4 @@ networks:
 volumes:
   grafana-data:
   mysql-data:
+  rabbitmq-data:
