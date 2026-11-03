@@ -41,7 +41,7 @@ public class RabbitMqConfig {
 
     // 블로킹 재시도: 재시도 총 대기 = initial × (2^maxRetries − 1). 그동안 이 소비자는 다음 메시지를 받지 않는다.
     // 기본 5회(31초): 재시도 1주기가 장애 시간보다 짧으면 장애 중 소비자마다 메일을 DLQ로 소진시킨다.
-    // 30초 SMTP 장애 측정(Kafka 시절)에서 3회(7초)는 DLT 150건, 5회는 0건
+    // 30초 SMTP 장애 측정에서 3회(7초)는 재시도 소진 150건, 5회는 0건
     @Value("${notification.email-task.retry.max-retries:5}")
     private int emailTaskMaxRetries;
 
@@ -53,7 +53,7 @@ public class RabbitMqConfig {
     private int emailTaskPrefetch;
 
     /**
-     * 가격 하락 이벤트 큐. 팬아웃 리스너가 예외를 삼키므로 DLQ를 두지 않는다(Kafka 시절에도 DLT 없음).
+     * 가격 하락 이벤트 큐. 팬아웃 리스너가 예외를 삼키므로 DLQ를 두지 않는다.
      */
     @Bean
     public Declarables priceDropEventTopology() {
@@ -90,7 +90,7 @@ public class RabbitMqConfig {
         return converter;
     }
 
-    // 메일 리스너의 지연 로그 기준(발행 시각). Kafka 레코드 타임스탬프처럼 발행할 때 붙인다
+    // 메일 리스너의 지연 로그 기준(발행 시각). 발행할 때 붙인다
     @Bean
     public RabbitTemplateCustomizer publishTimestampCustomizer() {
         return template -> template.addBeforePublishPostProcessors(message -> {

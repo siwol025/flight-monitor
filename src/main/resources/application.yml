@@ -54,7 +54,7 @@ spring:
     listener:
       simple:
         # 기본 팩토리(팬아웃 리스너)에서 리스너 밖으로 나온 예외는 재큐하지 않고 버린다. 팬아웃은 예외를 삼키므로 실제로는
-        # 역직렬화 실패만 해당한다(Kafka 시절에도 로그만 남기고 건너뜀). 메일 리스너는 전용 팩토리에서 따로 정한다
+        # 역직렬화 실패만 해당한다. 메일 리스너는 전용 팩토리에서 따로 정한다
         default-requeue-rejected: false
 
   # Redis(Lettuce) 커넥션 풀 — 블로킹 BZPOPMIN은 전용 커넥션을 요구한다. 풀이 없으면 pop마다 커넥션을
@@ -178,11 +178,6 @@ mock:
       BUSINESS: 3
       FIRST: 2
     random-seed: 42
-
-kafka:
-  topic:
-    price-drop-events:
-      partitions: 9
 
 notification:
   # 메일 작업 큐(RabbitMQ email-send-tasks) 소비자. 소비자마다 블로킹 재시도를 하므로 prefetch는 1로 둔다
