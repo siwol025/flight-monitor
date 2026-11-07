@@ -92,7 +92,7 @@ class TossPaymentsClient implements PaymentGateway {
         PaymentFailureKind kind = TossErrorClassifier.classify(status, code);
         log.warn("[TossPaymentsClient] Toss 비 2xx 응답: {} {} status={} code={} kind={} traceId={}",
                 request.getMethod(), request.getURI().getPath(), status, code, kind, traceId);
-        return new PaymentGatewayException(kind, code, message,
+        return new PaymentGatewayException(kind, status, code, message,
                 "Toss 승인·조회 실패(status=" + status + ", code=" + code + ", traceId=" + traceId + "): " + message);
     }
 

@@ -20,6 +20,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
@@ -317,6 +319,80 @@ class TossPaymentsClientTest {
             assertThat(gateway.confirm(PAYMENT_KEY, ORDER_ID, 1000, "idem-k2").status())
                     .isEqualTo(PaymentStatus.DONE);
             assertThat(server.requests()).hasSize(5);
+        });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"NOT_SUPPORTED_INSTALLMENT_PLAN_CARD_OR_MERCHANT", "NOT_SUPPORTED_MONTHLY_INSTALLMENT_PLAN",
+            "NOT_SUPPORTED_MONTHLY_INSTALLMENT_PLAN_BELOW_AMOUNT", "INVALID_PASSWORD", "BELOW_MINIMUM_AMOUNT",
+            "NOT_AVAILABLE_PAYMENT", "NOT_ALLOWED_POINT_USE", "INVALID_AUTHORIZE_AUTH", "REJECT_CARD_COMPANY",
+            "INVALID_CARD_NUMBER", "EXCEED_MAX_AUTH_COUNT"})
+    void classify_고객카드문제code_REJECTED(String code) {
+        // 스펙 5-2절에서 "실패 처리"인 고객 카드 문제: 청구되지 않았고 고객이 다른 카드로 다시 결제한다
+        assertThat(TossErrorClassifier.classify(400, code)).isEqualTo(PaymentFailureKind.REJECTED);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"INVALID_REQUEST", "INVALID_API_KEY", "NOT_FOUND_TERMINAL_ID", "INVALID_UNREGISTERED_SUBMALL",
+            "NOT_REGISTERED_BUSINESS", "INCORRECT_BASIC_AUTH_FORMAT", "UNAUTHORIZED_KEY"})
+    void classify_가맹점설정code_CONFIGURATION(String code) {
+        assertThat(TossErrorClassifier.classify(400, code)).isEqualTo(PaymentFailureKind.CONFIGURATION);
+    }
+
+    @Test
+    void classify_429_UNKNOWN() {
+        // 한도 초과는 처리하지 않았다는 응답이지만 승인 경로는 조회로 확인한 뒤에만 같은 키로 다시 보낸다(9-2절)
+        assertThat(TossErrorClassifier.classify(429, null)).isEqualTo(PaymentFailureKind.UNKNOWN);
+        assertThat(TossErrorClassifier.classify(429, "TOO_MANY_REQUESTS")).isEqualTo(PaymentFailureKind.UNKNOWN);
+    }
+
+    @Test
+    void confirm_실패응답의_HTTP상태보존() {
+        server.enqueue("POST", FakeTossServer.CONFIRM_PATH, 500,
+                "{\"code\":\"FAILED_INTERNAL_SYSTEM_PROCESSING\",\"message\":\"m\"}");
+
+        contextRunner.run(context -> assertThatThrownBy(() -> context.getBean(PaymentGateway.class)
+                .confirm(PAYMENT_KEY, ORDER_ID, 1000, "idem-k1"))
+                .isInstanceOfSatisfying(PaymentGatewayException.class,
+                        e -> assertThat(e.getHttpStatus()).isEqualTo(500)));
+    }
+
+    @Test
+    void confirm_응답없음_HTTP상태null() throws IOException {
+        server.confirmSucceeds(real("A_145215-a8bd_02_confirm_k1.json"));
+        server.confirmDelay(Duration.ofSeconds(1));
+
+        contextRunner.withPropertyValues("payment.toss.confirm-read-timeout=200ms")
+                .run(context -> assertThatThrownBy(() -> context.getBean(PaymentGateway.class)
+                        .confirm(PAYMENT_KEY, ORDER_ID, 1000, "idem-k1"))
+                        .isInstanceOfSatisfying(PaymentGatewayException.class,
+                                e -> assertThat(e.getHttpStatus()).isNull()));
+    }
+
+    @Test
+    void fakeToss_같은결제_다른키동시승인_하나만DONE_다른하나ALREADY_PROCESSING_REQUEST() throws Exception {
+        // 실측 I_01~I_05: 다른 키로 동시에 승인하면 하나만 DONE, 다른 하나는 400 ALREADY_PROCESSING_REQUEST이고
+        // 그 키는 그 에러를 계속 재생한다
+        server.confirmSucceeds(real("A_145215-a8bd_02_confirm_k1.json"));
+        server.confirmDelay(Duration.ofMillis(500));
+
+        contextRunner.run(context -> {
+            PaymentGateway gateway = context.getBean(PaymentGateway.class);
+            CompletableFuture<PaymentSnapshot> first = CompletableFuture.supplyAsync(
+                    () -> gateway.confirm(PAYMENT_KEY, ORDER_ID, 1000, "idem-ka"));
+            while (server.requests().isEmpty()) {
+                Thread.onSpinWait();
+            }
+
+            for (int i = 0; i < 2; i++) {
+                assertThatThrownBy(() -> gateway.confirm(PAYMENT_KEY, ORDER_ID, 1000, "idem-kb"))
+                        .isInstanceOfSatisfying(PaymentGatewayException.class, e -> {
+                            assertThat(e.getKind()).isEqualTo(PaymentFailureKind.UNKNOWN);
+                            assertThat(e.getCode()).isEqualTo("ALREADY_PROCESSING_REQUEST");
+                        });
+            }
+            assertThat(first.get().status()).isEqualTo(PaymentStatus.DONE);
+            assertThat(server.approvedCount()).isEqualTo(1);
         });
     }
 
