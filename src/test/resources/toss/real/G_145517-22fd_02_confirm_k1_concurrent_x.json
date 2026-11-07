@@ -1,0 +1,4 @@
+{
+  "code": "IDEMPOTENT_REQUEST_PROCESSING",
+  "message": "이전 멱등 요청이 처리중입니다."
+}

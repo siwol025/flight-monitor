@@ -31,6 +31,12 @@ fare-provider:
     # 테스트 모드 키가 아니면 기동하지 않으므로 형식만 맞춘 가짜 키
     api-key: duffel_test_dummy
 
+payment:
+  toss:
+    base-url: http://toss.invalid
+    # 테스트 키가 아니면 기동하지 않으므로 형식만 맞춘 가짜 키
+    secret-key: test_sk_dummy
+
 resilience4j:
   circuitbreaker:
     instances:

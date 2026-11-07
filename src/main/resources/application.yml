@@ -148,6 +148,20 @@ fare-provider:
     payment-read-timeout: 130s
     max-connections: 10
 
+# 토스페이먼츠 결제 승인·조회. compose에서도 실제 Toss 테스트 모드로 나간다
+payment:
+  toss:
+    base-url: https://api.tosspayments.com
+    # 서버 전용. test_로 시작하지 않으면(비어 있어도) 기동 실패. 로그·응답에 남기지 않는다
+    secret-key: ${TOSS_SECRET_KEY:}
+    # 브라우저로 내려 주는 공개 키
+    client-key: ${TOSS_CLIENT_KEY:}
+    connect-timeout: 3s
+    # 승인·조회 응답 타임아웃(실측 승인 최대 1.04s)
+    confirm-read-timeout: 30s
+    # E2E 실패 주입(TossPayments-Test-Code 헤더). 테스트 키에서만, 비어 있으면 붙이지 않는다
+    test-code: ${TOSS_TEST_CODE:}
+
 subscription:
   expiry:
     cron: "0 0 * * * *"
