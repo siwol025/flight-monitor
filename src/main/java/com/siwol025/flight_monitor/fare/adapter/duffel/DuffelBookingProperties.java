@@ -31,6 +31,12 @@ public class DuffelBookingProperties {
     /** 검색·조회 응답 타임아웃. supplierTimeout보다 길어야 업체가 정상적으로 끊는 경우를 우리가 먼저 끊지 않는다 */
     private Duration queryReadTimeout = Duration.ofSeconds(15);
 
+    /** hold 주문 응답 타임아웃. 사용자가 기다리는 동기 경로 */
+    private Duration holdReadTimeout = Duration.ofSeconds(30);
+
+    /** hold 결제 응답 타임아웃. 비동기 소비자라 Duffel 권고(130초 이상)를 따른다 */
+    private Duration paymentReadTimeout = Duration.ofSeconds(130);
+
     /** 예매 전용 커넥션 풀 최대 커넥션 수 */
     private int maxConnections = 10;
 }

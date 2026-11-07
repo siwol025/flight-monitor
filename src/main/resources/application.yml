@@ -142,6 +142,10 @@ fare-provider:
     connect-timeout: 3s
     # 검색·GET 응답 타임아웃(실측 최대 2.8s)
     query-read-timeout: 15s
+    # hold 주문 응답 타임아웃(사용자가 기다리는 동기 경로)
+    hold-read-timeout: 30s
+    # hold 결제 응답 타임아웃(비동기 소비자). Duffel 권고: 주문·결제는 130초 이상
+    payment-read-timeout: 130s
     max-connections: 10
 
 subscription:

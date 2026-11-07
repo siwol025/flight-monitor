@@ -2,6 +2,7 @@ package com.siwol025.flight_monitor.fare.adapter.duffel;
 
 import com.siwol025.flight_monitor.fare.LowestFareFinder;
 import java.time.Clock;
+import java.time.Duration;
 import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
@@ -84,7 +85,8 @@ public class DuffelHttpClientConfig {
                 .build();
     }
 
-    // 인스턴스 하나가 FlightOfferFinder·FlightOrderPlacer 두 포트로 주입된다(반환형이 구현 타입이라 두 타입으로 찾힘)
+    // 인스턴스 하나가 FlightOfferFinder·FlightOrderPlacer·FlightOrderGateway 포트로 주입된다(반환형이 구현 타입이라 각 타입으로 찾힘)
+    // 조회·hold·결제는 같은 커넥션 풀을 쓰고 응답 타임아웃만 다르다
     @Bean
     DuffelFlightBookingClient duffelFlightBookingClient(
             @Qualifier("duffelBookingHttpClient") CloseableHttpClient duffelBookingHttpClient,
@@ -92,6 +94,8 @@ public class DuffelHttpClientConfig {
         return new DuffelFlightBookingClient(
                 restClient(duffelBookingHttpClient, properties.getBaseUrl(), properties.getApiKey(),
                         properties.getVersion()),
+                restClient(duffelBookingHttpClient, properties, properties.getHoldReadTimeout()),
+                restClient(duffelBookingHttpClient, properties, properties.getPaymentReadTimeout()),
                 properties, clock.getIfAvailable(Clock::systemUTC));
     }
 
@@ -106,11 +110,24 @@ public class DuffelHttpClientConfig {
     // 감시와 예매 어댑터는 각자의 커넥션 풀·업체 주소·인증 헤더를 쓴다
     private static RestClient restClient(CloseableHttpClient httpClient, String baseUrl, String apiKey,
                                          String version) {
+        return restClient(baseUrl, apiKey, version, new HttpComponentsClientHttpRequestFactory(httpClient));
+    }
+
+    private static RestClient restClient(String baseUrl, String apiKey, String version,
+                                         HttpComponentsClientHttpRequestFactory requestFactory) {
         return RestClient.builder()
                 .baseUrl(baseUrl)
                 .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
                 .defaultHeader("Duffel-Version", version)
-                .requestFactory(new HttpComponentsClientHttpRequestFactory(httpClient))
+                .requestFactory(requestFactory)
                 .build();
+    }
+
+    // 클라이언트 기본 응답 타임아웃 대신 이 값으로 응답을 기다리는 예매 클라이언트
+    private static RestClient restClient(CloseableHttpClient httpClient, DuffelBookingProperties properties,
+                                         Duration readTimeout) {
+        HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory(httpClient);
+        requestFactory.setReadTimeout(readTimeout);
+        return restClient(properties.getBaseUrl(), properties.getApiKey(), properties.getVersion(), requestFactory);
     }
 }
