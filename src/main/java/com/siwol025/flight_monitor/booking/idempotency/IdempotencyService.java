@@ -83,11 +83,18 @@ public class IdempotencyService {
         return repository.findByUserIdAndScopeAndIdemKey(userId, scope, key);
     }
 
-    /** 2xx(결과를 모르는 202 포함)는 COMPLETED, 4xx는 FAILED로 저장해 재생한다. 그 밖(우리 쪽 일시 오류)은 키를 지워 같은 키로 다시 처리하게 한다 */
+    /**
+     * 2xx(결과를 모르는 202 포함)는 COMPLETED, 확정 4xx는 FAILED로 저장해 재생한다. 우리 쪽 일시 오류(503)는 키를 지워 같은 키로
+     * 다시 처리하게 한다. 그 밖(500 등)은 외부 호출 뒤일 수 있어 결과를 모르는 것으로 보고 PROCESSING으로 남긴다(stale 뒤 재선점)
+     */
     private void saveResult(long keyId, ResponseEntity<?> response) {
         HttpStatus status = HttpStatus.valueOf(response.getStatusCode().value());
-        if (!status.is2xxSuccessful() && !status.is4xxClientError()) {
+        if (status == HttpStatus.SERVICE_UNAVAILABLE) {
             repository.deleteProcessing(keyId);
+            return;
+        }
+        if (!status.is2xxSuccessful() && !status.is4xxClientError()) {
+            log.warn("멱등키 처리 결과가 불명확해 PROCESSING으로 남깁니다. keyId={}, status={}", keyId, status.value());
             return;
         }
         IdempotencyStatus result = status.is2xxSuccessful() ? IdempotencyStatus.COMPLETED : IdempotencyStatus.FAILED;

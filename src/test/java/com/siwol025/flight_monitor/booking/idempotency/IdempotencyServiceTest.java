@@ -1,6 +1,7 @@
 package com.siwol025.flight_monitor.booking.idempotency;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.siwol025.flight_monitor.booking.idempotency.IdempotentResult.Fresh;
 import com.siwol025.flight_monitor.booking.idempotency.IdempotentResult.KeyReused;
@@ -206,6 +207,7 @@ class IdempotencyServiceTest {
         IdempotentResult<Body> unavailable = idempotencyService.execute(USER_ID, SCOPE, KEY, HASH,
                 claim -> ResponseEntity.status(503).build());
         assertThat(unavailable).isInstanceOf(Fresh.class);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM idempotency_keys", Integer.class)).isZero();
 
         IdempotentResult<Body> retried = idempotencyService.execute(USER_ID, SCOPE, KEY, HASH, claim -> {
             processed.incrementAndGet();
@@ -215,6 +217,29 @@ class IdempotencyServiceTest {
         assertThat(processed).hasValue(1);
         assertThat(retried).isInstanceOfSatisfying(Fresh.class,
                 fresh -> assertThat(fresh.response().getStatusCode().value()).isEqualTo(201));
+    }
+
+    @Test
+    void idem_500은_행유지_stale전409() {
+        // 외부 호출 뒤의 500일 수 있다(결과 불명확). 키를 지우면 같은 키 재요청이 외부 호출을 다시 하므로 stale 재선점을 기다린다
+        IdempotentResult<Body> failed = idempotencyService.execute(USER_ID, SCOPE, KEY, HASH,
+                claim -> ResponseEntity.status(500).build());
+        assertThat(failed).isInstanceOf(Fresh.class);
+
+        assertThat(idempotencyService.execute(USER_ID, SCOPE, KEY, HASH, this::unexpected))
+                .isInstanceOf(Processing.class);
+        assertThat(storedStatus()).isEqualTo("PROCESSING");
+    }
+
+    @Test
+    void idem_처리중예외_PROCESSING유지() {
+        assertThatThrownBy(() -> idempotencyService.execute(USER_ID, SCOPE, KEY, HASH, claim -> {
+            throw new IllegalStateException("처리 도중 실패");
+        })).isInstanceOf(IllegalStateException.class);
+
+        assertThat(storedStatus()).isEqualTo("PROCESSING");
+        assertThat(idempotencyService.execute(USER_ID, SCOPE, KEY, HASH, this::unexpected))
+                .isInstanceOf(Processing.class);
     }
 
     private static void await(CyclicBarrier barrier) {
