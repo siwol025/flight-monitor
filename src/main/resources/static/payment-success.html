@@ -86,7 +86,7 @@ async function waitTicketing(bookingId) {
       <p>예매 #${escapeHtml(booking.bookingId)} · ${escapeHtml(booking.departureAirport)} → ${escapeHtml(booking.arrivalAirport)}
         ${escapeHtml(booking.carrierCode)}${escapeHtml(booking.flightNumber)} ${escapeHtml(booking.departingAt)}</p>
       <p>예약 번호(PNR) <b>${escapeHtml(booking.bookingReference)}</b></p>
-      <p>항공권 번호 <b>${escapeHtml(booking.ticketNumbers ?? "-")}</b></p>
+      <p>항공권 번호 <b>${escapeHtml(booking.ticketNumbers?.join(", ") || "-")}</b></p>
       <p>결제 금액 ${formatKrw(booking.chargeAmount)} · 승객 ${escapeHtml(booking.passengerName)}</p>`;
   } else if (booking.status === "HELD") {
     // 확인 결과 승인되지 않아 다시 결제할 수 있는 상태로 돌아왔다

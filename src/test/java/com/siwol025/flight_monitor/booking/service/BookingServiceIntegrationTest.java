@@ -113,6 +113,28 @@ class BookingServiceIntegrationTest {
     }
 
     @Test
+    void detail_발권된예매_항공권번호목록() {
+        Booking mine = em.persist(Booking.holdRequested(user, OFFER, PASSENGER));
+        em.getEntityManager().createNativeQuery(
+                        "UPDATE bookings SET status = 'TICKETED', ticket_numbers = '0123456789,0987654321' WHERE id = ?")
+                .setParameter(1, mine.getId())
+                .executeUpdate();
+        em.clear();
+
+        BookingDetailResponse detail = bookingService.getBooking(user, mine.getId());
+
+        assertThat(detail.status()).isEqualTo(BookingStatus.TICKETED);
+        assertThat(detail.ticketNumbers()).containsExactly("0123456789", "0987654321");
+    }
+
+    @Test
+    void detail_미발권예매_항공권번호없음() {
+        Booking mine = em.persist(Booking.holdRequested(user, OFFER, PASSENGER));
+
+        assertThat(bookingService.getBooking(user, mine.getId()).ticketNumbers()).isEmpty();
+    }
+
+    @Test
     void detail_남의예매_404() {
         User other = em.persist(User.builder()
                 .email("other@test.com")
