@@ -1,6 +1,7 @@
 package com.siwol025.flight_monitor.booking.repository;
 
 import com.siwol025.flight_monitor.booking.domain.Booking;
+import com.siwol025.flight_monitor.booking.domain.BookingStatus;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -89,4 +90,36 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
              WHERE id = :id AND status = 'PAYMENT_CONFIRMING'
             """, nativeQuery = true)
     int reopenPayment(@Param("id") long id, @Param("newOrderId") String newOrderId, @Param("newKey") String newKey);
+
+    // 발권 확인. 결제 결과를 모르는 채 보류된 예매도 조회로 결제·발권이 확인되면 여기로 끝낸다
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query(value = """
+            UPDATE bookings
+               SET status = 'TICKETED', duffel_paid_at = :paidAt, ticket_numbers = :ticketNumbers,
+                   status_changed_at = NOW(6)
+             WHERE id = :id AND status IN ('DUFFEL_PAYING', 'DUFFEL_PAYMENT_UNCONFIRMED')
+            """, nativeQuery = true)
+    int ticket(@Param("id") long id, @Param("paidAt") LocalDateTime paidAt,
+               @Param("ticketNumbers") String ticketNumbers);
+
+    // 결제가 확정 거절됐다(보상은 범위 밖). 상태는 DUFFEL_PAYING에 둔 채 원인 code만 남긴다
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query(value = """
+            UPDATE bookings SET failure_code = :failureCode
+             WHERE id = :id AND status = 'DUFFEL_PAYING'
+            """, nativeQuery = true)
+    int recordPaymentFailure(@Param("id") long id, @Param("failureCode") String failureCode);
+
+    // 이 상태로 바뀐 지 olderThanSeconds초가 지난 예매. 시각은 서버 시계가 아니라 DB NOW(6)로 판정한다
+    @Query(value = """
+            SELECT id FROM bookings
+             WHERE status = :status AND status_changed_at < NOW(6) - INTERVAL :olderThanSeconds SECOND
+             ORDER BY status_changed_at
+            """, nativeQuery = true)
+    List<Long> findIdsInStatusSince(@Param("status") String status,
+                                    @Param("olderThanSeconds") long olderThanSeconds);
+
+    List<Booking> findAllByStatusOrderByStatusChangedAtAscIdAsc(BookingStatus status);
 }

@@ -39,6 +39,7 @@ public enum ErrorTag {
 
     // 403 Forbidden (resource ownership)
     UNAUTHORIZED_SUBSCRIPTION("해당 구독을 취소할 권한이 없습니다."),
+    ADMIN_ONLY("관리자만 사용할 수 있습니다."),
 
     // 409 Conflict
     OFFER_UNAVAILABLE("예매할 수 없는 항공권입니다."),

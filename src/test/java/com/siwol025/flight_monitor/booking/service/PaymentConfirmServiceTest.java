@@ -18,7 +18,6 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import org.springframework.beans.factory.ObjectProvider;
 import com.siwol025.flight_monitor.booking.idempotency.IdempotencyService;
 import com.siwol025.flight_monitor.booking.idempotency.IdempotentResult;
 import com.siwol025.flight_monitor.booking.idempotency.IdempotentResult.Fresh;
@@ -147,9 +146,6 @@ class PaymentConfirmServiceTest {
 
     @Autowired
     private IdempotencyProperties idempotencyProperties;
-
-    @Autowired
-    private ObjectProvider<DuffelPaymentPublisher> publisherProvider;
 
     @Autowired
     private PaymentConfirmProperties confirmProperties;
@@ -503,7 +499,7 @@ class PaymentConfirmServiceTest {
     private PaymentConfirmService secondServer() {
         return new PaymentConfirmService(paymentGateway,
                 new IdempotencyService(idempotencyKeyRepository, idempotencyProperties, objectMapper),
-                new BookingStateWriter(bookingRepository), bookingRepository, publisherProvider, confirmProperties,
+                new BookingStateWriter(bookingRepository), bookingRepository, publisher, confirmProperties,
                 objectMapper);
     }
 

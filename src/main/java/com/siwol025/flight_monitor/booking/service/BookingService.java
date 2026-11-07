@@ -1,5 +1,7 @@
 package com.siwol025.flight_monitor.booking.service;
 
+import com.siwol025.flight_monitor.booking.domain.BookingStatus;
+import com.siwol025.flight_monitor.booking.dto.response.AdminBookingResponse;
 import com.siwol025.flight_monitor.booking.dto.response.BookingDetailResponse;
 import com.siwol025.flight_monitor.booking.dto.response.BookingResponse;
 import com.siwol025.flight_monitor.booking.dto.response.FlightOfferResponse;
@@ -89,5 +91,13 @@ public class BookingService {
                 .filter(booking -> booking.getUser().getId().equals(user.getId()))
                 .map(booking -> BookingDetailResponse.from(booking, tossClientKey))
                 .orElseThrow(() -> new NotFoundException(ErrorTag.BOOKING_NOT_FOUND));
+    }
+
+    // 운영자 조회(읽기 전용). 오래 멈춘 예매가 먼저 오도록 상태 시각 순
+    @Transactional(readOnly = true)
+    public List<AdminBookingResponse> getBookingsByStatus(BookingStatus status) {
+        return bookingRepository.findAllByStatusOrderByStatusChangedAtAscIdAsc(status).stream()
+                .map(AdminBookingResponse::from)
+                .toList();
     }
 }

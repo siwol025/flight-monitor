@@ -176,6 +176,21 @@ booking:
   idempotency:
     # PROCESSING인 채로 이보다 오래 갱신이 없으면 처리 서버가 죽은 것으로 보고 같은 키 재요청이 처리권을 가져간다(DB NOW(6) 기준)
     stale-after: 2m
+  # Duffel hold 결제 큐(booking.duffel-payment) 소비자. 결제는 비동기라 동시 2면 충분하고, 블로킹 재시도 중 다른 메시지를
+  # 붙잡지 않게 prefetch 1. 재시도(1s → 2s → 4s)는 결제가 만들어지지 않았다고 확실한 실패(결제 전 조회 실패, 429·503·전송 전
+  # 실패)에만 일어난다. 결제를 보낸 뒤 결과를 모르면 재시도하지 않고 보류한다. 소진하면 booking.duffel-payment.dlq
+  consumer:
+    concurrency: 2
+    prefetch: 1
+    max-retries: 3
+    initial-interval: 1s
+  # 결과를 모르는 채 멈춘 예매의 자동 확인(모든 서버에서 돈다, 판정은 DB NOW(6)). Duffel POST는 보내지 않는다
+  checker:
+    fixed-delay: 60s
+    # HOLD_REQUESTED·PAYMENT_CONFIRMING·PAYMENT_APPROVED가 이보다 오래 멈춰 있으면 조회·재승인·재발행
+    stale-after: 2m
+    # DUFFEL_PAYMENT_UNCONFIRMED는 이 시간이 지난 뒤부터 매 주기 읽기 조회만 한다(미결제여도 재결제하지 않는다)
+    quiet-period: 10m
 
 subscription:
   expiry:

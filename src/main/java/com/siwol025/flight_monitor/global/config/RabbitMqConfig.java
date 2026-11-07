@@ -82,7 +82,8 @@ public class RabbitMqConfig {
     public MessageConverter messageConverter() {
         JacksonJsonMessageConverter converter = new JacksonJsonMessageConverter(
                 "com.siwol025.flight_monitor.notification.dto",
-                "com.siwol025.flight_monitor.subscription.dto");
+                "com.siwol025.flight_monitor.subscription.dto",
+                "com.siwol025.flight_monitor.booking.messaging");
         // 메일 리스너가 실패·DLQ·완료 로그를 같은 id로 잇는다
         converter.setCreateMessageIds(true);
         return converter;

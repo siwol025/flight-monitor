@@ -201,6 +201,18 @@ public class CheckoutService {
         return error(status, tag);
     }
 
+    /**
+     * 확인 스케줄러가 부른다. hold 결과를 모르는 채 보류된 예매(HOLD_REQUESTED)를 읽기 조회(offer_id 목록)로만 확인한다.
+     * hold 주문(POST)은 다시 보내지 않는다. 트랜잭션 밖에서 부른다
+     */
+    public void resolvePendingHold(long bookingId) {
+        Booking booking = bookingRepository.findById(bookingId).orElseThrow();
+        if (booking.getStatus() != BookingStatus.HOLD_REQUESTED) {
+            return;
+        }
+        resolveUnknownHold(bookingId, booking.getOfferId());
+    }
+
     // POST를 다시 보내지 않고 읽기 조회 1회로만 확인한다. 우리 예매 ID를 남긴 주문이 없거나 조회도 실패하면 보류(202)
     private ResponseEntity<Object> resolveUnknownHold(long bookingId, String offerId) {
         String ourBookingId = String.valueOf(bookingId);

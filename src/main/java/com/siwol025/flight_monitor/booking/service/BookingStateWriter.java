@@ -5,6 +5,7 @@ import com.siwol025.flight_monitor.booking.repository.BookingRepository;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -60,5 +61,17 @@ public class BookingStateWriter {
     /** HOLD_REQUESTED → FAILED. hold가 만들어지지 않았다고 확인된 경우만 부른다(원인 code를 남긴다) */
     public boolean failHold(long bookingId, String failureCode) {
         return bookingRepository.failHold(bookingId, failureCode) == 1;
+    }
+
+    /** DUFFEL_PAYING·DUFFEL_PAYMENT_UNCONFIRMED → TICKETED. Duffel 결제 시각(UTC)과 항공권 번호(쉼표 구분)를 남긴다 */
+    public boolean ticket(long bookingId, Instant paidAt, List<String> ticketNumbers) {
+        return bookingRepository.ticket(bookingId,
+                paidAt == null ? null : LocalDateTime.ofInstant(paidAt, ZoneOffset.UTC),
+                String.join(",", ticketNumbers)) == 1;
+    }
+
+    /** Duffel 결제가 확정 거절된 DUFFEL_PAYING 예매에 원인 code를 남긴다(상태는 그대로) */
+    public boolean recordPaymentFailure(long bookingId, String failureCode) {
+        return bookingRepository.recordPaymentFailure(bookingId, failureCode) == 1;
     }
 }

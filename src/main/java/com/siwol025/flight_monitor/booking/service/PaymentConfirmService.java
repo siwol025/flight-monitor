@@ -25,7 +25,6 @@ import java.util.HexFormat;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -54,13 +53,13 @@ public class PaymentConfirmService {
     private final IdempotencyService idempotencyService;
     private final BookingStateWriter bookingStateWriter;
     private final BookingRepository bookingRepository;
-    private final ObjectProvider<DuffelPaymentPublisher> publisher;
+    private final DuffelPaymentPublisher publisher;
     private final PaymentConfirmProperties properties;
     private final ObjectMapper objectMapper;
 
     public PaymentConfirmService(PaymentGateway paymentGateway, IdempotencyService idempotencyService,
                                  BookingStateWriter bookingStateWriter, BookingRepository bookingRepository,
-                                 ObjectProvider<DuffelPaymentPublisher> publisher, PaymentConfirmProperties properties,
+                                 DuffelPaymentPublisher publisher, PaymentConfirmProperties properties,
                                  ObjectMapper objectMapper) {
         this.paymentGateway = paymentGateway;
         this.idempotencyService = idempotencyService;
@@ -92,13 +91,26 @@ public class PaymentConfirmService {
         if (!bookingStateWriter.startConfirm(bookingId, request.orderId(), request.paymentKey())) {
             return currentState(bookingId);
         }
-        return confirmUntilKnown(bookingRepository.findById(bookingId).orElseThrow());
+        Booking booking = bookingRepository.findById(bookingId).orElseThrow();
+        return confirmUntilKnown(booking, attempt(booking, booking.getTossIdempotencyKey()));
+    }
+
+    /**
+     * 확인 스케줄러가 부른다. 결과를 모르는 채 보류된 승인(PAYMENT_CONFIRMING)을 조회부터 이어 간다. 재요청은 조회로
+     * 미승인(IN_PROGRESS)을 확인한 뒤에만 한다. 트랜잭션 밖에서 부른다
+     */
+    public void resolveUnknown(long bookingId) {
+        Booking booking = bookingRepository.findById(bookingId).orElseThrow();
+        if (booking.getStatus() != BookingStatus.PAYMENT_CONFIRMING) {
+            return;
+        }
+        confirmUntilKnown(booking, new Attempt(null, PaymentFailureKind.UNKNOWN, null, null));
     }
 
     // 재요청은 반드시 조회로 미승인을 확인한 뒤에만 한다
-    private ResponseEntity<Object> confirmUntilKnown(Booking booking) {
+    private ResponseEntity<Object> confirmUntilKnown(Booking booking, Attempt first) {
         String tossKey = booking.getTossIdempotencyKey();
-        Attempt attempt = attempt(booking, tossKey);
+        Attempt attempt = first;
         boolean resent = false;
         int retries = 0;
         while (true) {
@@ -204,7 +216,7 @@ public class PaymentConfirmService {
             return currentState(bookingId);
         }
         try {
-            publisher.ifAvailable(p -> p.publish(bookingId));
+            publisher.publish(bookingId);
         } catch (RuntimeException e) {
             log.warn("[PaymentConfirmService] Duffel 결제 요청 발행 실패(스케줄러가 다시 발행): bookingId={}", bookingId, e);
         }
