@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>예매 내역</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<h1>예매 내역</h1>
+
+<div id="msg" class="msg"></div>
+<table id="list" hidden>
+  <thead><tr><th>#</th><th>상태</th><th>항공편</th><th>출발</th><th>업체 금액</th><th>PNR</th><th>승객</th><th></th></tr></thead>
+  <tbody></tbody>
+</table>
+
+<script src="/app.js"></script>
+<script>
+renderNav();
+loadBookings();
+
+async function loadBookings() {
+  try {
+    const bookings = await apiGet("/api/bookings/my");
+    if (bookings.length === 0) {
+      showMessage("예매 내역이 없습니다.");
+      return;
+    }
+    document.querySelector("#list tbody").innerHTML = bookings.map((b) => `<tr>
+      <td>${escapeHtml(b.bookingId)}</td>
+      <td>${escapeHtml(statusLabel(b.status))}</td>
+      <td>${escapeHtml(b.departureAirport)} → ${escapeHtml(b.arrivalAirport)} ${escapeHtml(b.carrierCode)}${escapeHtml(b.flightNumber)}</td>
+      <td>${escapeHtml(b.departingAt)}</td>
+      <td>${escapeHtml(b.amount)} ${escapeHtml(b.currency)}</td>
+      <td>${escapeHtml(b.bookingReference ?? "-")}</td>
+      <td>${escapeHtml(b.passengerName)}</td>
+      <td>${b.status === "HELD"
+        ? `<a href="/payment.html?bookingId=${encodeURIComponent(b.bookingId)}">결제 계속</a>` : ""}</td>
+    </tr>`).join("");
+    $("list").hidden = false;
+  } catch (e) {
+    showError(e);
+  }
+}
+</script>
+</body>
+</html>

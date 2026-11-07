@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>예매 확인</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<h1>예매 확인</h1>
+
+<div id="offer">재조회 중…</div>
+
+<form id="passengerForm" hidden>
+  <fieldset>
+    <legend>승객 정보 (성인 1명)</legend>
+    <label>호칭
+      <select name="title">
+        <option>mr</option><option>ms</option><option>mrs</option><option>miss</option><option>dr</option>
+      </select>
+    </label>
+    <label>이름(영문) <input name="givenName" required maxlength="100"></label>
+    <label>성(영문) <input name="familyName" required maxlength="100"></label>
+    <label>성별
+      <select name="gender"><option value="m">남(m)</option><option value="f">여(f)</option></select>
+    </label>
+    <label>생년월일 <input name="bornOn" type="date" required></label>
+    <label>이메일 <input name="email" type="email" required></label>
+    <label>전화번호 <input name="phoneNumber" required pattern="\+[1-9][0-9]{1,14}" placeholder="+821012345678"></label>
+  </fieldset>
+  <button id="buyBtn" type="submit">구매</button>
+</form>
+
+<div id="msg" class="msg"></div>
+
+<script src="/app.js"></script>
+<script>
+renderNav();
+const offerId = query("offerId");
+const PASSENGER_KEY = "fm.passenger";
+const form = $("passengerForm");
+let offer = null;
+// 응답을 받지 못한 구매의 멱등키. 다시 누르면 같은 키로 이어서 확인하고, 확정 응답을 받으면 비운다
+let pendingKey = null;
+let countdownTimer = null;
+
+restorePassenger();
+loadOffer();
+
+async function loadOffer() {
+  if (!offerId) {
+    showMessage("offerId가 없습니다. 검색부터 해 주세요.", "error");
+    return;
+  }
+  try {
+    offer = await apiGet(`/api/flights/offers/${encodeURIComponent(offerId)}`);
+    renderOffer();
+    form.hidden = !offer.bookable;
+    if (!offer.bookable) showMessage("예매할 수 없는 항공권입니다. 다른 항공권을 선택해 주세요.", "error");
+  } catch (e) {
+    $("offer").textContent = "";
+    showError(e);
+  }
+}
+
+function renderOffer() {
+  $("offer").innerHTML = `
+    <p><b>${escapeHtml(offer.carrierName)} ${escapeHtml(offer.carrierCode)}${escapeHtml(offer.flightNumber)}</b>
+      ${escapeHtml(offer.departureAirport)} ${escapeHtml(offer.departingAt)} → ${escapeHtml(offer.arrivalAirport)} ${escapeHtml(offer.arrivingAt)}
+      (${escapeHtml(offer.seatGrade)})</p>
+    <p>현재가 <b>${escapeHtml(offer.amount)} ${escapeHtml(offer.currency)}</b>,
+      원화 예상 결제 금액 <b>${formatKrw(offer.estimatedChargeAmount)}</b></p>
+    <p>예약 가능 시간 <span id="countdown">-</span></p>`;
+  clearInterval(countdownTimer);
+  if (offer.expiresAt) {
+    const tick = () => {
+      const left = Math.floor((new Date(offer.expiresAt).getTime() - Date.now()) / 1000);
+      $("countdown").textContent = left > 0
+        ? `${Math.floor(left / 60)}분 ${left % 60}초 남음 (만료 2분 전부터 구매할 수 없습니다)`
+        : "만료됨. 다시 검색해 주세요.";
+    };
+    tick();
+    countdownTimer = setInterval(tick, 1000);
+  }
+}
+
+function passengerFromForm() {
+  const data = Object.fromEntries(new FormData(form).entries());
+  data.givenName = data.givenName.trim();
+  data.familyName = data.familyName.trim();
+  data.email = data.email.trim();
+  data.phoneNumber = data.phoneNumber.trim();
+  return data;
+}
+
+// 구매가 실패해 다시 검색해도 입력값을 다시 채운다
+function restorePassenger() {
+  const saved = sessionStorage.getItem(PASSENGER_KEY);
+  if (!saved) return;
+  const data = JSON.parse(saved);
+  for (const [name, value] of Object.entries(data)) {
+    if (form.elements[name]) form.elements[name].value = value;
+  }
+}
+
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const passenger = passengerFromForm();
+  sessionStorage.setItem(PASSENGER_KEY, JSON.stringify(passenger));
+  const key = pendingKey || crypto.randomUUID();
+  pendingKey = key;
+  $("buyBtn").disabled = true;
+  showMessage("좌석을 확보하고 있습니다…");
+  try {
+    const { status, data } = await idempotentPost("/api/bookings", {
+      offerId: offer.offerId, amount: offer.amount, currency: offer.currency, passenger,
+    }, key);
+    pendingKey = null;
+    await handlePurchase(status, data);
+  } catch (e) {
+    showError(e);
+  } finally {
+    $("buyBtn").disabled = false;
+  }
+});
+
+async function handlePurchase(status, data) {
+  if (status === 201) {
+    location.href = `/payment.html?bookingId=${encodeURIComponent(data.bookingId)}`;
+    return;
+  }
+  if (status === 202) {
+    showMessage("좌석 확보 결과를 확인하고 있습니다…");
+    const booking = await pollBooking(data.bookingId, (b) => b.status !== "HOLD_REQUESTED", 120000);
+    if (booking.status === "HELD") {
+      location.href = `/payment.html?bookingId=${encodeURIComponent(booking.bookingId)}`;
+    } else if (booking.status === "FAILED") {
+      showMessage("좌석을 확보하지 못했습니다. 다시 검색해 주세요.", "error");
+    } else {
+      showMessage(`아직 좌석 확보 결과를 확인하고 있습니다(${statusLabel(booking.status)}). `
+        + "예매 내역에서 잠시 후 확인해 주세요.", "error");
+    }
+    return;
+  }
+  if (status === 409 && data && data.tag === "OFFER_PRICE_CHANGED" && data.currentAmount != null) {
+    offer.amount = data.currentAmount;
+    offer.currency = data.currentCurrency;
+    renderOffer();
+    showMessage(`${data.message} 현재가 ${data.currentAmount} ${data.currentCurrency}. 확인 뒤 다시 구매해 주세요.`, "error");
+    return;
+  }
+  const message = (data && data.message) || `구매 실패 (HTTP ${status})`;
+  const tag = data && data.tag ? ` [${data.tag}]` : "";
+  const research = ["OFFER_EXPIRED", "OFFER_ALREADY_BOOKED", "OFFER_UNAVAILABLE", "OFFER_NOT_HOLDABLE"]
+    .includes(data && data.tag) ? "\n검색 화면에서 다시 선택해 주세요(입력한 승객 정보는 다시 채워집니다)." : "";
+  showMessage(message + tag + research, "error");
+}
+</script>
+</body>
+</html>

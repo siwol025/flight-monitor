@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>결제 실패</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<h1>결제 실패</h1>
+
+<div id="msg" class="msg"></div>
+<p id="next"></p>
+
+<script src="/app.js"></script>
+<script>
+renderNav();
+const code = query("code");
+const orderId = query("orderId");
+const bookingId = orderId && sessionStorage.getItem("fm.bookingByOrder." + orderId);
+showMessage((query("message") || "결제가 완료되지 않았습니다.") + (code ? ` [${code}]` : ""), "error");
+$("next").innerHTML = bookingId
+  ? `<a href="/payment.html?bookingId=${encodeURIComponent(bookingId)}">다시 결제</a>`
+  : `<a href="/bookings.html">예매 내역에서 결제 계속</a>`;
+</script>
+</body>
+</html>

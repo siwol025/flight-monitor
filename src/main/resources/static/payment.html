@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>결제</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<h1>결제</h1>
+
+<div id="booking">예매 조회 중…</div>
+<p><button id="payBtn" hidden>결제하기 (카드)</button></p>
+<div id="msg" class="msg"></div>
+
+<script src="https://js.tosspayments.com/v2/standard"></script>
+<script src="/app.js"></script>
+<script>
+renderNav();
+const bookingId = query("bookingId");
+const failMessage = query("failMessage");
+let payment = null;
+
+if (failMessage) showMessage(failMessage, "error");
+loadBooking();
+
+async function loadBooking() {
+  if (!bookingId) {
+    showMessage("bookingId가 없습니다. 예매 내역에서 선택해 주세요.", "error");
+    return;
+  }
+  try {
+    const booking = await apiGet(`/api/bookings/${encodeURIComponent(bookingId)}`);
+    $("booking").innerHTML = `
+      <p>예매 #${escapeHtml(booking.bookingId)} · ${escapeHtml(statusLabel(booking.status))}</p>
+      <p>${escapeHtml(booking.departureAirport)} → ${escapeHtml(booking.arrivalAirport)}
+        ${escapeHtml(booking.carrierCode)}${escapeHtml(booking.flightNumber)} ${escapeHtml(booking.departingAt)}
+        · 승객 ${escapeHtml(booking.passengerName)}</p>
+      <p>결제 금액 <b>${formatKrw(booking.chargeAmount)}</b>
+        <span class="muted">(업체 금액 ${escapeHtml(booking.amount)} ${escapeHtml(booking.currency)},
+        결제 기한 ${escapeHtml(booking.paymentRequiredBy)})</span></p>`;
+    if (booking.status !== "HELD" || !booking.payment) {
+      showMessage("결제할 수 있는 상태가 아닙니다. 예매 내역에서 상태를 확인해 주세요.", "error");
+      return;
+    }
+    if (typeof TossPayments === "undefined") {
+      showMessage("결제 SDK를 불러오지 못했습니다. 새로고침해 주세요.", "error");
+      return;
+    }
+    payment = booking.payment;
+    // successUrl·failUrl에서 orderId로 예매를 찾는다(승인 실패 응답에는 bookingId가 없다)
+    sessionStorage.setItem("fm.bookingByOrder." + payment.orderId, String(booking.bookingId));
+    $("payBtn").hidden = false;
+  } catch (e) {
+    showError(e);
+  }
+}
+
+$("payBtn").addEventListener("click", async () => {
+  $("payBtn").disabled = true;
+  try {
+    // 결제창(구버전 payment) 방식. 클라이언트 키는 백엔드 응답 payment.clientKey만 쓴다
+    const tossPayment = TossPayments(payment.clientKey).payment({ customerKey: payment.customerKey });
+    await tossPayment.requestPayment({
+      method: "CARD",
+      amount: { currency: payment.currency, value: payment.amount },
+      orderId: payment.orderId,
+      orderName: payment.orderName,
+      successUrl: location.origin + "/payment-success.html",
+      failUrl: location.origin + "/payment-fail.html",
+    });
+  } catch (e) {
+    // PC에서 결제창을 닫으면 failUrl이 아니라 USER_CANCEL 예외가 온다
+    if (e && e.code === "USER_CANCEL") {
+      showMessage("결제를 취소했습니다. 다시 결제할 수 있습니다.");
+    } else {
+      showMessage(`결제창 오류: ${(e && e.message) || e}${e && e.code ? ` [${e.code}]` : ""}`, "error");
+    }
+  } finally {
+    $("payBtn").disabled = false;
+  }
+});
+</script>
+</body>
+</html>

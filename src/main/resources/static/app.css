@@ -1,0 +1,14 @@
+body { font-family: system-ui, sans-serif; max-width: 880px; margin: 24px auto; padding: 0 16px; color: #222; }
+nav a { margin-right: 12px; }
+fieldset { margin: 12px 0; border: 1px solid #ccc; }
+label { display: inline-block; margin: 4px 12px 4px 0; }
+input, select, button { font-size: 14px; padding: 4px 6px; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .5; }
+table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+th, td { border-bottom: 1px solid #ddd; padding: 6px; text-align: left; font-size: 14px; }
+.msg { padding: 8px 10px; margin: 12px 0; border-radius: 4px; background: #f3f3f3; white-space: pre-wrap; }
+.msg.error { background: #fde8e8; color: #9b1c1c; }
+.msg.ok { background: #e7f6ec; color: #1e6b37; }
+.msg:empty { display: none; }
+.muted { color: #777; font-size: 13px; }

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>결제 결과</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<h1>결제 결과</h1>
+
+<div id="msg" class="msg"></div>
+<div id="result"></div>
+<p><button id="retryBtn" hidden>승인 다시 확인</button></p>
+
+<script src="/app.js"></script>
+<script>
+renderNav();
+const orderId = query("orderId");
+const paymentKey = query("paymentKey");
+const amount = Number(query("amount"));
+const bookingIdHint = orderId && sessionStorage.getItem("fm.bookingByOrder." + orderId);
+// 새로고침해도 같은 승인 키를 쓴다(같은 키는 서버가 저장된 결과만 돌려준다)
+const CONFIRM_KEY = "fm.confirmKey." + orderId;
+const PENDING_STATUSES = ["PAYMENT_CONFIRMING", "DUFFEL_PAYMENT_UNCONFIRMED"];
+const BACK_TO_PAYMENT_TAGS = ["PAYMENT_REJECTED", "PAYMENT_EXPIRED", "PAYMENT_AMOUNT_MISMATCH"];
+
+if (!orderId || !paymentKey || !amount) {
+  showMessage("결제 정보가 없습니다. 예매 내역에서 확인해 주세요.", "error");
+} else {
+  confirmPayment();
+}
+
+$("retryBtn").addEventListener("click", confirmPayment);
+
+async function confirmPayment() {
+  let key = sessionStorage.getItem(CONFIRM_KEY);
+  if (!key) {
+    key = crypto.randomUUID();
+    sessionStorage.setItem(CONFIRM_KEY, key);
+  }
+  $("retryBtn").hidden = true;
+  showMessage("결제를 승인하고 있습니다…");
+  try {
+    const { status, data } = await idempotentPost("/api/payments/toss/confirm",
+      { orderId, paymentKey, amount }, key);
+    if (status === 202) {
+      await waitTicketing(data.bookingId);
+      return;
+    }
+    handleConfirmError(status, data);
+  } catch (e) {
+    // 결과를 모름: 같은 키로 다시 확인할 수 있게 한다
+    showError(e);
+    $("retryBtn").hidden = false;
+  }
+}
+
+function handleConfirmError(status, data) {
+  const tag = data && data.tag;
+  const message = (data && data.message) || `승인 실패 (HTTP ${status})`;
+  if (BACK_TO_PAYMENT_TAGS.includes(tag) && bookingIdHint) {
+    location.href = `/payment.html?bookingId=${encodeURIComponent(bookingIdHint)}`
+      + `&failMessage=${encodeURIComponent(message)}`;
+    return;
+  }
+  if (status === 401) {
+    showMessage("로그인이 필요합니다. 첫 화면에서 토큰을 다시 입력한 뒤 이 페이지를 새로고침해 주세요.", "error");
+    return;
+  }
+  showMessage(message + (tag ? ` [${tag}]` : "") + "\n예매 내역에서 상태를 확인해 주세요.", "error");
+  if (status >= 500) $("retryBtn").hidden = false;
+}
+
+async function waitTicketing(bookingId) {
+  showMessage("결제가 승인되었습니다. 발권을 기다리는 중…");
+  const started = Date.now();
+  const booking = await pollBooking(bookingId,
+    (b) => b.status === "TICKETED" || b.status === "HELD", 120000, (b) => {
+      if (PENDING_STATUSES.includes(b.status) || Date.now() - started > 30000) {
+        showPending(b);
+      }
+    });
+  if (booking.status === "TICKETED") {
+    showMessage("발권이 완료되었습니다.", "ok");
+    $("result").innerHTML = `
+      <p>예매 #${escapeHtml(booking.bookingId)} · ${escapeHtml(booking.departureAirport)} → ${escapeHtml(booking.arrivalAirport)}
+        ${escapeHtml(booking.carrierCode)}${escapeHtml(booking.flightNumber)} ${escapeHtml(booking.departingAt)}</p>
+      <p>예약 번호(PNR) <b>${escapeHtml(booking.bookingReference)}</b></p>
+      <p>항공권 번호 <b>${escapeHtml(booking.ticketNumbers ?? "-")}</b></p>
+      <p>결제 금액 ${formatKrw(booking.chargeAmount)} · 승객 ${escapeHtml(booking.passengerName)}</p>`;
+  } else if (booking.status === "HELD") {
+    // 확인 결과 승인되지 않아 다시 결제할 수 있는 상태로 돌아왔다
+    location.href = `/payment.html?bookingId=${encodeURIComponent(booking.bookingId)}`
+      + `&failMessage=${encodeURIComponent("결제가 승인되지 않았습니다. 다시 결제해 주세요.")}`;
+  } else {
+    showPending(booking);
+  }
+}
+
+// 결과를 모르는 상태: 다시 결제 버튼을 두지 않는다(서버 확인 스케줄러가 확인한다)
+function showPending(booking) {
+  showMessage(`결제 확인 중입니다(${statusLabel(booking.status)}). 중복 결제되지 않도록 다시 결제하지 마세요.\n`
+    + "확인이 끝나면 예매 내역에 반영됩니다.");
+}
+</script>
+</body>
+</html>
