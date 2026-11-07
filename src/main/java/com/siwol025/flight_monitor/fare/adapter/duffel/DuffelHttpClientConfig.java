@@ -82,6 +82,8 @@ public class DuffelHttpClientConfig {
                 .setDefaultRequestConfig(RequestConfig.custom()
                         .setResponseTimeout(Timeout.of(properties.getQueryReadTimeout()))
                         .build())
+                // 기본 재시도 전략은 429·503에 POST(hold 주문·결제)도 다시 보낸다. 재요청 여부는 호출한 쪽이 정한다
+                .disableAutomaticRetries()
                 .build();
     }
 

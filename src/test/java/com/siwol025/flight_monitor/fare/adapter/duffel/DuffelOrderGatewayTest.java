@@ -199,10 +199,39 @@ class DuffelOrderGatewayTest {
     void payHeldOrder_503_NOT_CREATED() {
         server.respond(503, Map.of(), errorBody(503, "api_error", "service_unavailable"));
 
-        contextRunner.run(context -> assertThatThrownBy(() -> context.getBean(FlightOrderGateway.class)
-                .payHeldOrder("ord_1", new BigDecimal("31.18"), "USD", "booking-42"))
-                .isInstanceOfSatisfying(FlightOrderException.class,
-                        e -> assertThat(e.getKind()).isEqualTo(OrderFailureKind.NOT_CREATED)));
+        contextRunner.run(context -> {
+            assertThatThrownBy(() -> context.getBean(FlightOrderGateway.class)
+                    .payHeldOrder("ord_1", new BigDecimal("31.18"), "USD", "booking-42"))
+                    .isInstanceOfSatisfying(FlightOrderException.class,
+                            e -> assertThat(e.getKind()).isEqualTo(OrderFailureKind.NOT_CREATED));
+            // HTTP 클라이언트가 몰래 다시 보내지 않는다(재시도는 호출한 쪽이 정한다)
+            assertThat(server.requests()).hasSize(1);
+        });
+    }
+
+    @Test
+    void payHeldOrder_429_RATE_LIMITED_요청1회() {
+        server.respond(429, Map.of("retry-after", "1"), errorBody(429, "rate_limit_error", "rate_limit_exceeded"));
+
+        contextRunner.run(context -> {
+            assertThatThrownBy(() -> context.getBean(FlightOrderGateway.class)
+                    .payHeldOrder("ord_1", new BigDecimal("31.18"), "USD", "booking-42"))
+                    .isInstanceOfSatisfying(FlightOrderException.class,
+                            e -> assertThat(e.getKind()).isEqualTo(OrderFailureKind.RATE_LIMITED));
+            assertThat(server.requests()).hasSize(1);
+        });
+    }
+
+    @Test
+    void createHoldOrder_503_NOT_CREATED_요청1회() {
+        server.respond(503, Map.of(), errorBody(503, "api_error", "service_unavailable"));
+
+        contextRunner.run(context -> {
+            assertThatThrownBy(() -> context.getBean(FlightOrderGateway.class).createHoldOrder(HOLD_COMMAND))
+                    .isInstanceOfSatisfying(FlightOrderException.class,
+                            e -> assertThat(e.getKind()).isEqualTo(OrderFailureKind.NOT_CREATED));
+            assertThat(server.requests()).hasSize(1);
+        });
     }
 
     @Test
