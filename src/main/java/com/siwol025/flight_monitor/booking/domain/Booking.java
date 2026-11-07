@@ -4,7 +4,6 @@ import com.siwol025.flight_monitor.fare.FlightOffer;
 import com.siwol025.flight_monitor.fare.Gender;
 import com.siwol025.flight_monitor.fare.Passenger;
 import com.siwol025.flight_monitor.fare.PassengerTitle;
-import com.siwol025.flight_monitor.fare.PlacedOrder;
 import com.siwol025.flight_monitor.global.entity.BaseTimeEntity;
 import com.siwol025.flight_monitor.route.domain.SeatGrade;
 import com.siwol025.flight_monitor.user.domain.User;
@@ -27,7 +26,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 구매 내역 1건. 노선·항공편 값은 구매 직전에 재조회한 offer에서, 주문 ID·예약 번호는 업체가 확정한 주문에서 가져온다.
+ * 예매 1건. 노선·항공편 값은 구매 직전에 재조회한 offer에서, 주문 ID·예약 번호는 업체가 만든 hold 주문에서 가져온다.
  */
 @Entity
 @Table(name = "bookings")
@@ -62,6 +61,7 @@ public class Booking extends BaseTimeEntity {
     @Column(name = "provider_passenger_id", length = 50)
     private String providerPassengerId;
 
+    /** hold 결제 기한(UTC) */
     @Column(name = "payment_required_by")
     private LocalDateTime paymentRequiredBy;
 
@@ -147,29 +147,34 @@ public class Booking extends BaseTimeEntity {
     @Column(name = "phone_number", nullable = false, length = 16)
     private String phoneNumber;
 
-    public Booking(User user, FlightOffer offer, PlacedOrder order, Passenger passenger) {
-        this.user = user;
-        this.offerId = offer.offerId();
-        this.providerOrderId = order.orderId();
-        this.bookingReference = order.bookingReference();
-        this.status = BookingStatus.TICKETED;
-        this.departureAirport = offer.departureAirport();
-        this.arrivalAirport = offer.arrivalAirport();
-        this.departureDate = offer.departingAt().toLocalDate();
-        this.seatGrade = offer.seatGrade();
-        this.carrierCode = offer.carrierCode();
-        this.carrierName = offer.carrierName();
-        this.flightNumber = offer.flightNumber();
-        this.departingAt = offer.departingAt();
-        this.arrivingAt = offer.arrivingAt();
-        this.amount = order.amount();
-        this.currency = order.currency();
-        this.passengerTitle = passenger.title();
-        this.givenName = passenger.givenName();
-        this.familyName = passenger.familyName();
-        this.passengerGender = passenger.gender();
-        this.bornOn = passenger.bornOn();
-        this.email = passenger.email();
-        this.phoneNumber = passenger.phoneNumber();
+    /**
+     * hold 주문 직전의 예매(HOLD_REQUESTED). 노선·항공편·금액은 구매 직전에 재조회한 offer에서, 업체 승객 ID는 offer의 첫 승객에서
+     * 가져온다. 주문 ID·예약 번호·결제 금액은 hold가 생긴 뒤 조건부 UPDATE로 채운다. status_changed_at은 DB 시각으로 따로 남긴다
+     */
+    public static Booking holdRequested(User user, FlightOffer offer, Passenger passenger) {
+        Booking booking = new Booking();
+        booking.user = user;
+        booking.offerId = offer.offerId();
+        booking.status = BookingStatus.HOLD_REQUESTED;
+        booking.providerPassengerId = offer.terms().passengerIds().getFirst();
+        booking.departureAirport = offer.departureAirport();
+        booking.arrivalAirport = offer.arrivalAirport();
+        booking.departureDate = offer.departingAt().toLocalDate();
+        booking.seatGrade = offer.seatGrade();
+        booking.carrierCode = offer.carrierCode();
+        booking.carrierName = offer.carrierName();
+        booking.flightNumber = offer.flightNumber();
+        booking.departingAt = offer.departingAt();
+        booking.arrivingAt = offer.arrivingAt();
+        booking.amount = offer.amount();
+        booking.currency = offer.currency();
+        booking.passengerTitle = passenger.title();
+        booking.givenName = passenger.givenName();
+        booking.familyName = passenger.familyName();
+        booking.passengerGender = passenger.gender();
+        booking.bornOn = passenger.bornOn();
+        booking.email = passenger.email();
+        booking.phoneNumber = passenger.phoneNumber();
+        return booking;
     }
 }

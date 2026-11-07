@@ -1,6 +1,7 @@
 package com.siwol025.flight_monitor.booking.repository;
 
 import com.siwol025.flight_monitor.booking.domain.Booking;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -38,4 +39,32 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
              WHERE id = :id AND status = 'PAYMENT_CONFIRMING' AND toss_idempotency_key = :oldKey
             """, nativeQuery = true)
     int reissueTossKey(@Param("id") long id, @Param("oldKey") String oldKey, @Param("newKey") String newKey);
+
+    // 새 예매 행의 상태 시각을 DB 시각으로 남긴다(INSERT와 같은 트랜잭션에서 부른다)
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query(value = "UPDATE bookings SET status_changed_at = NOW(6) WHERE id = :id", nativeQuery = true)
+    int stampStatusChangedAt(@Param("id") long id);
+
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query(value = """
+            UPDATE bookings
+               SET status = 'HELD', provider_order_id = :orderId, booking_reference = :bookingReference,
+                   payment_required_by = :paymentRequiredBy, charge_amount = :chargeAmount,
+                   toss_order_id = :tossOrderId, toss_idempotency_key = :tossKey, status_changed_at = NOW(6)
+             WHERE id = :id AND status = 'HOLD_REQUESTED'
+            """, nativeQuery = true)
+    int hold(@Param("id") long id, @Param("orderId") String orderId,
+             @Param("bookingReference") String bookingReference,
+             @Param("paymentRequiredBy") LocalDateTime paymentRequiredBy, @Param("chargeAmount") long chargeAmount,
+             @Param("tossOrderId") String tossOrderId, @Param("tossKey") String tossKey);
+
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query(value = """
+            UPDATE bookings SET status = 'FAILED', failure_code = :failureCode, status_changed_at = NOW(6)
+             WHERE id = :id AND status = 'HOLD_REQUESTED'
+            """, nativeQuery = true)
+    int failHold(@Param("id") long id, @Param("failureCode") String failureCode);
 }

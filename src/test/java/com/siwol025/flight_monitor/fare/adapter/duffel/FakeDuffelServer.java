@@ -18,6 +18,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Supplier;
 import java.util.zip.GZIPOutputStream;
 
 /**
@@ -25,12 +26,13 @@ import java.util.zip.GZIPOutputStream;
  * 받은 요청을 모두 기록하고, 지정한 상태·헤더·본문을 지정한 지연 뒤에 돌려준다.
  * 메서드·경로별로 쌓아 둔 응답({@link #enqueue})이 있으면 순서대로 먼저 쓰고, 없으면 기본 응답({@link #respond})을 쓴다.
  */
-class FakeDuffelServer implements AutoCloseable {
+public class FakeDuffelServer implements AutoCloseable {
 
-    record RecordedRequest(String method, String path, String query, Headers headers, String body) {
+    public record RecordedRequest(String method, String path, String query, Headers headers, String body) {
     }
 
-    private record Response(int status, Map<String, String> headers, byte[] body, boolean gzip, Duration delay) {
+    private record Response(int status, Map<String, String> headers, Supplier<byte[]> body, boolean gzip,
+                            Duration delay) {
     }
 
     private final HttpServer server;
@@ -45,14 +47,14 @@ class FakeDuffelServer implements AutoCloseable {
     private final List<RecordedRequest> requests = new CopyOnWriteArrayList<>();
     private final Map<String, Queue<Response>> queued = new ConcurrentHashMap<>();
 
-    FakeDuffelServer() throws IOException {
+    public FakeDuffelServer() throws IOException {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/", this::handle);
         server.setExecutor(executor);
         server.start();
     }
 
-    String baseUrl() {
+    public String baseUrl() {
         return "http://127.0.0.1:" + server.getAddress().getPort();
     }
 
@@ -76,7 +78,12 @@ class FakeDuffelServer implements AutoCloseable {
     }
 
     /** 이 메서드·경로의 다음 요청 하나에 실제 Duffel처럼 gzip 본문을 지연 뒤에 돌려준다. 여러 번 부르면 순서대로 쓴다 */
-    void enqueue(String method, String path, int status, byte[] body, Duration delay) {
+    public void enqueue(String method, String path, int status, byte[] body, Duration delay) {
+        enqueue(method, path, status, () -> body, delay);
+    }
+
+    /** 본문을 응답할 때 만든다(앞서 받은 요청에 따라 본문이 달라질 때) */
+    public void enqueue(String method, String path, int status, Supplier<byte[]> body, Duration delay) {
         queued.computeIfAbsent(method + " " + path, key -> new ConcurrentLinkedQueue<>())
                 .add(new Response(status, Map.of(), body, true, delay));
     }
@@ -85,8 +92,19 @@ class FakeDuffelServer implements AutoCloseable {
         return lastRequest;
     }
 
-    List<RecordedRequest> requests() {
+    public List<RecordedRequest> requests() {
         return List.copyOf(requests);
+    }
+
+    /** 이 메서드·경로로 받은 요청 수 */
+    public long count(String method, String path) {
+        return requests.stream().filter(r -> r.method().equals(method) && r.path().equals(path)).count();
+    }
+
+    /** 받은 요청 기록과 쌓아 둔 응답을 지운다(서버 하나를 여러 테스트가 같이 쓸 때) */
+    public void reset() {
+        requests.clear();
+        queued.clear();
     }
 
     private void handle(HttpExchange exchange) throws IOException {
@@ -98,10 +116,10 @@ class FakeDuffelServer implements AutoCloseable {
             Queue<Response> queue = queued.get(lastRequest.method() + " " + lastRequest.path());
             Response queuedResponse = queue == null ? null : queue.poll();
             Response response = queuedResponse != null ? queuedResponse
-                    : new Response(status, headers, body, gzip, delay);
+                    : new Response(status, headers, () -> body, gzip, delay);
             Thread.sleep(response.delay().toMillis());
 
-            byte[] out = response.gzip() ? gzip(response.body()) : response.body();
+            byte[] out = response.gzip() ? gzip(response.body().get()) : response.body().get();
             response.headers().forEach((name, value) -> exchange.getResponseHeaders().add(name, value));
             exchange.getResponseHeaders().add("Content-Type", "application/json; charset=utf-8");
             if (response.gzip()) {

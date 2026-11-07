@@ -8,17 +8,13 @@ import com.siwol025.flight_monitor.fare.FareProviderUnavailableException;
 import com.siwol025.flight_monitor.fare.FareRateLimitedException;
 import com.siwol025.flight_monitor.fare.FlightOffer;
 import com.siwol025.flight_monitor.fare.FlightOfferFinder;
-import com.siwol025.flight_monitor.fare.FlightOfferPriceChangedException;
-import com.siwol025.flight_monitor.fare.FlightOfferUnavailableException;
 import com.siwol025.flight_monitor.fare.FlightOrder;
 import com.siwol025.flight_monitor.fare.FlightOrderException;
 import com.siwol025.flight_monitor.fare.FlightOrderGateway;
-import com.siwol025.flight_monitor.fare.FlightOrderPlacer;
 import com.siwol025.flight_monitor.fare.HoldOrderCommand;
 import com.siwol025.flight_monitor.fare.InvalidRouteException;
 import com.siwol025.flight_monitor.fare.OfferTerms;
 import com.siwol025.flight_monitor.fare.Passenger;
-import com.siwol025.flight_monitor.fare.PlacedOrder;
 import com.siwol025.flight_monitor.route.domain.RouteKey;
 import com.siwol025.flight_monitor.route.domain.SeatGrade;
 import java.io.IOException;
@@ -40,14 +36,13 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
 /**
- * Duffel offer 검색·단건 조회·주문으로 예매 흐름의 포트를 구현하는 어댑터. Duffel 형식 변환이 이 패키지 밖으로 새지 않는다.
+ * Duffel offer 검색·단건 조회와 hold 주문·조회·결제로 예매 흐름의 포트를 구현하는 어댑터. Duffel 형식 변환이 이 패키지 밖으로 새지 않는다.
  * hold 주문과 결제는 업체 처리가 길 수 있어 조회보다 긴 응답 타임아웃을 쓰는 클라이언트로 보낸다(커넥션 풀은 같다).
  */
 @Slf4j
-class DuffelFlightBookingClient implements FlightOfferFinder, FlightOrderPlacer, FlightOrderGateway {
+class DuffelFlightBookingClient implements FlightOfferFinder, FlightOrderGateway {
 
     private static final String OFFER_NO_LONGER_AVAILABLE = "offer_no_longer_available";
-    private static final String PRICE_CHANGED = "price_changed";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final RestClient restClient;
@@ -118,39 +113,6 @@ class DuffelFlightBookingClient implements FlightOfferFinder, FlightOrderPlacer,
                     }
                     throw otherError(error);
                 }));
-    }
-
-    @Override
-    public PlacedOrder placeOrder(String offerId, BigDecimal amount, String currency, Passenger passenger) {
-        OrderResponse.Data order = withoutResponse(() -> restClient.post()
-                .uri("/air/orders")
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(toOrderRequest(offerId, amount, currency, passenger))
-                .retrieve()
-                .onStatus(status -> status.value() == 429, (req, res) -> {
-                    throw rateLimited(res.getHeaders(), readError(req, res));
-                })
-                .onStatus(status -> status.value() == 422, (req, res) -> {
-                    DuffelError error = readError(req, res);
-                    if (OFFER_NO_LONGER_AVAILABLE.equals(error.code())) {
-                        throw new FlightOfferUnavailableException("Duffel offer 매진(" + error + "): " + error.body());
-                    }
-                    if (PRICE_CHANGED.equals(error.code())) {
-                        throw new FlightOfferPriceChangedException("Duffel offer 가격 변동(" + error + "): " + error.body());
-                    }
-                    throw unknownUnprocessable(error);
-                })
-                // 없는 offer도 사용자에게는 예매할 수 없는 항공권이다
-                .onStatus(status -> status.value() == 404, (req, res) -> {
-                    DuffelError error = readError(req, res);
-                    throw new FlightOfferUnavailableException("Duffel offer 없음(" + error + "): " + error.body());
-                })
-                // onStatus는 등록 순서대로 검사하므로 429·422·404가 먼저 걸러진다
-                .onStatus(HttpStatusCode::isError, (req, res) -> {
-                    throw otherError(readError(req, res));
-                })
-                .body(OrderResponse.class)).data();
-        return new PlacedOrder(order.id(), order.bookingReference(), order.totalAmount(), order.totalCurrency());
     }
 
     @Override
@@ -250,17 +212,6 @@ class DuffelFlightBookingClient implements FlightOfferFinder, FlightOrderPlacer,
     private static FlightOrderException orderFailure(DuffelError error) {
         return new FlightOrderException(DuffelErrorClassifier.classify(error.status(), error.code()), error.code(),
                 "Duffel 주문·결제 실패(" + error + "): " + error.body());
-    }
-
-    // 결제 없이 잔액(balance)으로 즉시(instant) 주문한다. 금액은 받은 표기 그대로 보낸다(Duffel은 offer 총액과 같아야 함)
-    private static OrderRequest toOrderRequest(String offerId, BigDecimal amount, String currency, Passenger passenger) {
-        OrderRequest.Passenger duffelPassenger = new OrderRequest.Passenger(
-                passenger.title().name().toLowerCase(Locale.ROOT), passenger.givenName(), passenger.familyName(),
-                passenger.gender().name().toLowerCase(Locale.ROOT), passenger.bornOn().toString(), passenger.email(),
-                passenger.phoneNumber());
-        return new OrderRequest(new OrderRequest.Data("instant", List.of(offerId),
-                List.of(new OrderRequest.Payment("balance", amount.toPlainString(), currency)),
-                List.of(duffelPassenger)));
     }
 
     // 타임아웃·연결 실패: 응답 자체를 받지 못함. 재시도하지 않는다

@@ -25,7 +25,8 @@ public interface FlightOfferControllerSwagger {
     @Operation(
             summary = "결제 직전 항공권 재조회",
             responses = {
-                    @ApiResponse(responseCode = "200", description = "예매 가능, 현재 금액·통화"),
+                    @ApiResponse(responseCode = "200", description = "현재 금액·통화, 예매 가능 여부(bookable), "
+                            + "offer 만료 시각(expiresAt), 원화 예상 결제 금액(estimatedChargeAmount)"),
                     @ApiResponse(responseCode = "409", description = "예매 불가(OFFER_UNAVAILABLE)"),
                     @ApiResponse(responseCode = "503", description = "항공권 업체 장애·호출 한도 초과")
             }

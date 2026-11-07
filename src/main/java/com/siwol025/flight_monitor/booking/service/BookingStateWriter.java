@@ -2,6 +2,9 @@ package com.siwol025.flight_monitor.booking.service;
 
 import com.siwol025.flight_monitor.booking.domain.BookingStatus;
 import com.siwol025.flight_monitor.booking.repository.BookingRepository;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -27,5 +30,21 @@ public class BookingStateWriter {
     /** 승인 중인 예매의 Toss 멱등키를 새 키로 바꾼다. 옛 키일 때만 바꾸므로 새 키는 한 서버만 정한다 */
     public boolean reissueTossKey(long bookingId, String oldKey, String newKey) {
         return bookingRepository.reissueTossKey(bookingId, oldKey, newKey) == 1;
+    }
+
+    /**
+     * HOLD_REQUESTED → HELD. hold 주문 ID·결제 기한·고객 결제 금액(원)과 이 예매의 Toss 주문번호·Toss 멱등키를 함께 고정한다
+     */
+    public boolean hold(long bookingId, String orderId, String bookingReference, Instant paymentRequiredBy,
+                        long chargeAmount, String tossOrderId, String tossIdempotencyKey) {
+        LocalDateTime requiredBy = paymentRequiredBy == null ? null
+                : LocalDateTime.ofInstant(paymentRequiredBy, ZoneOffset.UTC);
+        return bookingRepository.hold(bookingId, orderId, bookingReference, requiredBy, chargeAmount, tossOrderId,
+                tossIdempotencyKey) == 1;
+    }
+
+    /** HOLD_REQUESTED → FAILED. hold가 만들어지지 않았다고 확인된 경우만 부른다(원인 code를 남긴다) */
+    public boolean failHold(long bookingId, String failureCode) {
+        return bookingRepository.failHold(bookingId, failureCode) == 1;
     }
 }

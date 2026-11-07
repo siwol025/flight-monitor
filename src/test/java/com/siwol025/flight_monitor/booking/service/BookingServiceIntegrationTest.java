@@ -2,29 +2,19 @@ package com.siwol025.flight_monitor.booking.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 
-import com.siwol025.flight_monitor.booking.dto.request.BookingRequest;
-import com.siwol025.flight_monitor.booking.dto.request.PassengerRequest;
+import com.siwol025.flight_monitor.booking.domain.Booking;
 import com.siwol025.flight_monitor.booking.dto.response.BookingResponse;
-import com.siwol025.flight_monitor.fare.FareProviderUnavailableException;
+import com.siwol025.flight_monitor.booking.dto.response.FlightOfferResponse;
 import com.siwol025.flight_monitor.fare.FlightOffer;
 import com.siwol025.flight_monitor.fare.FlightOfferFinder;
-import com.siwol025.flight_monitor.fare.FlightOfferPriceChangedException;
-import com.siwol025.flight_monitor.fare.FlightOfferUnavailableException;
-import com.siwol025.flight_monitor.fare.FlightOrderPlacer;
 import com.siwol025.flight_monitor.fare.Gender;
 import com.siwol025.flight_monitor.fare.OfferTerms;
 import com.siwol025.flight_monitor.fare.Passenger;
 import com.siwol025.flight_monitor.fare.PassengerTitle;
-import com.siwol025.flight_monitor.fare.PlacedOrder;
 import com.siwol025.flight_monitor.global.exception.ErrorTag;
 import com.siwol025.flight_monitor.global.exception.custom.HttpStatusException;
-import com.siwol025.flight_monitor.global.exception.custom.OfferPriceChangedException;
 import com.siwol025.flight_monitor.route.domain.SeatGrade;
 import com.siwol025.flight_monitor.user.domain.Provider;
 import com.siwol025.flight_monitor.user.domain.Role;
@@ -49,17 +39,15 @@ import org.springframework.http.HttpStatus;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 /**
- * 구매 흐름(재조회 → 확인 → 주문 → 저장). 업체 포트는 HTTP 경계의 대리라 목으로 두고, 저장 결과는 내 구매 내역으로 본다.
+ * 결제 직전 재조회와 내 구매 내역. 업체 포트는 HTTP 경계의 대리라 목으로 둔다. 구매(hold)는 CheckoutServiceTest가 본다.
  */
 @DataJpaTest
-@Import({BookingService.class, BookingServiceIntegrationTest.FixedClockConfig.class})
+@Import({BookingService.class, BookingPolicy.class, BookingServiceIntegrationTest.FixedClockConfig.class})
 class BookingServiceIntegrationTest {
 
     private static final String OFFER_ID = "off_mock_1";
-    private static final FlightOffer OFFER = new FlightOffer(OFFER_ID, new BigDecimal("250000.00"), "USD", "ICN", "NRT",
-            SeatGrade.ECONOMY, "ZZ", "Duffel Airways", "1001",
-            LocalDateTime.of(2026, 11, 26, 9, 0), LocalDateTime.of(2026, 11, 26, 11, 20),
-            new OfferTerms(List.of("pas_1"), false, null, "ZZ"));
+    private static final FlightOffer OFFER = offer(OFFER_ID,
+            new OfferTerms(List.of("pas_1"), false, Instant.parse("2026-10-25T23:30:00Z"), "ZZ"));
 
     @TestConfiguration
     static class FixedClockConfig {
@@ -72,9 +60,6 @@ class BookingServiceIntegrationTest {
 
     @MockitoBean
     private FlightOfferFinder flightOfferFinder;
-
-    @MockitoBean
-    private FlightOrderPlacer flightOrderPlacer;
 
     @Autowired
     private BookingService bookingService;
@@ -96,91 +81,6 @@ class BookingServiceIntegrationTest {
     }
 
     @Test
-    void book_예매가능_금액일치_주문후구매내역저장() {
-        given(flightOfferFinder.findOffer(OFFER_ID)).willReturn(Optional.of(OFFER));
-        given(flightOrderPlacer.placeOrder(OFFER_ID, new BigDecimal("250000.00"), "USD", PASSENGER))
-                .willReturn(new PlacedOrder("ord_mock_7", "000007", new BigDecimal("250000.00"), "USD"));
-
-        // 금액 표기가 달라도(250000 vs 250000.00) 같은 금액이다
-        bookingService.book(user, request("250000", "USD", PASSENGER_REQUEST));
-
-        // 주문에는 재조회한 offer의 금액(업체 표기)을 그대로 보낸다
-        verify(flightOrderPlacer).placeOrder(OFFER_ID, new BigDecimal("250000.00"), "USD", PASSENGER);
-        assertThat(bookingService.getMyBookings(user))
-                .usingRecursiveFieldByFieldElementComparatorIgnoringFields("bookingId", "createdAt")
-                .containsExactly(new BookingResponse(null, "ord_mock_7", "000007", "ICN", "NRT",
-                        LocalDate.of(2026, 11, 26), SeatGrade.ECONOMY, "ZZ", "Duffel Airways", "1001",
-                        LocalDateTime.of(2026, 11, 26, 9, 0), LocalDateTime.of(2026, 11, 26, 11, 20),
-                        new BigDecimal("250000.00"), "USD", "Gildong Hong", null));
-    }
-
-    @Test
-    void book_재조회매진_409_주문안함() {
-        given(flightOfferFinder.findOffer(OFFER_ID)).willReturn(Optional.empty());
-
-        assertThatThrownBy(() -> bookingService.book(user, request("250000.00", "USD", PASSENGER_REQUEST)))
-                .isInstanceOfSatisfying(HttpStatusException.class, e -> {
-                    assertThat(e.getStatus()).isEqualTo(HttpStatus.CONFLICT);
-                    assertThat(e.getErrorTag()).isEqualTo(ErrorTag.OFFER_UNAVAILABLE);
-                });
-        verify(flightOrderPlacer, never()).placeOrder(any(), any(), any(), any());
-    }
-
-    @Test
-    void book_가격변동_409_현재가포함_주문안함() {
-        given(flightOfferFinder.findOffer(OFFER_ID)).willReturn(Optional.of(OFFER));
-
-        assertThatThrownBy(() -> bookingService.book(user, request("240000.00", "USD", PASSENGER_REQUEST)))
-                .isInstanceOfSatisfying(OfferPriceChangedException.class, e -> {
-                    assertThat(e.getStatus()).isEqualTo(HttpStatus.CONFLICT);
-                    assertThat(e.getErrorTag()).isEqualTo(ErrorTag.OFFER_PRICE_CHANGED);
-                    assertThat(e.getCurrentAmount()).isEqualByComparingTo("250000.00");
-                    assertThat(e.getCurrentCurrency()).isEqualTo("USD");
-                });
-        verify(flightOrderPlacer, never()).placeOrder(any(), any(), any(), any());
-    }
-
-    @Test
-    void book_통화불일치_409() {
-        given(flightOfferFinder.findOffer(OFFER_ID)).willReturn(Optional.of(OFFER));
-
-        assertThatThrownBy(() -> bookingService.book(user, request("250000.00", "KRW", PASSENGER_REQUEST)))
-                .isInstanceOfSatisfying(OfferPriceChangedException.class, e -> {
-                    assertThat(e.getStatus()).isEqualTo(HttpStatus.CONFLICT);
-                    assertThat(e.getCurrentCurrency()).isEqualTo("USD");
-                });
-        verify(flightOrderPlacer, never()).placeOrder(any(), any(), any(), any());
-    }
-
-    @Test
-    void book_주문단계매진_409_저장안함() {
-        given(flightOfferFinder.findOffer(OFFER_ID)).willReturn(Optional.of(OFFER));
-        given(flightOrderPlacer.placeOrder(any(), any(), any(), any()))
-                .willThrow(new FlightOfferUnavailableException("재조회 뒤 매진"));
-
-        assertThatThrownBy(() -> bookingService.book(user, request("250000.00", "USD", PASSENGER_REQUEST)))
-                .isInstanceOfSatisfying(HttpStatusException.class, e -> {
-                    assertThat(e.getStatus()).isEqualTo(HttpStatus.CONFLICT);
-                    assertThat(e.getErrorTag()).isEqualTo(ErrorTag.OFFER_UNAVAILABLE);
-                });
-        assertThat(bookingService.getMyBookings(user)).isEmpty();
-    }
-
-    @Test
-    void book_업체장애_503_저장안함() {
-        given(flightOfferFinder.findOffer(OFFER_ID)).willReturn(Optional.of(OFFER));
-        given(flightOrderPlacer.placeOrder(any(), any(), any(), any()))
-                .willThrow(new FareProviderUnavailableException("Duffel 응답 없음(타임아웃·연결 실패)"));
-
-        assertThatThrownBy(() -> bookingService.book(user, request("250000.00", "USD", PASSENGER_REQUEST)))
-                .isInstanceOfSatisfying(HttpStatusException.class, e -> {
-                    assertThat(e.getStatus()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
-                    assertThat(e.getErrorTag()).isEqualTo(ErrorTag.FARE_PROVIDER_UNAVAILABLE);
-                });
-        assertThat(bookingService.getMyBookings(user)).isEmpty();
-    }
-
-    @Test
     void getMyBookings_내것만_최근순() {
         User other = em.persist(User.builder()
                 .email("other@test.com")
@@ -189,38 +89,12 @@ class BookingServiceIntegrationTest {
                 .providerId("google-other")
                 .role(Role.USER)
                 .build());
-        given(flightOfferFinder.findOffer(OFFER_ID)).willReturn(Optional.of(OFFER));
-        given(flightOrderPlacer.placeOrder(any(), any(), any(), any())).willReturn(
-                new PlacedOrder("ord_mine_1", "000001", new BigDecimal("250000.00"), "USD"),
-                new PlacedOrder("ord_other", "000002", new BigDecimal("250000.00"), "USD"),
-                new PlacedOrder("ord_mine_2", "000003", new BigDecimal("250000.00"), "USD"));
+        Booking mine1 = em.persist(Booking.holdRequested(user, OFFER, PASSENGER));
+        em.persist(Booking.holdRequested(other, OFFER, PASSENGER));
+        Booking mine2 = em.persist(Booking.holdRequested(user, OFFER, PASSENGER));
 
-        bookingService.book(user, request("250000.00", "USD", PASSENGER_REQUEST));
-        bookingService.book(other, request("250000.00", "USD", PASSENGER_REQUEST));
-        bookingService.book(user, request("250000.00", "USD", PASSENGER_REQUEST));
-
-        assertThat(bookingService.getMyBookings(user)).extracting(BookingResponse::orderId)
-                .containsExactly("ord_mine_2", "ord_mine_1");
-    }
-
-    @Test
-    void book_미성년_400_주문안함() {
-        given(flightOfferFinder.findOffer(OFFER_ID)).willReturn(Optional.of(OFFER));
-        given(flightOrderPlacer.placeOrder(any(), any(), any(), any()))
-                .willReturn(new PlacedOrder("ord_adult", "000001", new BigDecimal("250000.00"), "USD"));
-
-        // 출발일(2026-11-26)에 하루 모자라 만 17세
-        assertThatThrownBy(() -> bookingService.book(user,
-                request("250000.00", "USD", passengerBornOn(LocalDate.of(2008, 11, 27)))))
-                .isInstanceOfSatisfying(HttpStatusException.class, e -> {
-                    assertThat(e.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
-                    assertThat(e.getErrorTag()).isEqualTo(ErrorTag.PASSENGER_NOT_ADULT);
-                });
-        verify(flightOrderPlacer, never()).placeOrder(any(), any(), any(), any());
-
-        // 출발일이 만 18세 생일이면 성인
-        bookingService.book(user, request("250000.00", "USD", passengerBornOn(LocalDate.of(2008, 11, 26))));
-        assertThat(bookingService.getMyBookings(user)).extracting(BookingResponse::orderId).containsExactly("ord_adult");
+        assertThat(bookingService.getMyBookings(user)).extracting(BookingResponse::bookingId)
+                .containsExactly(mine2.getId(), mine1.getId());
     }
 
     @Test
@@ -235,33 +109,30 @@ class BookingServiceIntegrationTest {
     }
 
     @Test
-    void book_주문단계가격변동_409_금액없음() {
+    void getOffer_bookable과만료와원화예상() {
+        Instant expiresAt = Instant.parse("2026-10-25T23:30:00Z");
         given(flightOfferFinder.findOffer(OFFER_ID)).willReturn(Optional.of(OFFER));
-        given(flightOrderPlacer.placeOrder(any(), any(), any(), any()))
-                .willThrow(new FlightOfferPriceChangedException("재조회 뒤 가격 변동"));
+        given(flightOfferFinder.findOffer("off_instant")).willReturn(Optional.of(offer("off_instant",
+                new OfferTerms(List.of("pas_1"), true, expiresAt, "ZZ"))));
+        given(flightOfferFinder.findOffer("off_ke")).willReturn(Optional.of(offer("off_ke",
+                new OfferTerms(List.of("pas_1"), false, expiresAt, "KE"))));
 
-        // 재조회 뒤 바뀐 현재가는 모르므로 비워 둔다(업체를 다시 부르지 않는다)
-        assertThatThrownBy(() -> bookingService.book(user, request("250000.00", "USD", PASSENGER_REQUEST)))
-                .isInstanceOfSatisfying(OfferPriceChangedException.class, e -> {
-                    assertThat(e.getStatus()).isEqualTo(HttpStatus.CONFLICT);
-                    assertThat(e.getCurrentAmount()).isNull();
-                    assertThat(e.getCurrentCurrency()).isNull();
-                });
-        verify(flightOfferFinder, times(1)).findOffer(OFFER_ID);
-        assertThat(bookingService.getMyBookings(user)).isEmpty();
+        FlightOfferResponse zz = bookingService.getOffer(OFFER_ID);
+        // 76.04 USD × 1400 = 106,456원(원 단위 올림)
+        assertThat(zz.bookable()).isTrue();
+        assertThat(zz.expiresAt()).isEqualTo(expiresAt);
+        assertThat(zz.estimatedChargeAmount()).isEqualTo(106_456L);
+        // 결제를 미룰 수 없는 offer, 허용 외 항공사는 예매할 수 없다
+        assertThat(bookingService.getOffer("off_instant").bookable()).isFalse();
+        assertThat(bookingService.getOffer("off_ke").bookable()).isFalse();
     }
 
-    private static PassengerRequest passengerBornOn(LocalDate bornOn) {
-        return new PassengerRequest("mr", "Gildong", "Hong", "m", bornOn, "gildong@test.com", "+821012345678");
+    private static FlightOffer offer(String offerId, OfferTerms terms) {
+        return new FlightOffer(offerId, new BigDecimal("76.04"), "USD", "ICN", "NRT", SeatGrade.ECONOMY, "ZZ",
+                "Duffel Airways", "1001", LocalDateTime.of(2026, 11, 26, 9, 0), LocalDateTime.of(2026, 11, 26, 11, 20),
+                terms);
     }
-
-    private static final PassengerRequest PASSENGER_REQUEST = new PassengerRequest("mr", "Gildong", "Hong", "m",
-            LocalDate.of(1990, 1, 1), "gildong@test.com", "+821012345678");
 
     private static final Passenger PASSENGER = new Passenger(PassengerTitle.MR, "Gildong", "Hong", Gender.M,
             LocalDate.of(1990, 1, 1), "gildong@test.com", "+821012345678");
-
-    private static BookingRequest request(String amount, String currency, PassengerRequest passenger) {
-        return new BookingRequest(OFFER_ID, new BigDecimal(amount), currency, passenger);
-    }
 }

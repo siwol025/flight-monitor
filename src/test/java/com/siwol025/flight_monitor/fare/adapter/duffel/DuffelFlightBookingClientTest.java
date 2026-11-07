@@ -3,22 +3,13 @@ package com.siwol025.flight_monitor.fare.adapter.duffel;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.siwol025.flight_monitor.fare.FareProviderConfigurationException;
 import com.siwol025.flight_monitor.fare.FareProviderUnavailableException;
 import com.siwol025.flight_monitor.fare.FareRateLimitedException;
 import com.siwol025.flight_monitor.fare.FlightOffer;
 import com.siwol025.flight_monitor.fare.FlightOfferFinder;
-import com.siwol025.flight_monitor.fare.FlightOfferPriceChangedException;
-import com.siwol025.flight_monitor.fare.FlightOfferUnavailableException;
-import com.siwol025.flight_monitor.fare.FlightOrderPlacer;
-import com.siwol025.flight_monitor.fare.Gender;
 import com.siwol025.flight_monitor.fare.InvalidRouteException;
 import com.siwol025.flight_monitor.fare.LowestFareFinder;
 import com.siwol025.flight_monitor.fare.OfferTerms;
-import com.siwol025.flight_monitor.fare.Passenger;
-import com.siwol025.flight_monitor.fare.PassengerTitle;
-import com.siwol025.flight_monitor.fare.PlacedOrder;
 import com.siwol025.flight_monitor.route.domain.RouteKey;
 import com.siwol025.flight_monitor.route.domain.SeatGrade;
 import java.io.IOException;
@@ -47,9 +38,6 @@ class DuffelFlightBookingClientTest {
 
     private static final RouteKey ICN_NRT_ECONOMY =
             new RouteKey("ICN", "NRT", LocalDate.of(2026, 11, 26), SeatGrade.ECONOMY);
-
-    private static final Passenger PASSENGER = new Passenger(PassengerTitle.MR, "Gildong", "Hong", Gender.M,
-            LocalDate.of(1990, 1, 1), "gildong@test.com", "+821012345678");
 
     // 아래 offerJson처럼 주문 조건 필드가 없는 응답
     private static final OfferTerms NO_TERMS = new OfferTerms(List.of(), false, null, null);
@@ -268,80 +256,6 @@ class DuffelFlightBookingClientTest {
         contextRunner.run(context -> assertThatThrownBy(
                 () -> context.getBean(FlightOfferFinder.class).findOffer("off_a"))
                 .isInstanceOf(FareProviderUnavailableException.class));
-    }
-
-    @Test
-    void placeOrder_201_주문결과() {
-        server.respond(201, Map.of(), """
-                {"data":{"id":"ord_0000AbCdEf","booking_reference":"RZPNX8","total_amount":"250.50",
-                "total_currency":"USD","passengers":[],"slices":[]}}""");
-
-        contextRunner.run(context -> {
-            PlacedOrder order = context.getBean(FlightOrderPlacer.class)
-                    .placeOrder("off_a", new BigDecimal("250.50"), "USD", PASSENGER);
-
-            assertThat(order).isEqualTo(new PlacedOrder("ord_0000AbCdEf", "RZPNX8", new BigDecimal("250.50"), "USD"));
-        });
-    }
-
-    @Test
-    void placeOrder_요청본문_Duffel주문형식() {
-        server.respond(201, Map.of(), """
-                {"data":{"id":"ord_1","booking_reference":"RZPNX8","total_amount":"250.50","total_currency":"USD"}}""");
-
-        contextRunner.run(context -> {
-            context.getBean(FlightOrderPlacer.class).placeOrder("off_a", new BigDecimal("250.50"), "USD", PASSENGER);
-
-            FakeDuffelServer.RecordedRequest request = server.lastRequest();
-            assertThat(request.method()).isEqualTo("POST");
-            assertThat(request.path()).isEqualTo("/air/orders");
-            // 금액은 Duffel처럼 문자열, 호칭·성별은 소문자, 결제는 잔액(balance) 즉시 주문(instant)
-            assertThat(new ObjectMapper().readTree(request.body())).isEqualTo(new ObjectMapper().readTree("""
-                    {"data":{"type":"instant","selected_offers":["off_a"],
-                    "payments":[{"type":"balance","amount":"250.50","currency":"USD"}],
-                    "passengers":[{"title":"mr","given_name":"Gildong","family_name":"Hong","gender":"m",
-                    "born_on":"1990-01-01","email":"gildong@test.com","phone_number":"+821012345678"}]}}"""));
-        });
-    }
-
-    @Test
-    void placeOrder_422_offer_no_longer_available_예매불가예외() {
-        server.respond(422, Map.of(), errorBody(422, "invalid_state_error", "offer_no_longer_available"));
-
-        contextRunner.run(context -> assertThatThrownBy(() -> context.getBean(FlightOrderPlacer.class)
-                .placeOrder("off_a", new BigDecimal("250.50"), "USD", PASSENGER))
-                .isInstanceOf(FlightOfferUnavailableException.class));
-    }
-
-    @Test
-    void placeOrder_422_price_changed_가격변동예외() {
-        server.respond(422, Map.of(), errorBody(422, "invalid_state_error", "price_changed"));
-
-        contextRunner.run(context -> assertThatThrownBy(() -> context.getBean(FlightOrderPlacer.class)
-                .placeOrder("off_a", new BigDecimal("250.50"), "USD", PASSENGER))
-                .isInstanceOf(FlightOfferPriceChangedException.class));
-    }
-
-    @Test
-    void placeOrder_404_예매불가예외() {
-        server.respond(404, Map.of(), errorBody(404, "invalid_request_error", "not_found"));
-
-        contextRunner.run(context -> assertThatThrownBy(() -> context.getBean(FlightOrderPlacer.class)
-                .placeOrder("off_unknown", new BigDecimal("250.50"), "USD", PASSENGER))
-                .isInstanceOf(FlightOfferUnavailableException.class));
-    }
-
-    @Test
-    void placeOrder_422_모르는code_FareProviderConfigurationException() {
-        // 모르는 code, 해석할 수 없는 본문
-        for (String body : new String[]{errorBody(422, "validation_error", "invalid_phone_number"), "not json"}) {
-            server.respond(422, Map.of(), body);
-
-            contextRunner.run(context -> assertThatThrownBy(() -> context.getBean(FlightOrderPlacer.class)
-                    .placeOrder("off_a", new BigDecimal("250.50"), "USD", PASSENGER))
-                    .isInstanceOf(FareProviderConfigurationException.class)
-                    .hasMessageContaining(body));
-        }
     }
 
     // 실측 raw 응답 본문(docs/experiments/duffel-test-mode/raw/의 response.body)

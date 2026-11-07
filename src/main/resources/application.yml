@@ -163,6 +163,12 @@ payment:
     test-code: ${TOSS_TEST_CODE:}
 
 booking:
+  # 고정 환율(1 USD당 원). 고객 결제 금액 = 업체 금액(USD) × 이 값, 원 단위 올림. hold 때 예매에 고정 저장한다
+  usd-to-krw-rate: 1400
+  # offer 만료까지 이보다 적게 남았으면 hold하지 않는다(409 OFFER_EXPIRED)
+  offer-expiry-buffer: 2m
+  # 예매를 허용하는 판매 항공사(offer owner). 실측으로 hold → 결제 → 발권을 확인한 Duffel Airways(ZZ)만 연다
+  allowed-owner-codes: [ZZ]
   # 우리 API(구매·승인)의 Idempotency-Key
   idempotency:
     # PROCESSING인 채로 이보다 오래 갱신이 없으면 처리 서버가 죽은 것으로 보고 같은 키 재요청이 처리권을 가져간다(DB NOW(6) 기준)

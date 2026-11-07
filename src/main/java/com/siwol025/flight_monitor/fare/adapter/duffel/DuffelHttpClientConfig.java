@@ -87,7 +87,7 @@ public class DuffelHttpClientConfig {
                 .build();
     }
 
-    // 인스턴스 하나가 FlightOfferFinder·FlightOrderPlacer·FlightOrderGateway 포트로 주입된다(반환형이 구현 타입이라 각 타입으로 찾힘)
+    // 인스턴스 하나가 FlightOfferFinder·FlightOrderGateway 두 포트로 주입된다(반환형이 구현 타입이라 각 타입으로 찾힘)
     // 조회·hold·결제는 같은 커넥션 풀을 쓰고 응답 타임아웃만 다르다
     @Bean
     DuffelFlightBookingClient duffelFlightBookingClient(

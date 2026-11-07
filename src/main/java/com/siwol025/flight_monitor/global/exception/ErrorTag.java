@@ -31,6 +31,8 @@ public enum ErrorTag {
     INVALID_ROUTE_SUBSCRIPTION("운임 업체가 조회할 수 없는 노선이라 구독할 수 없습니다."),
     PASSENGER_NOT_ADULT("승객은 출발일 기준 만 18세 이상이어야 합니다."),
     INVALID_ROUTE("항공권 업체가 조회할 수 없는 노선입니다."),
+    IDEMPOTENCY_KEY_REQUIRED("Idempotency-Key 헤더(64자 이하)가 필요합니다."),
+    ORDER_REJECTED("항공권 업체가 주문을 거절했습니다. 입력값을 확인해 주세요."),
 
     // 403 Forbidden (resource ownership)
     UNAUTHORIZED_SUBSCRIPTION("해당 구독을 취소할 권한이 없습니다."),
@@ -38,6 +40,13 @@ public enum ErrorTag {
     // 409 Conflict
     OFFER_UNAVAILABLE("예매할 수 없는 항공권입니다."),
     OFFER_PRICE_CHANGED("항공권 가격이 바뀌었습니다. 현재 가격을 확인해 주세요."),
+    OFFER_EXPIRED("항공권 예약 가능 시간이 지났습니다. 다시 검색해 주세요."),
+    OFFER_ALREADY_BOOKED("이미 주문된 항공권입니다. 다시 검색해 주세요."),
+    OFFER_NOT_HOLDABLE("결제 전 좌석을 잡아 둘 수 없는 항공권이라 예매할 수 없습니다."),
+    IDEMPOTENT_REQUEST_PROCESSING("같은 요청을 처리하고 있습니다. 잠시 후 같은 키로 다시 시도해 주세요."),
+
+    // 422 Unprocessable Entity
+    IDEMPOTENCY_KEY_REUSED("같은 Idempotency-Key로 다른 요청을 보냈습니다."),
 
     // 503 Service Unavailable
     FARE_PROVIDER_UNAVAILABLE("항공권 업체를 지금 이용할 수 없습니다. 잠시 후 다시 시도해 주세요.");

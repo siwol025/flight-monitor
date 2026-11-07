@@ -6,24 +6,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.siwol025.flight_monitor.fare.FareRateLimitedException;
 import com.siwol025.flight_monitor.fare.FlightOffer;
 import com.siwol025.flight_monitor.fare.FlightOfferFinder;
-import com.siwol025.flight_monitor.fare.FlightOfferUnavailableException;
-import com.siwol025.flight_monitor.fare.FlightOrderPlacer;
-import com.siwol025.flight_monitor.fare.Gender;
 import com.siwol025.flight_monitor.fare.LowestFare;
 import com.siwol025.flight_monitor.fare.LowestFareFinder;
 import com.siwol025.flight_monitor.fare.OfferTerms;
-import com.siwol025.flight_monitor.fare.Passenger;
-import com.siwol025.flight_monitor.fare.PassengerTitle;
-import com.siwol025.flight_monitor.fare.PlacedOrder;
 import com.siwol025.flight_monitor.mock.airline.domain.MockAirline;
 import com.siwol025.flight_monitor.mock.airline.repository.MockAirlineRepository;
 import com.siwol025.flight_monitor.mock.airport.domain.MockAirport;
 import com.siwol025.flight_monitor.mock.airport.repository.MockAirportRepository;
 import com.siwol025.flight_monitor.mock.duffel.MockDuffelOfferController;
-import com.siwol025.flight_monitor.mock.duffel.MockDuffelOfferService;
-import com.siwol025.flight_monitor.mock.duffel.MockDuffelOrderController;
-import com.siwol025.flight_monitor.mock.duffel.MockDuffelOrderService;
-import com.siwol025.flight_monitor.mock.duffel.MockDuffelRateLimitEnforcer;
 import com.siwol025.flight_monitor.mock.flight.domain.FlightSeatPrice;
 import com.siwol025.flight_monitor.mock.flight.domain.MockFlight;
 import com.siwol025.flight_monitor.mock.flight.domain.Seat;
@@ -57,9 +47,12 @@ import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.web.client.RestClient;
 
 /**
  * 와이어 호환: 운영 어댑터와 mock 엔드포인트가 실제 HTTP로만 대화한다(운영의 앱 ↔ flight-mock-api와 같은 구성).
@@ -72,16 +65,13 @@ class DuffelWireCompatibilityTest {
     private static final RouteKey ICN_NRT_ECONOMY =
             new RouteKey("ICN", "NRT", LocalDate.of(2026, 11, 26), SeatGrade.ECONOMY);
 
-    private static final Passenger PASSENGER = new Passenger(PassengerTitle.MR, "Gildong", "Hong", Gender.M,
-            LocalDate.of(1990, 1, 1), "gildong@test.com", "+821012345678");
-
     @SpringBootConfiguration
     @EnableAutoConfiguration
     @EntityScan(basePackageClasses = {MockFlight.class, MockAirline.class, MockAirport.class})
     @EnableJpaRepositories(basePackageClasses = {MockFlightRepository.class, MockAirlineRepository.class,
             MockAirportRepository.class})
-    @Import({MockDuffelOfferController.class, MockDuffelOfferService.class, MockDuffelRateLimitEnforcer.class,
-            MockDuffelOrderController.class, MockDuffelOrderService.class})
+    // mock Duffel 패키지 전체(운영의 flight-mock-api가 올리는 것과 같은 엔드포인트)
+    @ComponentScan(basePackageClasses = MockDuffelOfferController.class)
     static class MockServerApplication {
 
         // 한도 창이 테스트 도중 넘어가지 않게 시각을 고정한다(16:07:44가 속한 창은 16:08:00에 끝난다)
@@ -194,37 +184,44 @@ class DuffelWireCompatibilityTest {
     }
 
     @Test
-    void 와이어호환_주문_mock_주문응답을_어댑터가읽음() {
-        saveKe701WithOneSeat();
-
-        adapterContext("http://localhost:" + port).run(context -> {
-            FlightOffer offer = context.getBean(FlightOfferFinder.class).searchOffers(ICN_NRT_ECONOMY).getFirst();
-
-            PlacedOrder order = context.getBean(FlightOrderPlacer.class)
-                    .placeOrder(offer.offerId(), offer.amount(), offer.currency(), PASSENGER);
-
-            assertThat(order.orderId()).startsWith("ord_mock_");
-            assertThat(order.bookingReference()).matches("[0-9A-Z]{6}");
-            assertThat(order.amount()).isEqualByComparingTo("250000");
-            assertThat(order.currency()).isEqualTo("USD");
-        });
-    }
-
-    @Test
     void 와이어호환_매진후_단건빈결과_주문예매불가() {
         saveKe701WithOneSeat();
 
         adapterContext("http://localhost:" + port).run(context -> {
             FlightOfferFinder finder = context.getBean(FlightOfferFinder.class);
-            FlightOrderPlacer placer = context.getBean(FlightOrderPlacer.class);
             FlightOffer offer = finder.searchOffers(ICN_NRT_ECONOMY).getFirst();
-            placer.placeOrder(offer.offerId(), offer.amount(), offer.currency(), PASSENGER);
+            // 마지막 좌석이 팔렸다
+            mockSeatRepository.findAll().forEach(seat -> {
+                seat.reserve();
+                mockSeatRepository.save(seat);
+            });
 
-            // 마지막 좌석이 팔렸다: mock의 422 offer_no_longer_available을 어댑터가 code로 구분한다
+            // mock의 422 offer_no_longer_available을 어댑터가 code로 구분해 빈 결과로 돌려준다
             assertThat(finder.findOffer(offer.offerId())).isEmpty();
-            assertThatThrownBy(() -> placer.placeOrder(offer.offerId(), offer.amount(), offer.currency(), PASSENGER))
-                    .isInstanceOf(FlightOfferUnavailableException.class);
         });
+    }
+
+    @Test
+    void mock_air_orders_없음_404() {
+        // 즉시 주문은 hold 흐름으로 대체됐다. 예매는 실제 Duffel 테스트 모드로만 주문한다(있는 offer여도 주문 엔드포인트가 없다)
+        saveKe701WithOneSeat();
+        String offerId = "off_mock_" + mockFlightSeatPriceRepository.findAll().getFirst().getId();
+
+        ResponseEntity<String> response = RestClient.create("http://localhost:" + port).post()
+                .uri("/air/orders")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body("""
+                        {"data":{"type":"instant","selected_offers":["%s"],
+                        "payments":[{"type":"balance","amount":"250000.00","currency":"USD"}],
+                        "passengers":[{"title":"mr","given_name":"Gildong","family_name":"Hong","gender":"m",
+                        "born_on":"1990-01-01","email":"gildong@test.com","phone_number":"+821012345678"}]}}"""
+                        .formatted(offerId))
+                .retrieve()
+                .onStatus(status -> true, (req, res) -> {
+                })
+                .toEntity(String.class);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(404);
     }
 
     // 이코노미 250000(USD), 빈 좌석 1개
