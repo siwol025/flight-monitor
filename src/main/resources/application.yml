@@ -162,6 +162,12 @@ payment:
     # E2E 실패 주입(TossPayments-Test-Code 헤더). 테스트 키에서만, 비어 있으면 붙이지 않는다
     test-code: ${TOSS_TEST_CODE:}
 
+booking:
+  # 우리 API(구매·승인)의 Idempotency-Key
+  idempotency:
+    # PROCESSING인 채로 이보다 오래 갱신이 없으면 처리 서버가 죽은 것으로 보고 같은 키 재요청이 처리권을 가져간다(DB NOW(6) 기준)
+    stale-after: 2m
+
 subscription:
   expiry:
     cron: "0 0 * * * *"

@@ -46,11 +46,49 @@ public class Booking extends BaseTimeEntity {
     @Column(name = "offer_id", nullable = false, length = 100)
     private String offerId;
 
-    @Column(name = "provider_order_id", nullable = false, length = 100)
+    @Column(name = "provider_order_id", length = 100)
     private String providerOrderId;
 
-    @Column(name = "booking_reference", nullable = false, length = 20)
+    @Column(name = "booking_reference", length = 20)
     private String bookingReference;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private BookingStatus status;
+
+    @Column(name = "status_changed_at")
+    private LocalDateTime statusChangedAt;
+
+    @Column(name = "provider_passenger_id", length = 50)
+    private String providerPassengerId;
+
+    @Column(name = "payment_required_by")
+    private LocalDateTime paymentRequiredBy;
+
+    /** 고객 결제 금액(KRW 정수). amount·currency는 Duffel 금액이다 */
+    @Column(name = "charge_amount")
+    private Long chargeAmount;
+
+    @Column(name = "toss_order_id", unique = true, length = 64)
+    private String tossOrderId;
+
+    @Column(name = "toss_idempotency_key", length = 64)
+    private String tossIdempotencyKey;
+
+    @Column(name = "payment_key", unique = true, length = 200)
+    private String paymentKey;
+
+    @Column(name = "toss_approved_at")
+    private LocalDateTime tossApprovedAt;
+
+    @Column(name = "duffel_paid_at")
+    private LocalDateTime duffelPaidAt;
+
+    @Column(name = "ticket_numbers")
+    private String ticketNumbers;
+
+    @Column(name = "failure_code", length = 64)
+    private String failureCode;
 
     @Column(name = "departure_airport", nullable = false, length = 3)
     private String departureAirport;
@@ -114,6 +152,7 @@ public class Booking extends BaseTimeEntity {
         this.offerId = offer.offerId();
         this.providerOrderId = order.orderId();
         this.bookingReference = order.bookingReference();
+        this.status = BookingStatus.TICKETED;
         this.departureAirport = offer.departureAirport();
         this.arrivalAirport = offer.arrivalAirport();
         this.departureDate = offer.departingAt().toLocalDate();
