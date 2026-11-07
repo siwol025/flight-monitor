@@ -1,5 +1,6 @@
 package com.siwol025.flight_monitor.booking.service;
 
+import com.siwol025.flight_monitor.booking.dto.response.BookingDetailResponse;
 import com.siwol025.flight_monitor.booking.dto.response.BookingResponse;
 import com.siwol025.flight_monitor.booking.dto.response.FlightOfferResponse;
 import com.siwol025.flight_monitor.booking.repository.BookingRepository;
@@ -10,6 +11,7 @@ import com.siwol025.flight_monitor.fare.InvalidRouteException;
 import com.siwol025.flight_monitor.global.exception.ErrorTag;
 import com.siwol025.flight_monitor.global.exception.custom.BadRequestException;
 import com.siwol025.flight_monitor.global.exception.custom.ConflictException;
+import com.siwol025.flight_monitor.global.exception.custom.NotFoundException;
 import com.siwol025.flight_monitor.global.exception.custom.ServiceUnavailableException;
 import com.siwol025.flight_monitor.route.domain.RouteKey;
 import com.siwol025.flight_monitor.route.domain.SeatGrade;
@@ -19,11 +21,12 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 예매용 항공권 검색·결제 직전 재조회와 내 구매 내역. 구매(hold 주문)는 {@link CheckoutService}가 한다.
+ * 예매용 항공권 검색·결제 직전 재조회와 내 구매 내역·예매 조회. 구매(hold 주문)는 {@link CheckoutService}가 한다.
  */
 @Service
 @RequiredArgsConstructor
@@ -33,6 +36,10 @@ public class BookingService {
     private final BookingPolicy bookingPolicy;
     private final BookingRepository bookingRepository;
     private final Clock clock;
+
+    // 결제 대기(HELD) 예매의 결제창 값에 담는 공개 클라이언트 키
+    @Value("${payment.toss.client-key:}")
+    private String tossClientKey;
 
     // 노선 값 검증(공항 코드, 과거 출발일, 같은 공항)은 구독과 같은 노선 키 규칙을 쓴다
     public List<FlightOfferResponse> searchOffers(String departureAirport, String arrivalAirport,
@@ -73,5 +80,14 @@ public class BookingService {
         return bookingRepository.findAllByUserIdOrderByCreatedAtDescIdDesc(user.getId()).stream()
                 .map(BookingResponse::from)
                 .toList();
+    }
+
+    // 진행 상태 조회(⑥ 폴링). 남의 예매는 없는 예매와 같이 404다
+    @Transactional(readOnly = true)
+    public BookingDetailResponse getBooking(User user, long bookingId) {
+        return bookingRepository.findById(bookingId)
+                .filter(booking -> booking.getUser().getId().equals(user.getId()))
+                .map(booking -> BookingDetailResponse.from(booking, tossClientKey))
+                .orElseThrow(() -> new NotFoundException(ErrorTag.BOOKING_NOT_FOUND));
     }
 }

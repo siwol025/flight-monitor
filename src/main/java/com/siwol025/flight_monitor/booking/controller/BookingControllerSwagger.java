@@ -1,6 +1,7 @@
 package com.siwol025.flight_monitor.booking.controller;
 
 import com.siwol025.flight_monitor.booking.dto.request.BookingRequest;
+import com.siwol025.flight_monitor.booking.dto.response.BookingDetailResponse;
 import com.siwol025.flight_monitor.booking.dto.response.BookingResponse;
 import com.siwol025.flight_monitor.user.domain.User;
 import io.swagger.v3.oas.annotations.Operation;
@@ -31,7 +32,17 @@ public interface BookingControllerSwagger {
     ResponseEntity<?> book(User user, String idempotencyKey, BookingRequest request);
 
     @Operation(
-            summary = "내 구매 내역 (최근순)",
+            summary = "예매 진행 상태 조회",
+            description = "결제 뒤 이 API를 폴링해 발권(TICKETED)까지 본다. HELD면 결제창 값(payment)을 담는다",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "조회 성공(status, 원화 금액, 예약 번호)"),
+                    @ApiResponse(responseCode = "404", description = "없는 예매·남의 예매(BOOKING_NOT_FOUND)")
+            }
+    )
+    ResponseEntity<BookingDetailResponse> getBooking(User user, long bookingId);
+
+    @Operation(
+            summary = "내 구매 내역 (최근순, 진행 상태 포함)",
             responses = {
                     @ApiResponse(responseCode = "200", description = "조회 성공")
             }

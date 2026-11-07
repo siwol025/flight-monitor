@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 
 import com.siwol025.flight_monitor.booking.domain.Booking;
+import com.siwol025.flight_monitor.booking.domain.BookingStatus;
+import com.siwol025.flight_monitor.booking.dto.response.BookingDetailResponse;
 import com.siwol025.flight_monitor.booking.dto.response.BookingResponse;
 import com.siwol025.flight_monitor.booking.dto.response.FlightOfferResponse;
 import com.siwol025.flight_monitor.fare.FlightOffer;
@@ -95,6 +97,40 @@ class BookingServiceIntegrationTest {
 
         assertThat(bookingService.getMyBookings(user)).extracting(BookingResponse::bookingId)
                 .containsExactly(mine2.getId(), mine1.getId());
+        assertThat(bookingService.getMyBookings(user)).extracting(BookingResponse::status)
+                .containsOnly(BookingStatus.HOLD_REQUESTED);
+    }
+
+    @Test
+    void detail_내예매_상태() {
+        Booking mine = em.persist(Booking.holdRequested(user, OFFER, PASSENGER));
+
+        BookingDetailResponse detail = bookingService.getBooking(user, mine.getId());
+
+        assertThat(detail.bookingId()).isEqualTo(mine.getId());
+        assertThat(detail.status()).isEqualTo(BookingStatus.HOLD_REQUESTED);
+        assertThat(detail.payment()).isNull();
+    }
+
+    @Test
+    void detail_남의예매_404() {
+        User other = em.persist(User.builder()
+                .email("other@test.com")
+                .name("다른사용자")
+                .provider(Provider.GOOGLE)
+                .providerId("google-other")
+                .role(Role.USER)
+                .build());
+        Booking others = em.persist(Booking.holdRequested(other, OFFER, PASSENGER));
+
+        // 남의 예매는 있는지조차 알리지 않는다(없는 예매와 같은 404)
+        for (long bookingId : new long[]{others.getId(), others.getId() + 1000}) {
+            assertThatThrownBy(() -> bookingService.getBooking(user, bookingId))
+                    .isInstanceOfSatisfying(HttpStatusException.class, e -> {
+                        assertThat(e.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
+                        assertThat(e.getErrorTag()).isEqualTo(ErrorTag.BOOKING_NOT_FOUND);
+                    });
+        }
     }
 
     @Test

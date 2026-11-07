@@ -159,6 +159,9 @@ payment:
     connect-timeout: 3s
     # 승인·조회 응답 타임아웃(실측 승인 최대 1.04s)
     confirm-read-timeout: 30s
+    # 승인 결과가 불명확할 때 조회로 미승인(IN_PROGRESS)을 확인한 뒤 요청 안에서 다시 보내는 최대 횟수(0.5s·1s 간격).
+    # 넘으면 PAYMENT_CONFIRMING으로 보류하고 202를 돌려준다(이후 확인은 스케줄러)
+    confirm-inline-retries: 2
     # E2E 실패 주입(TossPayments-Test-Code 헤더). 테스트 키에서만, 비어 있으면 붙이지 않는다
     test-code: ${TOSS_TEST_CODE:}
 

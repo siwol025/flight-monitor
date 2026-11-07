@@ -2,6 +2,7 @@ package com.siwol025.flight_monitor.booking.controller;
 
 import com.siwol025.flight_monitor.auth.annotation.LoginUser;
 import com.siwol025.flight_monitor.booking.dto.request.BookingRequest;
+import com.siwol025.flight_monitor.booking.dto.response.BookingDetailResponse;
 import com.siwol025.flight_monitor.booking.dto.response.BookingResponse;
 import com.siwol025.flight_monitor.booking.service.BookingService;
 import com.siwol025.flight_monitor.booking.service.CheckoutService;
@@ -12,6 +13,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -34,6 +36,14 @@ public class BookingController implements BookingControllerSwagger {
     ) {
         return IdempotentResponses.toResponse(
                 checkoutService.purchase(user, IdempotentResponses.requireKey(idempotencyKey), request));
+    }
+
+    @GetMapping("/{bookingId}")
+    public ResponseEntity<BookingDetailResponse> getBooking(
+            @Parameter(hidden = true) @LoginUser User user,
+            @PathVariable long bookingId
+    ) {
+        return ResponseEntity.ok(bookingService.getBooking(user, bookingId));
     }
 
     @GetMapping("/my")

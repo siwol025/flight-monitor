@@ -21,6 +21,8 @@ import com.siwol025.flight_monitor.booking.idempotency.IdempotentResult.Processi
 import com.siwol025.flight_monitor.booking.idempotency.IdempotentResult.Replay;
 import com.siwol025.flight_monitor.booking.service.BookingService;
 import com.siwol025.flight_monitor.booking.service.CheckoutService;
+import com.siwol025.flight_monitor.global.exception.ErrorTag;
+import com.siwol025.flight_monitor.global.exception.custom.NotFoundException;
 import com.siwol025.flight_monitor.user.domain.Provider;
 import com.siwol025.flight_monitor.user.domain.Role;
 import com.siwol025.flight_monitor.user.domain.User;
@@ -167,5 +169,20 @@ class BookingControllerTest {
     void getMyBookings_인증없음_401() throws Exception {
         mockMvc.perform(get("/api/bookings/my"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void detail_인증없음_401() throws Exception {
+        mockMvc.perform(get("/api/bookings/7"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void detail_남의예매_404() throws Exception {
+        given(bookingService.getBooking(any(), eq(7L))).willThrow(new NotFoundException(ErrorTag.BOOKING_NOT_FOUND));
+
+        mockMvc.perform(get("/api/bookings/7").header("Authorization", "Bearer test-token"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.tag").value("BOOKING_NOT_FOUND"));
     }
 }

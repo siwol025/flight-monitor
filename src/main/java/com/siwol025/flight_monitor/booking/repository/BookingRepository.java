@@ -3,6 +3,7 @@ package com.siwol025.flight_monitor.booking.repository;
 import com.siwol025.flight_monitor.booking.domain.Booking;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -13,6 +14,8 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     // 같은 시각에 생성된 내역은 나중에 저장된 것(큰 ID)을 앞에 둔다
     List<Booking> findAllByUserIdOrderByCreatedAtDescIdDesc(Long userId);
+
+    Optional<Booking> findByTossOrderId(String tossOrderId);
 
     // 상태 변경은 더티 체킹이 아니라 기대 상태를 조건으로 건 UPDATE다. 영향 행 0이면 다른 서버가 먼저 바꿨다.
     // 시각은 서버 시계가 아니라 DB NOW(6)로 남긴다(stale 판정 기준)
@@ -67,4 +70,23 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
              WHERE id = :id AND status = 'HOLD_REQUESTED'
             """, nativeQuery = true)
     int failHold(@Param("id") long id, @Param("failureCode") String failureCode);
+
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query(value = """
+            UPDATE bookings SET status = 'PAYMENT_APPROVED', toss_approved_at = :approvedAt, status_changed_at = NOW(6)
+             WHERE id = :id AND status = 'PAYMENT_CONFIRMING'
+            """, nativeQuery = true)
+    int approvePayment(@Param("id") long id, @Param("approvedAt") LocalDateTime approvedAt);
+
+    // 결제 확정 실패: 새 Toss 주문번호·새 Toss 키로 다시 결제할 수 있게 HELD로 돌린다(Toss 주문번호는 재사용하지 않는다)
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query(value = """
+            UPDATE bookings
+               SET status = 'HELD', toss_order_id = :newOrderId, toss_idempotency_key = :newKey, payment_key = NULL,
+                   status_changed_at = NOW(6)
+             WHERE id = :id AND status = 'PAYMENT_CONFIRMING'
+            """, nativeQuery = true)
+    int reopenPayment(@Param("id") long id, @Param("newOrderId") String newOrderId, @Param("newKey") String newKey);
 }

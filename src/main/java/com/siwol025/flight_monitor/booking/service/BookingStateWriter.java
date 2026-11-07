@@ -32,6 +32,20 @@ public class BookingStateWriter {
         return bookingRepository.reissueTossKey(bookingId, oldKey, newKey) == 1;
     }
 
+    /** PAYMENT_CONFIRMING → PAYMENT_APPROVED. Toss 승인 시각(UTC)을 남긴다 */
+    public boolean approvePayment(long bookingId, Instant approvedAt) {
+        return bookingRepository.approvePayment(bookingId,
+                approvedAt == null ? null : LocalDateTime.ofInstant(approvedAt, ZoneOffset.UTC)) == 1;
+    }
+
+    /**
+     * PAYMENT_CONFIRMING → HELD. 결제가 확정 실패(거절·만료)해 청구되지 않았을 때만 부른다. 새 Toss 주문번호·새 Toss 키로
+     * 바꾸고 paymentKey를 비운다
+     */
+    public boolean reopenPayment(long bookingId, String newTossOrderId, String newTossIdempotencyKey) {
+        return bookingRepository.reopenPayment(bookingId, newTossOrderId, newTossIdempotencyKey) == 1;
+    }
+
     /**
      * HOLD_REQUESTED → HELD. hold 주문 ID·결제 기한·고객 결제 금액(원)과 이 예매의 Toss 주문번호·Toss 멱등키를 함께 고정한다
      */
