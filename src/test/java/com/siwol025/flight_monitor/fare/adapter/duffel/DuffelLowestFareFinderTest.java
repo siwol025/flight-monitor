@@ -57,7 +57,9 @@ class DuffelLowestFareFinderTest {
                 .withUserConfiguration(DuffelHttpClientConfig.class)
                 .withPropertyValues(
                         "fare-provider.duffel.base-url=" + server.baseUrl(),
-                        "fare-provider.duffel.api-key=duffel_test_token");
+                        "fare-provider.duffel.api-key=duffel_test_token",
+                        // 같은 설정 클래스의 예매 클라이언트가 기동하려면 테스트 모드 키가 있어야 한다
+                        "fare-provider.duffel-booking.api-key=duffel_test_token");
     }
 
     @AfterEach

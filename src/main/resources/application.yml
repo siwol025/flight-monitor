@@ -130,6 +130,19 @@ fare-provider:
     # 업체 한도(실측 ratelimit-limit 30, 60초 고정 창). 응답 헤더가 이 값과 다르면 경고 로그를 남긴다.
     # 앱 호출 한도(업체 한도의 90%)와 비교하면 경고가 매번 뜨므로 업체 한도를 따로 둔다.
     expected-rate-limit: 30
+  # 예매(검색·재조회·주문) 전용. compose에서도 실제 Duffel 테스트 모드로 나간다(감시만 mock).
+  # 감시와 커넥션 풀을 나눠 감시 폭주가 사용자 예매를 막지 않게 한다.
+  duffel-booking:
+    base-url: https://api.duffel.com
+    # duffel_test_로 시작하지 않으면(비어 있어도) 기동 실패
+    api-key: ${DUFFEL_API_TOKEN:}
+    version: v2
+    # 검색 요청 쿼리 supplier_timeout. query-read-timeout은 이보다 길어야 한다
+    supplier-timeout: 10s
+    connect-timeout: 3s
+    # 검색·GET 응답 타임아웃(실측 최대 2.8s)
+    query-read-timeout: 15s
+    max-connections: 10
 
 subscription:
   expiry:

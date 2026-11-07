@@ -11,6 +11,7 @@ import com.siwol025.flight_monitor.fare.FlightOrderPlacer;
 import com.siwol025.flight_monitor.fare.Gender;
 import com.siwol025.flight_monitor.fare.LowestFare;
 import com.siwol025.flight_monitor.fare.LowestFareFinder;
+import com.siwol025.flight_monitor.fare.OfferTerms;
 import com.siwol025.flight_monitor.fare.Passenger;
 import com.siwol025.flight_monitor.fare.PassengerTitle;
 import com.siwol025.flight_monitor.fare.PlacedOrder;
@@ -39,6 +40,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
@@ -117,11 +119,14 @@ class DuffelWireCompatibilityTest {
         mockAirlineRepository.deleteAllInBatch();
     }
 
-    // compose처럼 토큰 없이(빈 Bearer) 부른다 — mock은 Authorization을 검사하지 않는다
+    // 감시는 compose처럼 토큰 없이(빈 Bearer) 부른다 — mock은 Authorization을 검사하지 않는다.
+    // 예매는 테스트 모드 키가 있어야 기동하므로 가짜 키를 주고 같은 mock으로 보낸다
     private ApplicationContextRunner adapterContext(String baseUrl) {
         return new ApplicationContextRunner()
                 .withUserConfiguration(DuffelHttpClientConfig.class)
-                .withPropertyValues("fare-provider.duffel.base-url=" + baseUrl, "fare-provider.duffel.api-key=");
+                .withPropertyValues("fare-provider.duffel.base-url=" + baseUrl, "fare-provider.duffel.api-key=",
+                        "fare-provider.duffel-booking.base-url=" + baseUrl,
+                        "fare-provider.duffel-booking.api-key=duffel_test_token");
     }
 
     @Test
@@ -182,7 +187,8 @@ class DuffelWireCompatibilityTest {
 
             assertThat(searched).isEqualTo(new FlightOffer(searched.offerId(), new BigDecimal("250000.00"), "USD",
                     "ICN", "NRT", SeatGrade.ECONOMY, "KE", "Korean Air", "701",
-                    LocalDateTime.of(2026, 11, 26, 9, 0), LocalDateTime.of(2026, 11, 26, 11, 20)));
+                    LocalDateTime.of(2026, 11, 26, 9, 0), LocalDateTime.of(2026, 11, 26, 11, 20),
+                    new OfferTerms(List.of(), false, null, null)));
             assertThat(finder.findOffer(searched.offerId())).contains(searched);
         });
     }

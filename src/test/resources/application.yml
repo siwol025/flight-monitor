@@ -26,6 +26,10 @@ fare-provider:
   duffel:
     # 테스트가 실제 업체로 나가지 않게 한다(.invalid는 절대 해석되지 않는 예약 도메인)
     base-url: http://duffel.invalid
+  duffel-booking:
+    base-url: http://duffel.invalid
+    # 테스트 모드 키가 아니면 기동하지 않으므로 형식만 맞춘 가짜 키
+    api-key: duffel_test_dummy
 
 resilience4j:
   circuitbreaker:

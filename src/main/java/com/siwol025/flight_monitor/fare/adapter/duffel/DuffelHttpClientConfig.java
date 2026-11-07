@@ -26,7 +26,7 @@ import org.springframework.web.client.RestClient;
  * 커넥션 풀은 이 클라이언트가 소유하며 컨텍스트 종료 때 클라이언트와 함께 닫힌다.</p>
  */
 @Configuration
-@EnableConfigurationProperties(DuffelProperties.class)
+@EnableConfigurationProperties({DuffelProperties.class, DuffelBookingProperties.class})
 public class DuffelHttpClientConfig {
 
     /**
@@ -59,29 +59,58 @@ public class DuffelHttpClientConfig {
                 .build();
     }
 
+    /**
+     * 예매 전용 HTTP 클라이언트. 감시와 커넥션 풀을 나눠 감시 폭주가 사용자 예매를 막지 않게 한다.
+     * 예매는 실제 업체에 주문·결제를 보내므로 테스트 모드 키(duffel_test_)가 아니면 기동하지 않는다.
+     */
+    @Bean(defaultCandidate = false)
+    public CloseableHttpClient duffelBookingHttpClient(DuffelBookingProperties properties) {
+        String apiKey = properties.getApiKey();
+        if (apiKey == null || !apiKey.startsWith("duffel_test_")) {
+            throw new IllegalStateException(
+                    "fare-provider.duffel-booking.api-key는 Duffel 테스트 모드 키(duffel_test_)여야 합니다.");
+        }
+        return HttpClients.custom()
+                .setConnectionManager(PoolingHttpClientConnectionManagerBuilder.create()
+                        .setMaxConnTotal(properties.getMaxConnections())
+                        .setMaxConnPerRoute(properties.getMaxConnections())
+                        .setDefaultConnectionConfig(ConnectionConfig.custom()
+                                .setConnectTimeout(Timeout.of(properties.getConnectTimeout()))
+                                .build())
+                        .build())
+                .setDefaultRequestConfig(RequestConfig.custom()
+                        .setResponseTimeout(Timeout.of(properties.getQueryReadTimeout()))
+                        .build())
+                .build();
+    }
+
     // 인스턴스 하나가 FlightOfferFinder·FlightOrderPlacer 두 포트로 주입된다(반환형이 구현 타입이라 두 타입으로 찾힘)
     @Bean
     DuffelFlightBookingClient duffelFlightBookingClient(
-            @Qualifier("duffelHttpClient") CloseableHttpClient duffelHttpClient,
-            DuffelProperties properties, ObjectProvider<Clock> clock) {
-        return new DuffelFlightBookingClient(restClient(duffelHttpClient, properties), properties,
-                clock.getIfAvailable(Clock::systemUTC));
+            @Qualifier("duffelBookingHttpClient") CloseableHttpClient duffelBookingHttpClient,
+            DuffelBookingProperties properties, ObjectProvider<Clock> clock) {
+        return new DuffelFlightBookingClient(
+                restClient(duffelBookingHttpClient, properties.getBaseUrl(), properties.getApiKey(),
+                        properties.getVersion()),
+                properties, clock.getIfAvailable(Clock::systemUTC));
     }
 
     @Bean
     public LowestFareFinder lowestFareFinder(@Qualifier("duffelHttpClient") CloseableHttpClient duffelHttpClient,
                                              DuffelProperties properties, ObjectProvider<Clock> clock) {
-        return new DuffelLowestFareFinder(restClient(duffelHttpClient, properties), properties,
-                clock.getIfAvailable(Clock::systemUTC));
+        return new DuffelLowestFareFinder(
+                restClient(duffelHttpClient, properties.getBaseUrl(), properties.getApiKey(), properties.getVersion()),
+                properties, clock.getIfAvailable(Clock::systemUTC));
     }
 
-    // 감시와 예매 어댑터가 같은 커넥션 풀·인증 헤더를 쓴다
-    private static RestClient restClient(CloseableHttpClient duffelHttpClient, DuffelProperties properties) {
+    // 감시와 예매 어댑터는 각자의 커넥션 풀·업체 주소·인증 헤더를 쓴다
+    private static RestClient restClient(CloseableHttpClient httpClient, String baseUrl, String apiKey,
+                                         String version) {
         return RestClient.builder()
-                .baseUrl(properties.getBaseUrl())
-                .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + properties.getApiKey())
-                .defaultHeader("Duffel-Version", properties.getVersion())
-                .requestFactory(new HttpComponentsClientHttpRequestFactory(duffelHttpClient))
+                .baseUrl(baseUrl)
+                .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
+                .defaultHeader("Duffel-Version", version)
+                .requestFactory(new HttpComponentsClientHttpRequestFactory(httpClient))
                 .build();
     }
 }

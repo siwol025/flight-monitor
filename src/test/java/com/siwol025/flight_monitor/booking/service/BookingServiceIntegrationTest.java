@@ -18,6 +18,7 @@ import com.siwol025.flight_monitor.fare.FlightOfferPriceChangedException;
 import com.siwol025.flight_monitor.fare.FlightOfferUnavailableException;
 import com.siwol025.flight_monitor.fare.FlightOrderPlacer;
 import com.siwol025.flight_monitor.fare.Gender;
+import com.siwol025.flight_monitor.fare.OfferTerms;
 import com.siwol025.flight_monitor.fare.Passenger;
 import com.siwol025.flight_monitor.fare.PassengerTitle;
 import com.siwol025.flight_monitor.fare.PlacedOrder;
@@ -34,6 +35,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -56,7 +58,8 @@ class BookingServiceIntegrationTest {
     private static final String OFFER_ID = "off_mock_1";
     private static final FlightOffer OFFER = new FlightOffer(OFFER_ID, new BigDecimal("250000.00"), "USD", "ICN", "NRT",
             SeatGrade.ECONOMY, "ZZ", "Duffel Airways", "1001",
-            LocalDateTime.of(2026, 11, 26, 9, 0), LocalDateTime.of(2026, 11, 26, 11, 20));
+            LocalDateTime.of(2026, 11, 26, 9, 0), LocalDateTime.of(2026, 11, 26, 11, 20),
+            new OfferTerms(List.of("pas_1"), false, null, "ZZ"));
 
     @TestConfiguration
     static class FixedClockConfig {
