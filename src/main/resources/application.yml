@@ -51,10 +51,16 @@ spring:
   rabbitmq:
     username: ${RABBITMQ_USERNAME}
     password: ${RABBITMQ_PASSWORD}
+    # 가격 하락 이벤트는 브로커 확인(ack)을 받고 큐까지 라우팅된 뒤에만 최신가를 전진시킨다. 라우팅 실패는 ack와 함께
+    # return으로 오므로 mandatory로 받아 실패로 본다(메일 작업 발행에도 걸리지만 메일 큐는 항상 있다)
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
     listener:
       simple:
-        # 기본 팩토리(팬아웃 리스너)에서 리스너 밖으로 나온 예외는 재큐하지 않고 버린다. 팬아웃은 예외를 삼키므로 실제로는
-        # 역직렬화 실패만 해당한다. 메일 리스너는 전용 팩토리에서 따로 정한다
+        # 기본 팩토리에서 리스너 밖으로 나온 예외는 재큐하지 않고 버린다. 지금은 기본 팩토리를 쓰는 리스너가 없다.
+        # 팬아웃·메일 리스너는 전용 팩토리(재시도·DLQ)에서 따로 정한다
         default-requeue-rejected: false
 
   # Redis(Lettuce) 커넥션 풀 — 블로킹 BZPOPMIN은 전용 커넥션을 요구한다. 풀이 없으면 pop마다 커넥션을
@@ -241,6 +247,17 @@ mock:
     random-seed: 42
 
 notification:
+  price-drop:
+    # 가격 하락 이벤트의 브로커 확인 대기 상한. 넘으면 실패로 보고 최신가를 그대로 둔다(다음 주기에 다시 감지).
+    # 감시 주기(monitor.produce.fixed-rate-ms, 60초)보다 짧아야 한다: 길면 확인을 기다리는 동안 다음 주기가 같은 하락을
+    # 다시 발행한다. 정상 확인은 ms 단위라 10초면 충분하다
+    confirm-timeout: 10s
+  price-drop-fanout:
+    # 가격 하락 팬아웃 블로킹 재시도 (1s → 2s → 4s → 8s → 16s 기본, 총 31초). 구독자 조회(DB) 일시 장애를 흡수한다.
+    # 재시도 소진 시 price-drop-events.dlq. 루프 중간에 실패해 재시도하면 앞 구독자에게 메일 작업이 다시 발행된다(중복 감수)
+    retry:
+      max-retries: ${PRICE_DROP_FANOUT_MAX_RETRIES:5}
+      initial-interval-ms: ${PRICE_DROP_FANOUT_RETRY_INITIAL_INTERVAL_MS:1000}
   # 메일 작업 큐(RabbitMQ email-send-tasks) 소비자. 소비자마다 블로킹 재시도를 하므로 prefetch는 1로 둔다
   email-task:
     concurrency: 50

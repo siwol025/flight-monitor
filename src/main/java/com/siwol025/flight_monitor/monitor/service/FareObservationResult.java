@@ -1,6 +1,5 @@
 package com.siwol025.flight_monitor.monitor.service;
 
-import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.Optional;
 
@@ -11,9 +10,10 @@ import java.util.Optional;
  * {@code record}에 넘긴 {@code LowestFare}를 이미 갖고 있고, {@link PriceMonitorService}가 이전 금액과 새 가격을
  * 함께 하락 이벤트에 싣는다.</p>
  *
- * @param droppedFrom     같은 통화에서 금액이 내려갔을 때만 이전 금액. 첫 관측·동일·상승·통화 변경이면 empty
+ * @param pendingDrop     같은 통화에서 금액이 내려갔을 때만 있다. 이때 최신가는 아직 바뀌지 않았다. 첫 관측·동일·상승·통화
+ *                        변경이면 empty(이미 반영됨)
  * @param refreshInterval 직전 관측 시각부터 이번 관측 시각까지(노선 갱신 간격). 기존 행이 있으면 동일·상승·하락·통화
  *                        변경 모든 경우에 채우고, 첫 관측이면 empty
  */
-public record FareObservationResult(Optional<BigDecimal> droppedFrom, Optional<Duration> refreshInterval) {
+public record FareObservationResult(Optional<PendingDrop> pendingDrop, Optional<Duration> refreshInterval) {
 }

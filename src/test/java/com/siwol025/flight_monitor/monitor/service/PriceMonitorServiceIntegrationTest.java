@@ -3,7 +3,9 @@ package com.siwol025.flight_monitor.monitor.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willAnswer;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -18,6 +20,7 @@ import com.siwol025.flight_monitor.monitor.metrics.PipelineMetrics;
 import com.siwol025.flight_monitor.monitor.worker.RedisRateLimiter;
 import com.siwol025.flight_monitor.notification.dto.PriceDropNotificationDto;
 import com.siwol025.flight_monitor.notification.producer.NotificationPublisher;
+import com.siwol025.flight_monitor.notification.producer.PriceDropPublishException;
 import com.siwol025.flight_monitor.route.domain.Route;
 import com.siwol025.flight_monitor.route.domain.RouteKey;
 import com.siwol025.flight_monitor.route.domain.RouteLatestFare;
@@ -42,6 +45,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
@@ -128,6 +132,8 @@ class PriceMonitorServiceIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        // 발행 확인을 다루지 않는 테스트에서는 확인이 오지 않은 채로 둔다
+        given(notificationPublisher.publishPriceDrop(any())).willReturn(new CompletableFuture<>());
         fakeLowestFareFinder.respondEmpty();
         clock.set(FIRST_OBSERVED_AT);
         user = em.persist(User.builder()
@@ -240,16 +246,17 @@ class PriceMonitorServiceIntegrationTest {
     }
 
     @Test
-    void 감시_가격하락_갱신후_이벤트발행() {
+    void 감시_가격하락_이벤트발행_브로커확인뒤에_최신가갱신() {
         fakeLowestFareFinder.respond(fare("50.00", "USD"));
         priceMonitorService.checkPriceAndNotify(route.getId());
         clock.advance(Duration.ofMinutes(1));
-        fakeLowestFareFinder.respond(fare("45.67", "USD"));
-        // 이벤트를 발행하는 시점에 최신 최저가가 이미 새 가격이어야 한다
+        fakeLowestFareFinder.respond(fare("45.67", "USD", "KE", "Korean Air", "701"));
+        // 발행 시점의 최신가는 아직 직전 가격이다(최신가는 전달이 확정된 뒤에만 전진하는 커서)
         AtomicReference<BigDecimal> storedAtPublish = new AtomicReference<>();
+        CompletableFuture<Void> confirm = new CompletableFuture<>();
         willAnswer(invocation -> {
             storedAtPublish.set(routeLatestFareRepository.findByRouteId(route.getId()).orElseThrow().getAmount());
-            return null;
+            return confirm;
         }).given(notificationPublisher).publishPriceDrop(any());
 
         priceMonitorService.checkPriceAndNotify(route.getId());
@@ -265,13 +272,77 @@ class PriceMonitorServiceIntegrationTest {
         assertThat(event.oldPrice()).isEqualByComparingTo("50.00");
         assertThat(event.newPrice()).isEqualByComparingTo("45.67");
         assertThat(event.currency()).isEqualTo("USD");
-        assertThat(event.carrierCode()).isEqualTo("ZZ");
-        assertThat(event.flightNumber()).isEqualTo("1079");
+        assertThat(event.carrierCode()).isEqualTo("KE");
+        assertThat(event.flightNumber()).isEqualTo("701");
         assertThat(event.departingAt()).isEqualTo(LocalDateTime.of(2026, 11, 26, 19, 21));
         assertThat(event.arrivingAt()).isEqualTo(LocalDateTime.of(2026, 11, 26, 21, 36));
         // 한국 시각(2026-10-26T00:01Z = 09:01)
         assertThat(event.detectedAt()).isEqualTo(LocalDateTime.of(2026, 10, 26, 9, 1));
-        assertThat(storedAtPublish.get()).isEqualByComparingTo("45.67");
+        assertThat(storedAtPublish.get()).isEqualByComparingTo("50.00");
+        RouteLatestFare beforeConfirm = routeLatestFareRepository.findByRouteId(route.getId()).orElseThrow();
+        assertThat(beforeConfirm.getAmount()).isEqualByComparingTo("50.00");
+        assertThat(beforeConfirm.getObservedAt()).isEqualTo(Instant.parse("2026-10-26T00:00:00Z"));
+
+        confirm.complete(null);
+
+        // 확인 뒤에는 하락 관측(금액·항공편·관측 시각)으로 바뀐다. 관측 시각은 확인 시각이 아니라 관측한 시각이다
+        RouteLatestFare afterConfirm = routeLatestFareRepository.findByRouteId(route.getId()).orElseThrow();
+        assertThat(afterConfirm.getAmount()).isEqualByComparingTo("45.67");
+        assertThat(afterConfirm.getCarrierCode()).isEqualTo("KE");
+        assertThat(afterConfirm.getCarrierName()).isEqualTo("Korean Air");
+        assertThat(afterConfirm.getFlightNumber()).isEqualTo("701");
+        assertThat(afterConfirm.getObservedAt()).isEqualTo(Instant.parse("2026-10-26T00:01:00Z"));
+    }
+
+    @Test
+    void 감시_가격하락_확인실패면_최신가유지_다음관측에서_다시하락발행() {
+        fakeLowestFareFinder.respond(fare("50.00", "USD"));
+        priceMonitorService.checkPriceAndNotify(route.getId());
+        clock.advance(Duration.ofMinutes(1));
+        fakeLowestFareFinder.respond(fare("45.67", "USD"));
+        given(notificationPublisher.publishPriceDrop(any()))
+                .willReturn(CompletableFuture.failedFuture(new PriceDropPublishException("확인 대기 시간 초과")));
+
+        priceMonitorService.checkPriceAndNotify(route.getId());
+
+        RouteLatestFare latest = routeLatestFareRepository.findByRouteId(route.getId()).orElseThrow();
+        assertThat(latest.getAmount()).isEqualByComparingTo("50.00");
+        assertThat(latest.getObservedAt()).isEqualTo(Instant.parse("2026-10-26T00:00:00Z"));
+
+        // 다음 주기: 같은 가격이 다시 하락으로 판정돼 재발행되고, 이번에는 확인되어 반영된다
+        clock.advance(Duration.ofMinutes(1));
+        given(notificationPublisher.publishPriceDrop(any())).willReturn(CompletableFuture.completedFuture(null));
+
+        priceMonitorService.checkPriceAndNotify(route.getId());
+
+        ArgumentCaptor<PriceDropNotificationDto> captor = ArgumentCaptor.forClass(PriceDropNotificationDto.class);
+        verify(notificationPublisher, times(2)).publishPriceDrop(captor.capture());
+        assertThat(captor.getAllValues()).extracting(PriceDropNotificationDto::oldPrice)
+                .allSatisfy(oldPrice -> assertThat(oldPrice).isEqualByComparingTo("50.00"));
+        RouteLatestFare applied = routeLatestFareRepository.findByRouteId(route.getId()).orElseThrow();
+        assertThat(applied.getAmount()).isEqualByComparingTo("45.67");
+        assertThat(applied.getObservedAt()).isEqualTo(Instant.parse("2026-10-26T00:02:00Z"));
+    }
+
+    @Test
+    void 감시_확인대기중_새관측이반영되면_늦은확인이_덮어쓰지않음() {
+        fakeLowestFareFinder.respond(fare("50.00", "USD"));
+        priceMonitorService.checkPriceAndNotify(route.getId());
+        clock.advance(Duration.ofMinutes(1));
+        fakeLowestFareFinder.respond(fare("45.67", "USD"));
+        CompletableFuture<Void> lateConfirm = new CompletableFuture<>();
+        given(notificationPublisher.publishPriceDrop(any())).willReturn(lateConfirm);
+        priceMonitorService.checkPriceAndNotify(route.getId());
+        // 확인을 기다리는 동안 가격이 직전 가격으로 돌아와 관측 시각만 갱신된다(금액은 그대로 50.00)
+        clock.advance(Duration.ofMinutes(1));
+        fakeLowestFareFinder.respond(fare("50.00", "USD"));
+        priceMonitorService.checkPriceAndNotify(route.getId());
+
+        lateConfirm.complete(null);
+
+        RouteLatestFare latest = routeLatestFareRepository.findByRouteId(route.getId()).orElseThrow();
+        assertThat(latest.getAmount()).isEqualByComparingTo("50.00");
+        assertThat(latest.getObservedAt()).isEqualTo(Instant.parse("2026-10-26T00:02:00Z"));
     }
 
     @Test
