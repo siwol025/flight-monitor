@@ -250,6 +250,26 @@ class BookingStatusCheckerTest {
     }
 
     @Test
+    void checker_CONFIRMING_409재생_새키재승인_APPROVED() {
+        // 보류된 지 오래인데 같은 키가 처리 중 409를 재생한다(Toss가 키에 저장, E2E 실측). 미승인을 확인했으니 새 키로 보낸다
+        String tossKey = confirming(121);
+        TOSS.enqueue("GET", TOSS_PAYMENT_PATH, 200, toss("A_145215-a8bd_01_get_before_confirm.json"));
+        TOSS.enqueue("GET", TOSS_PAYMENT_PATH, 200, toss("A_145215-a8bd_01_get_before_confirm.json"));
+        TOSS.enqueue("POST", FakeTossServer.CONFIRM_PATH, 409, toss("G_145517-22fd_02_confirm_k1_concurrent_x.json"));
+        TOSS.confirmSucceeds(toss("A_145215-a8bd_02_confirm_k1.json"));
+
+        checker.check();
+
+        assertThat(booking().getStatus()).isEqualTo(BookingStatus.PAYMENT_APPROVED);
+        String newKey = booking().getTossIdempotencyKey();
+        assertThat(newKey).isNotEqualTo(tossKey);
+        assertThat(TOSS.requests().stream().filter(r -> r.path().equals(FakeTossServer.CONFIRM_PATH))
+                .map(r -> r.headers().getFirst("Idempotency-Key")).toList()).containsExactly(tossKey, newKey);
+        assertThat(TOSS.approvedCount()).isEqualTo(1);
+        assertThat(publisher.published).containsExactly(bookingId);
+    }
+
+    @Test
     void checker_CONFIRMING_stale전_조회안함() {
         confirming(30);
 

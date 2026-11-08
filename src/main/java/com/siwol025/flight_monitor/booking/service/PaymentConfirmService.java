@@ -35,7 +35,7 @@ import org.springframework.stereotype.Service;
  * Toss 멱등키) → PAYMENT_APPROVED → Duffel 결제 요청 발행.
  *
  * <p>승인 결과를 모르면(타임아웃·5xx·409·ALREADY_*·응답 해석 실패) 먼저 조회로 청구 여부를 확인하고, 미승인(IN_PROGRESS)을
- * 확인한 뒤에만 같은 Toss 키로 다시 보낸다. 같은 키가 5xx만 재생하면 새 Toss 키를 조건부 UPDATE로 정한 뒤 그 키로 보낸다
+ * 확인한 뒤에만 같은 Toss 키로 다시 보낸다. 같은 키가 5xx나 처리 중 409만 재생하면 새 Toss 키를 조건부 UPDATE로 정한 뒤 그 키로 보낸다
  * (같은 결제의 두 번째 승인은 Toss가 ALREADY_PROCESSED_PAYMENT로 막는다). 끝내 모르면 PAYMENT_CONFIRMING으로 보류하고
  * 202를 저장한다(이후 확인은 스케줄러). 503(키 행 삭제, 같은 키 재처리)은 청구되지 않았다고 확인된 경우에만 쓴다.</p>
  *
@@ -92,7 +92,7 @@ public class PaymentConfirmService {
             return currentState(bookingId);
         }
         Booking booking = bookingRepository.findById(bookingId).orElseThrow();
-        return confirmUntilKnown(booking, attempt(booking, booking.getTossIdempotencyKey()));
+        return confirmUntilKnown(booking, attempt(booking, booking.getTossIdempotencyKey()), false);
     }
 
     /**
@@ -104,13 +104,15 @@ public class PaymentConfirmService {
         if (booking.getStatus() != BookingStatus.PAYMENT_CONFIRMING) {
             return;
         }
-        confirmUntilKnown(booking, new Attempt(null, PaymentFailureKind.UNKNOWN, null, null));
+        // 보류된 지 stale-after가 지났다: 이전 같은 키 요청은 이미 끝났으니 지금 받는 처리 중 409는 저장된 응답의 재생이다
+        confirmUntilKnown(booking, new Attempt(null, PaymentFailureKind.UNKNOWN, null, null, null), true);
     }
 
-    // 재요청은 반드시 조회로 미승인을 확인한 뒤에만 한다
-    private ResponseEntity<Object> confirmUntilKnown(Booking booking, Attempt first) {
+    // 재요청은 반드시 조회로 미승인을 확인한 뒤에만 한다. stale이면 이전 같은 키 요청이 끝난 지 오래다(스케줄러)
+    private ResponseEntity<Object> confirmUntilKnown(Booking booking, Attempt first, boolean stale) {
         String tossKey = booking.getTossIdempotencyKey();
         Attempt attempt = first;
+        Attempt beforeResend = null;
         boolean resent = false;
         int retries = 0;
         while (true) {
@@ -153,18 +155,21 @@ public class PaymentConfirmService {
                         return currentState(booking.getId());
                     }
                     retries++;
-                    if (resent && attempt.serverError()) {
-                        // D4: 같은 키가 첫 5xx만 재생한다. 미승인을 확인했으니 새 키로 보낸다(새 키는 한 서버만 정한다)
+                    if (resent && (attempt.serverError() || attempt.processing()
+                            && (stale || beforeResend.processing()))) {
+                        // D4: 같은 키가 첫 5xx나 처리 중 409만 재생한다. 미승인을 확인했으니 새 키로 보낸다(새 키는 한 서버만 정한다).
+                        // 409는 진짜 처리 중일 수 있어, 같은 키 재요청 전후 모두 409(또는 보류된 지 오래)일 때만 재생으로 본다
                         String newKey = UUID.randomUUID().toString();
                         if (!bookingStateWriter.reissueTossKey(booking.getId(), tossKey, newKey)) {
                             return currentState(booking.getId());
                         }
-                        log.warn("[PaymentConfirmService] 같은 Toss 키가 5xx를 재생해 새 키로 재승인: bookingId={}",
-                                booking.getId());
+                        log.warn("[PaymentConfirmService] 같은 Toss 키가 5xx·409를 재생해 새 키로 재승인: bookingId={}, "
+                                + "status={}", booking.getId(), attempt.httpStatus());
                         tossKey = newKey;
                         resent = false;
                     } else {
                         resent = true;
+                        beforeResend = attempt;
                     }
                     attempt = attempt(booking, tossKey);
                 }
@@ -180,12 +185,12 @@ public class PaymentConfirmService {
             return Attempt.of(paymentGateway.confirm(booking.getPaymentKey(), booking.getTossOrderId(),
                     booking.getChargeAmount(), tossKey));
         } catch (PaymentGatewayException e) {
-            return new Attempt(null, e.getKind(), e.getHttpStatus(), e.getProviderMessage());
+            return new Attempt(null, e.getKind(), e.getHttpStatus(), e.getCode(), e.getProviderMessage());
         } catch (RuntimeException e) {
             // 200 본문 해석 실패 등: 승인됐을 수 있으므로 결과를 모르는 것과 같게 조회로 확인한다
             log.warn("[PaymentConfirmService] Toss 승인 응답을 해석하지 못함(조회로 확인): bookingId={}",
                     booking.getId(), e);
-            return new Attempt(null, PaymentFailureKind.UNKNOWN, null, null);
+            return new Attempt(null, PaymentFailureKind.UNKNOWN, null, null, null);
         }
     }
 
@@ -267,15 +272,15 @@ public class PaymentConfirmService {
     }
 
     /**
-     * 승인 요청 1회의 결과. 성공이면 snapshot, 실패면 kind·httpStatus(응답 없으면 null)·결제사 안내 문구.
+     * 승인 요청 1회의 결과. 성공이면 snapshot, 실패면 kind·httpStatus(응답 없으면 null)·결제사 오류 code·안내 문구.
      */
-    private record Attempt(PaymentSnapshot snapshot, PaymentFailureKind kind, Integer httpStatus,
+    private record Attempt(PaymentSnapshot snapshot, PaymentFailureKind kind, Integer httpStatus, String code,
                            String providerMessage) {
 
         static Attempt of(PaymentSnapshot snapshot) {
             // 200이어도 DONE이 아니면 승인됐다고 보지 않는다(조회로 확인)
-            return snapshot.status() == PaymentStatus.DONE ? new Attempt(snapshot, null, 200, null)
-                    : new Attempt(null, PaymentFailureKind.UNKNOWN, 200, null);
+            return snapshot.status() == PaymentStatus.DONE ? new Attempt(snapshot, null, 200, null, null)
+                    : new Attempt(null, PaymentFailureKind.UNKNOWN, 200, null, null);
         }
 
         boolean approved() {
@@ -284,6 +289,11 @@ public class PaymentConfirmService {
 
         boolean serverError() {
             return httpStatus != null && httpStatus >= 500;
+        }
+
+        // 같은 키가 처리 중이라는 409. Toss가 이 응답을 키에 저장해 계속 재생하기도 한다(E2E Test-Code 실측)
+        boolean processing() {
+            return httpStatus != null && httpStatus == 409 && "IDEMPOTENT_REQUEST_PROCESSING".equals(code);
         }
     }
 }

@@ -347,6 +347,25 @@ class PaymentConfirmServiceTest {
     }
 
     @Test
+    void confirm_같은키409재생_조회IN_PROGRESS_새키로재승인() {
+        // D4 확장: Toss가 409 IDEMPOTENT_REQUEST_PROCESSING을 이 키에 저장해 계속 재생한다(E2E Test-Code 실측).
+        // 같은 키로 한 번 더 보내도 409이고 조회가 IN_PROGRESS면 새 키로 보낸다
+        TOSS.confirmSucceeds(real("A_145215-a8bd_02_confirm_k1.json"));
+        TOSS.enqueue("POST", FakeTossServer.CONFIRM_PATH, 409, real("G_145517-22fd_02_confirm_k1_concurrent_x.json"));
+        TOSS.enqueue("GET", PAYMENT_PATH, 200, real("A_145215-a8bd_01_get_before_confirm.json"));
+        TOSS.enqueue("GET", PAYMENT_PATH, 200, real("A_145215-a8bd_01_get_before_confirm.json"));
+
+        IdempotentResult<Object> result = paymentConfirmService.confirm(user, key, request(CHARGE_AMOUNT));
+
+        assertThat(freshBody(result, 202, BookingStatusResponse.class).status())
+                .isEqualTo(BookingStatus.PAYMENT_APPROVED);
+        String newKey = booking().getTossIdempotencyKey();
+        assertThat(newKey).isNotEqualTo(tossKey);
+        assertThat(confirmKeys()).containsExactly(tossKey, tossKey, newKey);
+        assertThat(TOSS.approvedCount()).isEqualTo(1);
+    }
+
+    @Test
     void confirm_새키재승인_ALREADY_PROCESSED_조회로DONE() {
         // 새 키 승인이 ALREADY_PROCESSED_PAYMENT면 그사이 승인된 것이다. 다시 조회로 확인한다(이중 청구 없음)
         TOSS.enqueue("POST", FakeTossServer.CONFIRM_PATH, 500, FAILED_INTERNAL);
