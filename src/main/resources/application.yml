@@ -51,10 +51,16 @@ spring:
   rabbitmq:
     username: ${RABBITMQ_USERNAME}
     password: ${RABBITMQ_PASSWORD}
+    # 가격 하락 이벤트는 브로커 확인(ack)을 받고 큐까지 라우팅된 뒤에만 최신가를 전진시킨다. 라우팅 실패는 ack와 함께
+    # return으로 오므로 mandatory로 받아 실패로 본다(메일 작업 발행에도 걸리지만 메일 큐는 항상 있다)
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
     listener:
       simple:
-        # 기본 팩토리(팬아웃 리스너)에서 리스너 밖으로 나온 예외는 재큐하지 않고 버린다. 팬아웃은 예외를 삼키므로 실제로는
-        # 역직렬화 실패만 해당한다. 메일 리스너는 전용 팩토리에서 따로 정한다
+        # 기본 팩토리에서 리스너 밖으로 나온 예외는 재큐하지 않고 버린다. 지금은 기본 팩토리를 쓰는 리스너가 없다.
+        # 팬아웃·메일 리스너는 전용 팩토리(재시도·DLQ)에서 따로 정한다
         default-requeue-rejected: false
 
   # Redis(Lettuce) 커넥션 풀 — 블로킹 BZPOPMIN은 전용 커넥션을 요구한다. 풀이 없으면 pop마다 커넥션을
@@ -130,6 +136,71 @@ fare-provider:
     # 업체 한도(실측 ratelimit-limit 30, 60초 고정 창). 응답 헤더가 이 값과 다르면 경고 로그를 남긴다.
     # 앱 호출 한도(업체 한도의 90%)와 비교하면 경고가 매번 뜨므로 업체 한도를 따로 둔다.
     expected-rate-limit: 30
+  # 예매(검색·재조회·주문) 전용. compose에서도 실제 Duffel 테스트 모드로 나간다(감시만 mock).
+  # 감시와 커넥션 풀을 나눠 감시 폭주가 사용자 예매를 막지 않게 한다.
+  duffel-booking:
+    base-url: https://api.duffel.com
+    # duffel_test_로 시작하지 않으면(비어 있어도) 기동 실패
+    api-key: ${DUFFEL_API_TOKEN:}
+    version: v2
+    # 검색 요청 쿼리 supplier_timeout. query-read-timeout은 이보다 길어야 한다
+    supplier-timeout: 10s
+    connect-timeout: 3s
+    # 검색·GET 응답 타임아웃(실측 최대 2.8s)
+    query-read-timeout: 15s
+    # hold 주문 응답 타임아웃(사용자가 기다리는 동기 경로)
+    hold-read-timeout: 30s
+    # hold 결제 응답 타임아웃(비동기 소비자). Duffel 권고: 주문·결제는 130초 이상
+    payment-read-timeout: 130s
+    max-connections: 10
+
+# 토스페이먼츠 결제 승인·조회. compose에서도 실제 Toss 테스트 모드로 나간다
+payment:
+  toss:
+    base-url: https://api.tosspayments.com
+    # 서버 전용. test_로 시작하지 않으면(비어 있어도) 기동 실패. 로그·응답에 남기지 않는다
+    secret-key: ${TOSS_SECRET_KEY:}
+    # 브라우저로 내려 주는 공개 키
+    client-key: ${TOSS_CLIENT_KEY:}
+    connect-timeout: 3s
+    # 승인·조회 응답 타임아웃(실측 승인 최대 1.04s)
+    confirm-read-timeout: 30s
+    # 승인 결과가 불명확할 때 조회로 미승인(IN_PROGRESS)을 확인한 뒤 요청 안에서 다시 보내는 최대 횟수(0.5s·1s 간격).
+    # 넘으면 PAYMENT_CONFIRMING으로 보류하고 202를 돌려준다(이후 확인은 스케줄러)
+    confirm-inline-retries: 2
+    # E2E 실패 주입(TossPayments-Test-Code 헤더). 테스트 키에서만, 비어 있으면 붙이지 않는다
+    test-code: ${TOSS_TEST_CODE:}
+
+booking:
+  # 고정 환율(1 USD당 원). 고객 결제 금액 = 업체 금액(USD) × 이 값, 원 단위 올림. hold 때 예매에 고정 저장한다
+  usd-to-krw-rate: 1400
+  # offer 만료까지 이보다 적게 남았으면 hold하지 않는다(409 OFFER_EXPIRED)
+  offer-expiry-buffer: 2m
+  # 예매를 허용하는 판매 항공사(offer owner). 실측으로 hold → 결제 → 발권을 확인한 Duffel Airways(ZZ)만 연다
+  allowed-owner-codes: [ZZ]
+  # 우리 API(구매·승인)의 Idempotency-Key
+  idempotency:
+    # PROCESSING인 채로 이보다 오래 갱신이 없으면 처리 서버가 죽은 것으로 보고 같은 키 재요청이 처리권을 가져간다(DB NOW(6) 기준)
+    stale-after: 2m
+  # Duffel hold 결제 큐(booking.duffel-payment) 소비자. 결제는 비동기라 동시 2면 충분하고, 블로킹 재시도 중 다른 메시지를
+  # 붙잡지 않게 prefetch 1. 재시도(1s → 2s → 4s)는 결제가 만들어지지 않았다고 확실한 실패(결제 전 조회 실패, 429·503·전송 전
+  # 실패)에만 일어난다. 결제를 보낸 뒤 결과를 모르면 재시도하지 않고 보류한다. 소진하면 booking.duffel-payment.dlq
+  consumer:
+    concurrency: 2
+    prefetch: 1
+    max-retries: 3
+    initial-interval: 1s
+  # 결제 명령 발행의 브로커 확인(confirm·라우팅) 대기 상한. 승인 응답 경로에서 기다리므로 짧게 둔다. 넘거나 라우팅되지
+  # 않으면 실패로 보고 WARN만 남긴다(승인은 커밋됐고, 멈춘 PAYMENT_APPROVED는 checker가 다시 발행한다). 정상 확인은 ms 단위
+  payment-publish:
+    confirm-timeout: 3s
+  # 결과를 모르는 채 멈춘 예매의 자동 확인(모든 서버에서 돈다, 판정은 DB NOW(6)). Duffel POST는 보내지 않는다
+  checker:
+    fixed-delay: 60s
+    # HOLD_REQUESTED·PAYMENT_CONFIRMING·PAYMENT_APPROVED가 이보다 오래 멈춰 있으면 조회·재승인·재발행
+    stale-after: 2m
+    # DUFFEL_PAYMENT_UNCONFIRMED는 이 시간이 지난 뒤부터 매 주기 읽기 조회만 한다(미결제여도 재결제하지 않는다)
+    quiet-period: 10m
 
 subscription:
   expiry:
@@ -180,6 +251,17 @@ mock:
     random-seed: 42
 
 notification:
+  price-drop:
+    # 가격 하락 이벤트의 브로커 확인 대기 상한. 넘으면 실패로 보고 최신가를 그대로 둔다(다음 주기에 다시 감지).
+    # 감시 주기(monitor.produce.fixed-rate-ms, 60초)보다 짧아야 한다: 길면 확인을 기다리는 동안 다음 주기가 같은 하락을
+    # 다시 발행한다. 정상 확인은 ms 단위라 10초면 충분하다
+    confirm-timeout: 10s
+  price-drop-fanout:
+    # 가격 하락 팬아웃 블로킹 재시도 (1s → 2s → 4s → 8s → 16s 기본, 총 31초). 구독자 조회(DB) 일시 장애를 흡수한다.
+    # 재시도 소진 시 price-drop-events.dlq. 루프 중간에 실패해 재시도하면 앞 구독자에게 메일 작업이 다시 발행된다(중복 감수)
+    retry:
+      max-retries: ${PRICE_DROP_FANOUT_MAX_RETRIES:5}
+      initial-interval-ms: ${PRICE_DROP_FANOUT_RETRY_INITIAL_INTERVAL_MS:1000}
   # 메일 작업 큐(RabbitMQ email-send-tasks) 소비자. 소비자마다 블로킹 재시도를 하므로 prefetch는 1로 둔다
   email-task:
     concurrency: 50

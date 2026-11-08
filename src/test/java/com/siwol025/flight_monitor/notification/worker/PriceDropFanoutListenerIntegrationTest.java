@@ -70,7 +70,7 @@ class PriceDropFanoutListenerIntegrationTest {
         persistSubscription("expired", economy, null, null).updateStatus(SubscriptionStatus.EXPIRED);
         em.flush();
 
-        listener.processNotification(priceDrop(economy.getId()));
+        listener.processNotification(priceDrop(economy.getId()), null);
 
         ArgumentCaptor<Object> tasks = ArgumentCaptor.forClass(Object.class);
         verify(rabbitTemplate, times(2)).convertAndSend(eq("notification"), eq("email-send-tasks"), tasks.capture());

@@ -1,0 +1,16 @@
+{
+  "errors": [
+    {
+      "documentation_url": "https://duffel.com/docs/api/overview/response-handling",
+      "source": "duffel_airways",
+      "title": "Requested offer is no longer available",
+      "type": "airline_error",
+      "message": "Please select another offer, or create a new offer request to get the latest availability.",
+      "code": "offer_no_longer_available"
+    }
+  ],
+  "meta": {
+    "request_id": "GOUBDY78pg3gHLwAEk-X",
+    "status": 422
+  }
+}

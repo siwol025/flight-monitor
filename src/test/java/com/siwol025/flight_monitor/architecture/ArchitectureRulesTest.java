@@ -25,6 +25,39 @@ class ArchitectureRulesTest {
     }
 
     @Test
+    void toss어댑터타입은_어댑터패키지밖에서_참조되지않음() {
+        noClasses().that().resideOutsideOfPackage("..payment.adapter.toss..")
+                .should().dependOnClassesThat().resideInAPackage("..payment.adapter.toss..")
+                .check(PRODUCTION_CLASSES);
+    }
+
+    @Test
+    void payment는_다른도메인패키지에_의존하지않음() {
+        // 결제사 포트는 예매 어휘를 모른다. global(예외·설정)은 허용
+        noClasses().that().resideInAPackage("com.siwol025.flight_monitor.payment..")
+                .should().dependOnClassesThat().resideInAnyPackage(
+                        "com.siwol025.flight_monitor.booking..",
+                        "com.siwol025.flight_monitor.fare..",
+                        "com.siwol025.flight_monitor.route..",
+                        "com.siwol025.flight_monitor.subscription..",
+                        "com.siwol025.flight_monitor.monitor..",
+                        "com.siwol025.flight_monitor.notification..",
+                        "com.siwol025.flight_monitor.mock..",
+                        "com.siwol025.flight_monitor.user..",
+                        "com.siwol025.flight_monitor.auth..")
+                .check(PRODUCTION_CLASSES);
+    }
+
+    @Test
+    void payment는_booking만_사용함() {
+        noClasses().that().resideOutsideOfPackages(
+                        "com.siwol025.flight_monitor.payment..",
+                        "com.siwol025.flight_monitor.booking..")
+                .should().dependOnClassesThat().resideInAPackage("com.siwol025.flight_monitor.payment..")
+                .check(PRODUCTION_CLASSES);
+    }
+
+    @Test
     void mock밖에서_mock패키지를_import하지않음() {
         noClasses().that().resideOutsideOfPackage("com.siwol025.flight_monitor.mock..")
                 .should().dependOnClassesThat().resideInAPackage("com.siwol025.flight_monitor.mock..")

@@ -73,7 +73,9 @@ class RateLimiterSettingsTest {
                 "MONITOR_RATELIMITER_PERIOD", "1s",
                 "MONITOR_RATELIMITER_INSTANCES", "3",
                 "MONITOR_BACKPRESSURE_MAX_IN_FLIGHT", "100",
-                "MONITOR_HTTP_MAX_CONNECTIONS", "100"))
+                "MONITOR_HTTP_MAX_CONNECTIONS", "100",
+                // 같은 설정 클래스의 예매 클라이언트는 테스트 모드 키가 있어야 기동한다(배포 환경도 이 변수로 준다)
+                "DUFFEL_API_TOKEN", "duffel_test_token"))
                 .run(context -> {
                     assertThat(context).hasNotFailed();
                     assertThat(context.getBean(RateLimiterProperties.class))

@@ -4,24 +4,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 import com.siwol025.flight_monitor.FlightMonitorApplication;
+import com.siwol025.flight_monitor.support.ComposeMysql;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationInfo;
 import org.flywaydb.core.api.callback.Callback;
@@ -43,20 +37,15 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.PropertySource;
 import org.springframework.core.io.FileSystemResource;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
-import org.yaml.snakeyaml.Yaml;
 
 /**
  * 스키마 마이그레이션(Flyway)을 compose와 같은 MySQL로 검사한다: 빈 DB에 기준선을 적용하고 엔티티 검증(ddl-auto=validate)으로
  * 기동한다.
  *
- * <p>MySQL은 docker-compose.yml의 mysql 정의(이미지·entrypoint·environment)를 그대로 읽어 GenericContainer로 띄운다.
- * Testcontainers의 MySQLContainer를 쓰지 않는 이유: 준비 확인 때 같은 사용자로 먼저 로그인(allowPublicKeyRetrieval)해
- * 서버에 비밀번호가 캐시되므로, 앱의 첫 로그인이 실패하는 설정(useSSL=false → "Public Key Retrieval is not allowed")도
- * 통과해 버린다(실측). compose에는 그런 선 로그인이 없다.</p>
+ * <p>MySQL은 docker-compose.yml의 mysql 정의(이미지·entrypoint·environment)를 그대로 읽어 GenericContainer로 띄운다
+ * ({@link ComposeMysql}).</p>
  *
  * <p>앱 쪽은 영속 계층 자동 설정(DataSource·Flyway·Hibernate)만 기동하고, 설정은 메인 application.yml과
  * application-docker.yml을 파일로 읽어 실제 배포 값(URL 파라미터, ddl-auto=validate)을 쓴다.</p>
@@ -66,15 +55,15 @@ class DatabaseSchemaMigrationTest {
 
     // 가짜 자격 증명(.env 값이 아니다). compose에서는 .env의 DB_USERNAME·DB_PASSWORD가 들어간다
     private static final String APP_USER = "flight_app";
-    private static final String DB_PASSWORD = "test-only-password";
-    private static final String DATABASE = "flight_monitor";
+    private static final String DB_PASSWORD = ComposeMysql.DB_PASSWORD;
+    private static final String DATABASE = ComposeMysql.DATABASE;
 
     // 자격 증명 변형마다 컨테이너 하나(이미지 초기화 경로가 다르다). 테스트 사이에는 DATABASE만 다시 만든다
     @Container
-    private static final GenericContainer<?> APP_USER_DB = composeMysql(APP_USER);
+    private static final GenericContainer<?> APP_USER_DB = ComposeMysql.container(APP_USER);
     // .env의 DB_USERNAME이 root인 경우: 이미지는 MYSQL_USER=root를 거부하므로 compose entrypoint가 root 비밀번호만 둔다
     @Container
-    private static final GenericContainer<?> ROOT_USER_DB = composeMysql("root");
+    private static final GenericContainer<?> ROOT_USER_DB = ComposeMysql.container("root");
 
     @BeforeEach
     void emptyDatabase() {
@@ -87,7 +76,7 @@ class DatabaseSchemaMigrationTest {
     void 스키마_빈DB에Flyway적용후_엔티티검증통과(String username) {
         app(database(username), username).run(context -> {
             assertThat(context).hasNotFailed();
-            assertThat(appliedMigrations(context)).containsExactly("1:SUCCESS", "2:SUCCESS");
+            assertThat(appliedMigrations(context)).containsExactly("1:SUCCESS", "2:SUCCESS", "3:SUCCESS");
         });
     }
 
@@ -98,7 +87,7 @@ class DatabaseSchemaMigrationTest {
         // 이미 적용된 기준선은 이력으로 알아보고 다시 돌리지 않는다(다시 돌리면 CREATE TABLE이 "이미 있음"으로 실패한다)
         app(APP_USER_DB, APP_USER).run(context -> {
             assertThat(context).hasNotFailed();
-            assertThat(appliedMigrations(context)).containsExactly("1:SUCCESS", "2:SUCCESS");
+            assertThat(appliedMigrations(context)).containsExactly("1:SUCCESS", "2:SUCCESS", "3:SUCCESS");
         });
     }
 
@@ -108,7 +97,7 @@ class DatabaseSchemaMigrationTest {
         // 기준선 적용은 수백 ms라 다른 인스턴스의 기동보다 빨리 끝나 겹치지 않을 수 있다. 적용하는 쪽을 잠깐 붙잡아 반드시 겹치게 한다
         Runnable instance = () -> app(APP_USER_DB, APP_USER).withBean(SlowMigration.class).run(context -> {
             assertThat(context).hasNotFailed();
-            assertThat(appliedMigrations(context)).containsExactly("1:SUCCESS", "2:SUCCESS");
+            assertThat(appliedMigrations(context)).containsExactly("1:SUCCESS", "2:SUCCESS", "3:SUCCESS");
         });
 
         CompletableFuture<Void> app = CompletableFuture.runAsync(instance);
@@ -133,54 +122,33 @@ class DatabaseSchemaMigrationTest {
         assertThat(query(APP_USER_DB, "SELECT email FROM users")).containsExactly("kept@test.com");
     }
 
+    @Test
+    void 기존행_TICKETED() {
+        // 간소화 예매(V2)의 mock 즉시 주문 내역이 있는 DB에 예매 상태를 추가한다. V2까지는 지금 엔티티와 맞지 않아 검증을 끈다
+        app(APP_USER_DB, APP_USER).withPropertyValues("spring.flyway.target=2", "spring.jpa.hibernate.ddl-auto=none")
+                .run(context -> assertThat(context).hasNotFailed());
+        execute(APP_USER_DB,
+                "INSERT INTO users (id, email, provider, provider_id, user_role) VALUES (1, 'u@test.com', 'GOOGLE', 'g1', 'USER')",
+                """
+                INSERT INTO bookings (user_id, offer_id, provider_order_id, booking_reference, departure_airport,
+                    arrival_airport, departure_date, seat_grade, carrier_code, carrier_name, flight_number, departing_at,
+                    arriving_at, amount, currency, passenger_title, given_name, family_name, passenger_gender, born_on,
+                    email, phone_number, created_at)
+                VALUES (1, 'off_1', 'ord_1', '000001', 'ICN', 'NRT', '2026-11-26', 'ECONOMY', 'ZZ', 'Duffel Airways',
+                    '1001', '2026-11-26 09:00:00', '2026-11-26 11:20:00', 250000.00, 'USD', 'MR', 'Gildong', 'Hong', 'M',
+                    '1990-01-01', 'p@test.com', '+821012345678', NOW(6))
+                """);
+
+        app(APP_USER_DB, APP_USER).run(context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(appliedMigrations(context)).containsExactly("1:SUCCESS", "2:SUCCESS", "3:SUCCESS");
+        });
+
+        assertThat(query(APP_USER_DB, "SELECT status FROM bookings")).containsExactly("TICKETED");
+    }
+
     private static GenericContainer<?> database(String username) {
         return "root".equals(username) ? ROOT_USER_DB : APP_USER_DB;
-    }
-
-    /**
-     * compose의 mysql 서비스 정의 그대로 띄운 MySQL. compose가 프로젝트의 .env로 하는 보간(${DB_USERNAME} 등)을
-     * 테스트의 가짜 자격 증명으로 한다. 정의에 없는 값은 넣지 않는다(컨테이너가 받는 환경은 compose와 같다)
-     */
-    @SuppressWarnings("unchecked")
-    private static GenericContainer<?> composeMysql(String username) {
-        Map<String, String> dotEnv = Map.of("DB_USERNAME", username, "DB_PASSWORD", DB_PASSWORD);
-        Map<String, Object> service = composeService("mysql");
-        String[] entrypoint = ((List<String>) service.get("entrypoint")).stream()
-                .map(part -> interpolate(part, dotEnv))
-                .toArray(String[]::new);
-        GenericContainer<?> container = new GenericContainer<>(DockerImageName.parse((String) service.get("image")))
-                .withExposedPorts(3306)
-                .withCreateContainerCmdModifier(cmd -> cmd.withEntrypoint(entrypoint))
-                // 초기화용 임시 서버(port: 0)가 아니라 실제 서버가 뜬 뒤
-                .waitingFor(Wait.forLogMessage(".*ready for connections.*port: 3306.*", 1)
-                        .withStartupTimeout(Duration.ofMinutes(2)));
-        ((Map<String, Object>) service.get("environment"))
-                .forEach((key, value) -> container.withEnv(key, interpolate(String.valueOf(value), dotEnv)));
-        return container;
-    }
-
-    /** compose 보간: ${NAME}·${NAME:?…} 등은 .env 값으로, $$는 문자 $(컨테이너 셸이 펼친다) */
-    private static String interpolate(String value, Map<String, String> dotEnv) {
-        return Pattern.compile("\\$\\$|\\$\\{(\\w+)[^}]*}").matcher(value).replaceAll(match -> {
-            if (match.group().equals("$$")) {
-                return Matcher.quoteReplacement("$");
-            }
-            String resolved = dotEnv.get(match.group(1));
-            if (resolved == null) {
-                throw new IllegalStateException("테스트가 모르는 compose 변수: " + match.group(1));
-            }
-            return Matcher.quoteReplacement(resolved);
-        });
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Map<String, Object> composeService(String name) {
-        try (InputStream in = Files.newInputStream(Path.of("docker-compose.yml"))) {
-            Map<String, Object> compose = new Yaml().load(in);
-            return (Map<String, Object>) ((Map<String, Object>) compose.get("services")).get(name);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
     }
 
     /** 앱의 영속 계층(DataSource → Flyway → Hibernate validate)을 docker 프로필 설정으로 이 DB에 붙여 기동한다 */

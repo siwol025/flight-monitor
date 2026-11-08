@@ -2,6 +2,7 @@ package com.siwol025.flight_monitor.fare.adapter.duffel;
 
 import com.siwol025.flight_monitor.fare.LowestFareFinder;
 import java.time.Clock;
+import java.time.Duration;
 import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
@@ -26,7 +27,7 @@ import org.springframework.web.client.RestClient;
  * 커넥션 풀은 이 클라이언트가 소유하며 컨텍스트 종료 때 클라이언트와 함께 닫힌다.</p>
  */
 @Configuration
-@EnableConfigurationProperties(DuffelProperties.class)
+@EnableConfigurationProperties({DuffelProperties.class, DuffelBookingProperties.class})
 public class DuffelHttpClientConfig {
 
     /**
@@ -59,29 +60,76 @@ public class DuffelHttpClientConfig {
                 .build();
     }
 
-    // 인스턴스 하나가 FlightOfferFinder·FlightOrderPlacer 두 포트로 주입된다(반환형이 구현 타입이라 두 타입으로 찾힘)
+    /**
+     * 예매 전용 HTTP 클라이언트. 감시와 커넥션 풀을 나눠 감시 폭주가 사용자 예매를 막지 않게 한다.
+     * 예매는 실제 업체에 주문·결제를 보내므로 테스트 모드 키(duffel_test_)가 아니면 기동하지 않는다.
+     */
+    @Bean(defaultCandidate = false)
+    public CloseableHttpClient duffelBookingHttpClient(DuffelBookingProperties properties) {
+        String apiKey = properties.getApiKey();
+        if (apiKey == null || !apiKey.startsWith("duffel_test_")) {
+            throw new IllegalStateException(
+                    "fare-provider.duffel-booking.api-key는 Duffel 테스트 모드 키(duffel_test_)여야 합니다.");
+        }
+        return HttpClients.custom()
+                .setConnectionManager(PoolingHttpClientConnectionManagerBuilder.create()
+                        .setMaxConnTotal(properties.getMaxConnections())
+                        .setMaxConnPerRoute(properties.getMaxConnections())
+                        .setDefaultConnectionConfig(ConnectionConfig.custom()
+                                .setConnectTimeout(Timeout.of(properties.getConnectTimeout()))
+                                .build())
+                        .build())
+                .setDefaultRequestConfig(RequestConfig.custom()
+                        .setResponseTimeout(Timeout.of(properties.getQueryReadTimeout()))
+                        .build())
+                // 기본 재시도 전략은 429·503에 POST(hold 주문·결제)도 다시 보낸다. 재요청 여부는 호출한 쪽이 정한다
+                .disableAutomaticRetries()
+                .build();
+    }
+
+    // 인스턴스 하나가 FlightOfferFinder·FlightOrderGateway 두 포트로 주입된다(반환형이 구현 타입이라 각 타입으로 찾힘)
+    // 조회·hold·결제는 같은 커넥션 풀을 쓰고 응답 타임아웃만 다르다
     @Bean
     DuffelFlightBookingClient duffelFlightBookingClient(
-            @Qualifier("duffelHttpClient") CloseableHttpClient duffelHttpClient,
-            DuffelProperties properties, ObjectProvider<Clock> clock) {
-        return new DuffelFlightBookingClient(restClient(duffelHttpClient, properties), properties,
-                clock.getIfAvailable(Clock::systemUTC));
+            @Qualifier("duffelBookingHttpClient") CloseableHttpClient duffelBookingHttpClient,
+            DuffelBookingProperties properties, ObjectProvider<Clock> clock) {
+        return new DuffelFlightBookingClient(
+                restClient(duffelBookingHttpClient, properties.getBaseUrl(), properties.getApiKey(),
+                        properties.getVersion()),
+                restClient(duffelBookingHttpClient, properties, properties.getHoldReadTimeout()),
+                restClient(duffelBookingHttpClient, properties, properties.getPaymentReadTimeout()),
+                properties, clock.getIfAvailable(Clock::systemUTC));
     }
 
     @Bean
     public LowestFareFinder lowestFareFinder(@Qualifier("duffelHttpClient") CloseableHttpClient duffelHttpClient,
                                              DuffelProperties properties, ObjectProvider<Clock> clock) {
-        return new DuffelLowestFareFinder(restClient(duffelHttpClient, properties), properties,
-                clock.getIfAvailable(Clock::systemUTC));
+        return new DuffelLowestFareFinder(
+                restClient(duffelHttpClient, properties.getBaseUrl(), properties.getApiKey(), properties.getVersion()),
+                properties, clock.getIfAvailable(Clock::systemUTC));
     }
 
-    // 감시와 예매 어댑터가 같은 커넥션 풀·인증 헤더를 쓴다
-    private static RestClient restClient(CloseableHttpClient duffelHttpClient, DuffelProperties properties) {
+    // 감시와 예매 어댑터는 각자의 커넥션 풀·업체 주소·인증 헤더를 쓴다
+    private static RestClient restClient(CloseableHttpClient httpClient, String baseUrl, String apiKey,
+                                         String version) {
+        return restClient(baseUrl, apiKey, version, new HttpComponentsClientHttpRequestFactory(httpClient));
+    }
+
+    private static RestClient restClient(String baseUrl, String apiKey, String version,
+                                         HttpComponentsClientHttpRequestFactory requestFactory) {
         return RestClient.builder()
-                .baseUrl(properties.getBaseUrl())
-                .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + properties.getApiKey())
-                .defaultHeader("Duffel-Version", properties.getVersion())
-                .requestFactory(new HttpComponentsClientHttpRequestFactory(duffelHttpClient))
+                .baseUrl(baseUrl)
+                .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
+                .defaultHeader("Duffel-Version", version)
+                .requestFactory(requestFactory)
                 .build();
+    }
+
+    // 클라이언트 기본 응답 타임아웃 대신 이 값으로 응답을 기다리는 예매 클라이언트
+    private static RestClient restClient(CloseableHttpClient httpClient, DuffelBookingProperties properties,
+                                         Duration readTimeout) {
+        HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory(httpClient);
+        requestFactory.setReadTimeout(readTimeout);
+        return restClient(properties.getBaseUrl(), properties.getApiKey(), properties.getVersion(), requestFactory);
     }
 }

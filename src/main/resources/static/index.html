@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>항공권 검색</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<h1>항공권 검색</h1>
+
+<fieldset>
+  <legend>로그인 토큰</legend>
+  <p class="muted">access 토큰(JWT)을 붙여넣으세요. <code>POST /api/login/google</code> 응답의 <code>accessToken</code>,
+    또는 서버 <code>JWT_SECRET</code>으로 서명한 access 토큰(클레임 <code>userId</code>, <code>type=access</code>)입니다.
+    브라우저 localStorage에만 저장합니다.</p>
+  <input id="token" type="password" size="60" placeholder="eyJ...">
+  <button id="saveToken">저장</button>
+  <button id="clearToken">지우기</button>
+</fieldset>
+
+<form id="searchForm">
+  <label>출발 <input id="departureAirport" required maxlength="3" size="4" value="JFK"></label>
+  <label>도착 <input id="arrivalAirport" required maxlength="3" size="4" value="EWR"></label>
+  <label>출발일 <input id="departureDate" type="date" required></label>
+  <label>좌석
+    <select id="seatGrade">
+      <option>ECONOMY</option>
+      <option>BUSINESS</option>
+      <option>FIRST</option>
+    </select>
+  </label>
+  <button id="searchBtn" type="submit">검색</button>
+</form>
+
+<div id="msg" class="msg"></div>
+<table id="results" hidden>
+  <thead><tr><th>항공편</th><th>출발</th><th>도착</th><th>업체 금액</th><th>원화 예상</th><th></th></tr></thead>
+  <tbody></tbody>
+</table>
+
+<script src="/app.js"></script>
+<script>
+renderNav();
+const tomorrow = new Date(Date.now() + 7 * 86400000);
+$("departureDate").value = tomorrow.toISOString().slice(0, 10);
+
+$("saveToken").addEventListener("click", () => {
+  if (!$("token").value.trim()) return;
+  setToken($("token").value);
+  $("token").value = "";
+  location.reload();
+});
+$("clearToken").addEventListener("click", () => {
+  clearToken();
+  location.reload();
+});
+
+$("searchForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!getToken()) {
+    showMessage("먼저 토큰을 저장해 주세요.", "error");
+    return;
+  }
+  const params = new URLSearchParams({
+    departureAirport: $("departureAirport").value.trim().toUpperCase(),
+    arrivalAirport: $("arrivalAirport").value.trim().toUpperCase(),
+    departureDate: $("departureDate").value,
+    seatGrade: $("seatGrade").value,
+  });
+  $("searchBtn").disabled = true;
+  showMessage("검색 중…");
+  $("results").hidden = true;
+  try {
+    const offers = await apiGet("/api/flights/offers?" + params);
+    renderOffers(offers);
+    showMessage(offers.length ? `${offers.length}건` : "검색 결과가 없습니다.");
+  } catch (e) {
+    showError(e);
+  } finally {
+    $("searchBtn").disabled = false;
+  }
+});
+
+function renderOffers(offers) {
+  const rows = offers.map((o) => `<tr>
+    <td>${escapeHtml(o.carrierName)} ${escapeHtml(o.carrierCode)}${escapeHtml(o.flightNumber)}</td>
+    <td>${escapeHtml(o.departureAirport)} ${escapeHtml(o.departingAt)}</td>
+    <td>${escapeHtml(o.arrivalAirport)} ${escapeHtml(o.arrivingAt)}</td>
+    <td>${escapeHtml(o.amount)} ${escapeHtml(o.currency)}</td>
+    <td>${formatKrw(o.estimatedChargeAmount)}</td>
+    <td>${o.bookable
+      ? `<a href="/checkout.html?offerId=${encodeURIComponent(o.offerId)}">예매</a>`
+      : `<span class="muted">예매 불가</span>`}</td>
+  </tr>`);
+  document.querySelector("#results tbody").innerHTML = rows.join("");
+  $("results").hidden = offers.length === 0;
+}
+</script>
+</body>
+</html>

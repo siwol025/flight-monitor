@@ -12,6 +12,12 @@ spring:
   # Flyway 기준선은 DatabaseSchemaMigrationTest가 compose와 같은 MySQL로 검사한다
   flyway:
     enabled: false
+  # 운영 설정과 같게 둔다(application.yml 참고): 가격 하락 이벤트는 브로커 확인·라우팅 뒤에만 최신가를 전진시킨다
+  rabbitmq:
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
 
 monitor:
   consumer:
@@ -26,6 +32,16 @@ fare-provider:
   duffel:
     # 테스트가 실제 업체로 나가지 않게 한다(.invalid는 절대 해석되지 않는 예약 도메인)
     base-url: http://duffel.invalid
+  duffel-booking:
+    base-url: http://duffel.invalid
+    # 테스트 모드 키가 아니면 기동하지 않으므로 형식만 맞춘 가짜 키
+    api-key: duffel_test_dummy
+
+payment:
+  toss:
+    base-url: http://toss.invalid
+    # 테스트 키가 아니면 기동하지 않으므로 형식만 맞춘 가짜 키
+    secret-key: test_sk_dummy
 
 resilience4j:
   circuitbreaker:

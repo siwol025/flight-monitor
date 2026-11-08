@@ -3,11 +3,12 @@ package com.siwol025.flight_monitor.fare.adapter.duffel;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * POST /air/offer_requests 응답 중 최저가 선택·항공권 목록에 쓰는 필드만. 실제 응답에는 쓰지 않는 필드가 많으므로
+ * POST /air/offer_requests 응답 중 최저가 선택·항공권 목록·주문 조건에 쓰는 필드만. 실제 응답에는 쓰지 않는 필드가 많으므로
  * 모든 단계에서 모르는 필드를 무시한다.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -21,7 +22,19 @@ record OfferRequestResponse(Data data) {
     record Offer(String id,
                  @JsonProperty("total_amount") BigDecimal totalAmount,
                  @JsonProperty("total_currency") String totalCurrency,
-                 List<Slice> slices) {
+                 List<Slice> slices,
+                 List<OfferPassenger> passengers,
+                 @JsonProperty("payment_requirements") PaymentRequirements paymentRequirements,
+                 @JsonProperty("expires_at") Instant expiresAt,
+                 Carrier owner) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record OfferPassenger(String id) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record PaymentRequirements(@JsonProperty("requires_instant_payment") boolean requiresInstantPayment) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
