@@ -190,6 +190,10 @@ booking:
     prefetch: 1
     max-retries: 3
     initial-interval: 1s
+  # 결제 명령 발행의 브로커 확인(confirm·라우팅) 대기 상한. 승인 응답 경로에서 기다리므로 짧게 둔다. 넘거나 라우팅되지
+  # 않으면 실패로 보고 WARN만 남긴다(승인은 커밋됐고, 멈춘 PAYMENT_APPROVED는 checker가 다시 발행한다). 정상 확인은 ms 단위
+  payment-publish:
+    confirm-timeout: 3s
   # 결과를 모르는 채 멈춘 예매의 자동 확인(모든 서버에서 돈다, 판정은 DB NOW(6)). Duffel POST는 보내지 않는다
   checker:
     fixed-delay: 60s
