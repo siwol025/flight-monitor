@@ -51,9 +51,11 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -110,6 +112,11 @@ class BookingStatusCheckerTest {
         registry.add("fare-provider.duffel-booking.base-url", DUFFEL::baseUrl);
         registry.add("payment.toss.base-url", TOSS::baseUrl);
     }
+
+    // 앱의 @EnableScheduling이 이 컨텍스트에도 걸려, 실제 스케줄러면 기동 직후 check()가 백그라운드에서 한 번 돌아 테스트의
+    // check()와 업체 가짜 응답을 다툰다. 아무것도 실행하지 않는 스케줄러로 바꿔 check()는 테스트가 부를 때만 돈다
+    @MockitoBean
+    private TaskScheduler taskScheduler;
 
     @Autowired
     private BookingStatusChecker checker;
