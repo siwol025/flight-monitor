@@ -61,7 +61,8 @@ public class TaskQueueManager {
         taskQueueConsumerManager.markFallbackTaskExists();
     }
 
-    @CircuitBreaker(name = "redisPushCircuitBreaker", fallbackMethod = "fallbackGetQueueSizeSafely")
+    // 게이지 조회 실패가 발행 서킷의 '연속 2번 실패'에 섞이지 않도록 별도 서킷을 쓴다
+    @CircuitBreaker(name = "redisQueueSizeCircuitBreaker", fallbackMethod = "fallbackGetQueueSizeSafely")
     public Long getQueueSizeSafely() {
         return redisTemplate.opsForZSet().zCard(ROUTE_QUEUE_KEY);
     }

@@ -85,7 +85,7 @@ monitor:
   worker:
     count: 3
   consumer:
-    # 블로킹 BZPOPMIN 타임아웃(초). redisPopCircuitBreaker.slowCallDurationThreshold(5s) 보다 엄격히 작아야 한다
+    # 블로킹 BZPOPMIN 타임아웃(초). redisPopCircuitBreaker.slowCallDurationThreshold(3.5s) 보다 엄격히 작아야 한다
     # — 그래야 큐가 비었을 때 정상적으로 타임아웃까지 블로킹된 BZPOPMIN 이 "느린 호출"로 오분류되지 않는다.
     # RedisPopCircuitBreakerConsistencyValidator 가 기동 시 fail-fast 로 가드.
     block-pop-timeout-seconds: 3
@@ -284,37 +284,53 @@ google:
 resilience4j:
   circuitbreaker:
     instances:
-      # Producer(Push) 전용
+      # Producer(Push) 전용. 발행은 주기마다 청크로 묶어 몇 번만 호출하는 배치라 호출 횟수로 판단한다
       redisPushCircuitBreaker:
-        # 최근 호출 횟수 기준으로 판단
         slidingWindowType: COUNT_BASED
-        # 최근 2번의 요청 결과를 저장 (성공/실패 여부 기억)
+        # 최근 2번이 모두 실패하면(연속 2번 실패) OPEN. 일시적인 끊김 1번에는 열지 않고, 사이에 성공이 끼면 닫힌 채 둔다
         slidingWindowSize: 2
-        # 최소 1번만 호출돼도 실패율 계산 시작 (호출 수가 적음)
-        minimumNumberOfCalls: 1
-        # 실패율이 100%면 OPEN (즉, 최근 호출이 실패하면 바로 OPEN)
+        minimumNumberOfCalls: 2
         failureRateThreshold: 100
-        # OPEN 상태가 되면 30초 동안 Redis 접근 차단
+        # 열리면 남은 청크는 Redis를 거치지 않고 바로 DB로 보낸다. 발행 주기(1분)보다 짧기만 하면 다음 주기 첫 발행이
+        # HALF_OPEN 확인 호출이 되어 Redis 복구를 확인한다
         waitDurationInOpenState: 30s
-        # HALF_OPEN 상태에서 1건만 테스트 요청 허용
         permittedNumberOfCallsInHalfOpenState: 1
+        # Redis가 응답하지 않거나(명령 시간 초과) 연결이 안 될 때만 실패로 센다. 그 밖의 Redis 오류는 장애가 아니다
+        recordExceptions:
+          - org.springframework.dao.QueryTimeoutException
+          - org.springframework.data.redis.RedisConnectionFailureException
+
+      # 큐 길이 게이지(QueueDepthGaugeRegistrar) 전용. 발행 서킷과 나눠, 게이지 조회 실패가 발행 서킷의
+      # '연속 2번 실패'에 섞이지 않게 한다. 기준은 발행 서킷과 같다
+      redisQueueSizeCircuitBreaker:
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 2
+        minimumNumberOfCalls: 2
+        failureRateThreshold: 100
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 1
+        recordExceptions:
+          - org.springframework.dao.QueryTimeoutException
+          - org.springframework.data.redis.RedisConnectionFailureException
 
       # Consumer(Pop) 전용
       redisPopCircuitBreaker:
-        # Pop은 실시간으로 계속 호출되는 고빈도 작업이기 때문에 시간 기준으로 통계 계산
+        # Pop은 워커가 쉬지 않고 이어 호출하는 단건 작업이라 시간 기준으로 통계 계산
         slidingWindowType: TIME_BASED
-        # 최근 20초간의 요청 상태를 기준으로 판단
-        slidingWindowSize: 20
-        # 최소 20건 이상 호출되어야 실패율 계산 시작
-        minimumNumberOfCalls: 20
+        # Redis가 응답을 멈추면 호출 1번에 최대 약 5초(명령 타임아웃 4초 + 폴백 대기 1초)가 걸려 워커 1개가 15초에
+        # 약 3번 호출한다. 그래서 구간을 15초로, 최소 호출을 워커당 2건(2 × monitor.worker.count 3 = 6)으로 둬야
+        # 응답이 멈춘 경우에도 약 10초 안에 판단을 시작한다. 워커 수를 바꾸면 이 값도 같이 바꾼다
+        slidingWindowSize: 15
+        minimumNumberOfCalls: 6
         # 실패율이 30% 넘으면 OPEN
         failureRateThreshold: 30
         # 느린 요청 비율이 40% 넘으면 OPEN
         slowCallRateThreshold: 40
         # 느린 요청 판정 임계. block-pop 타임아웃(3s)보다 커야 한다 — 정상적으로 서버 타임아웃까지 블로킹된
         # BZPOPMIN 을 느린 호출로 세지 않도록(서버 타임아웃을 넘어선 실제 클라이언트 측 정체만 서킷을 연다).
+        # 명령 타임아웃(4초)보다는 짧아야 응답이 멈춘 호출을 느린 호출로 센다.
         # RedisPopCircuitBreakerConsistencyValidator 가 가드.
-        slowCallDurationThreshold: 5s
+        slowCallDurationThreshold: 3500ms
         # OPEN 상태가 되면 5초 동안 Redis 접근 차단
         waitDurationInOpenState: 5s
         # HALF_OPEN 상태에서 5건만 테스트 요청 허용
